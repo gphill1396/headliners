@@ -22,15 +22,17 @@ interface Props {
   selected?: boolean;
   affordable?: boolean;
   large?: boolean;
+  /** Highlighted by the soundcheck coach. */
+  coach?: boolean;
   onSelect?: () => void;
 }
 
 /** A card in the hand (compact) or in a card pick (large, with rules text). */
-export function CardTile({ def, selected = false, affordable = true, large = false, onSelect }: Props) {
+export function CardTile({ def, selected = false, affordable = true, large = false, coach = false, onSelect }: Props) {
   return (
     <button
       type="button"
-      className={`card${selected ? ' selected' : ''}${affordable ? '' : ' poor'}${large ? ' large' : ''}`}
+      className={`card${selected ? ' selected' : ''}${affordable ? '' : ' poor'}${large ? ' large' : ''}${coach ? ' coach' : ''}`}
       style={{ ['--accent' as string]: cardAccent(def) }}
       onPointerDown={(e) => {
         e.preventDefault();
@@ -42,8 +44,8 @@ export function CardTile({ def, selected = false, affordable = true, large = fal
       <span className="card-cost">{def.cost}</span>
       {def.headliner && <span className="card-sig" title="Thrum signature card" />}
       <span className="card-name">{def.name}</span>
-      {large && <span className="card-text">{def.text}</span>}
-      <span className="card-type">{TYPE_LABEL[def.type]}</span>
+      {large ? <span className="card-text">{def.text}</span> : <span className="card-short">{def.short}</span>}
+      {large && <span className="card-type">{TYPE_LABEL[def.type]}</span>}
     </button>
   );
 }

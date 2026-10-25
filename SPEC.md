@@ -274,7 +274,7 @@ Each enemy type exists to demand a different answer.
 
 ## 8. Audio, haptics, visuals
 
-- **Sound off by default is fully playable.** Every audio cue has a visual equivalent.
+- **Fully playable with sound off** (silent switch or setting). Every audio cue has a visual equivalent. Sound is on by default.
 - **Sound on adds:**
   - A synthesized drum loop locked to the beat clock.
   - Hits and chain stingers pitched up as the chain grows.
@@ -341,7 +341,9 @@ A headless simulator in `sim/` runs the real engine with bot players. Run it wit
 
 Phase 1 is built in two steps, so the feel can be judged on a phone before content is scaled up.
 
-**Phase 1a — Vertical slice.** One headliner (Thrum) and about 12 cards: 3 units, 3 gates, 5 riffs and 1 amp. 3 enemy types: Shambler, Brute and Swarmlings. Includes chains with the multiplier and Showstopper cap, Echo, Downbeat and Encore, and Encore waves with crowd and game over. Save/resume is in. No sound yet.
+**Phase 1a — Vertical slice.** One headliner (Thrum) and about 12 cards: 3 units, 3 gates, 5 riffs and 1 amp. 3 enemy types: Shambler, Brute and Swarmlings. Includes chains with the multiplier and Showstopper cap, Echo, Downbeat and Encore, and Encore waves with crowd and game over. Save/resume and synthesized sound are in.
+- *Slice addition:* a guided **soundcheck** (first-run tutorial). It has 9 steps, each teaching one idea and waiting for the player to do it. It is offered on first launch and replayable from the title.
+- *Slice addition:* **off-beat plays drop the chain**, so timing is the skill that keeps chains alive.
 - *Slice addition:* every 3 waves, Encore offers a **card pick** (choose 1 of 3 to add to your deck, or skip), so long runs grow. To be revisited with the simulator in 1b.
 - *Slice simplifications:*
   - Card text is hand-written for now, not yet generated from effect data.
@@ -406,7 +408,7 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
 
 **S1.9 Sound as enhancement**
 *As a player, I want the game fully playable silent, with sound making it better.*
-- [ ] Audio is off by default and switched on in settings.
+- [ ] Audio is on by default, can be turned off in settings, and respects the iPhone silent switch.
 - [ ] With sound on, the synthesized drum loop stays locked to the beat clock (drift under 10 ms over 5 minutes) and chain stingers rise in pitch.
 - [ ] Every audio cue has a visual equivalent.
 

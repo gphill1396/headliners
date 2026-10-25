@@ -20,8 +20,8 @@ import { PICK_POOL } from '../content/cards';
 import { ENEMIES } from '../content/enemies';
 
 const ALL_KINDS: EnemyKind[] = ['shambler', 'brute', 'swarmling'];
-/** Count-in before wave 1. */
-const FIRST_WAVE_BEAT = 4;
+/** Two bars to get a first card down before wave 1. */
+const FIRST_WAVE_BEAT = 8;
 
 /** Encore wave logic, run once per beat (SPEC §4.9, S1.7). */
 export function onBeatWaves(state: EngineState, ctx: TickCtx): void {
@@ -49,7 +49,8 @@ export function startWave(state: EngineState, ctx: TickCtx, index: number): void
   let hpMult = state.wave.hpMult;
   for (let i = Math.max(1, state.wave.index); i < index; i++) hpMult *= WAVE_HP_GROWTH;
   const kinds = waveKinds(state, index);
-  const groups = Math.min(22, 4 + Math.floor((index * 2) / 3));
+  // Waves 1–2 are a gentle start.
+  const groups = index === 1 ? 3 : index === 2 ? 4 : Math.min(22, 4 + Math.floor((index * 2) / 3));
   // Every kind appears at least once; the rest are random from the wave's kinds.
   const order: EnemyKind[] = [...kinds];
   while (order.length < groups) order.push(kinds[nextInt(state.rng, 0, kinds.length)]!);
@@ -70,11 +71,12 @@ function spawnDue(state: EngineState): void {
   }
 }
 
-export function spawnGroup(state: EngineState, kind: EnemyKind, lane = nextInt(state.rng, 0, LANES)): void {
+export function spawnGroup(state: EngineState, kind: EnemyKind, lane = nextInt(state.rng, 0, LANES), travelBeats?: number): void {
   const def = ENEMIES[kind];
   const hp = def.hp * state.wave.hpMult;
-  // Walk to the stage in `travelBeats` beats at the current tempo.
-  const speed = Math.max(1, Math.floor((STAGE_LINE * state.clock.bpm) / (def.travelBeats * BEAT_UNITS)));
+  // Walk to the stage in `travelBeats` beats at the current tempo. The first waves walk slower.
+  const beats = travelBeats ?? (state.wave.index <= 2 ? def.travelBeats + 4 : def.travelBeats);
+  const speed = Math.max(1, Math.floor((STAGE_LINE * state.clock.bpm) / (beats * BEAT_UNITS)));
   for (let i = 0; i < def.packSize; i++) {
     state.enemies.push({
       id: state.nextId++,

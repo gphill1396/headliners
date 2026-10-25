@@ -390,3 +390,50 @@ test('an Off-beat play drops the chain before starting a new one', () => {
   assert.deepEqual(ofType(resolved, 'chainEnd').map((e) => e.dropped), [true]);
   assert.equal(s.chain.links, 1);
 });
+
+// ---------------------------------------------------------------- tutorial mode & practice taps
+
+test('tutorial mode: no waves, leaks cost nothing, no hand refills', () => {
+  const s = createState({ seed: 'tut', mode: 'tutorial', deck: [] });
+  assert.equal(s.hand.length, 0);
+  const events = runTicks(s, 36 * 40);
+  assert.equal(ofType(events, 'waveStart').length, 0);
+  assert.equal(s.hand.length, 0);
+  step(s, [{ type: 'spawn', kind: 'shambler', lane: 1, travelBeats: 2 }]);
+  const later = runTicks(s, 36 * 4);
+  assert.equal(ofType(later, 'leaked').length, 1);
+  assert.equal(s.crowd, START_CROWD);
+});
+
+test('tutorial grant/spawn put cards and enemies exactly where the script needs them', () => {
+  const s = createState({ seed: 'tut', mode: 'tutorial', deck: [] });
+  step(s, [
+    { type: 'grant', cardIds: ['stagehand', 'double-stop'], energy: 7 },
+    { type: 'spawn', kind: 'brute', lane: 2 },
+  ]);
+  assert.deepEqual(s.hand.map((c) => c.cardId), ['stagehand', 'double-stop']);
+  assert.equal(s.energy, 7);
+  assert.deepEqual(s.enemies.map((e) => [e.kind, e.lane]), [['brute', 2]]);
+});
+
+test('grant and spawn are ignored in a real run', () => {
+  const s = createState({ seed: 'real' });
+  const hand = s.hand.length;
+  step(s, [
+    { type: 'grant', cardIds: ['blast-beat'], energy: 10 },
+    { type: 'spawn', kind: 'brute', lane: 0 },
+  ]);
+  assert.equal(s.hand.length, hand);
+  assert.equal(s.enemies.length, 0);
+});
+
+test('a practice tap is graded and changes nothing else', () => {
+  const s = testState();
+  noWaves(s);
+  s.energy = 5;
+  toBeatEdge(s);
+  const before = JSON.stringify({ hand: s.hand, energy: s.energy, chain: s.chain, queue: s.queue });
+  const events = step(s, [{ type: 'tap', lane: 0, permille: 0 }]);
+  assert.equal(ofType(events, 'tapped')[0]?.grade, 'tight');
+  assert.equal(JSON.stringify({ hand: s.hand, energy: s.energy - 1, chain: s.chain, queue: s.queue }), before);
+});

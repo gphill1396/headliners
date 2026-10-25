@@ -112,3 +112,13 @@ test('a long bot run stays within performance bounds', () => {
   assert.ok(ms < 20_000, `took ${ms.toFixed(0)} ms`);
   assert.ok(s.projectiles.length <= 1_200);
 });
+
+test('v2 saves migrate to v3 as Encore runs', () => {
+  const s = createState({ seed: 'migrate' });
+  const v2 = JSON.parse(toSnapshot(s));
+  delete v2.mode;
+  v2.version = 2;
+  const restored = fromSnapshot(JSON.stringify(v2));
+  assert.equal(restored.version, 3);
+  assert.equal(restored.mode, 'encore');
+});

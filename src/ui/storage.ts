@@ -7,8 +7,10 @@ import { fromSnapshot, toSnapshot, type EngineState } from '../engine';
 const RUN_KEY = 'headliners.run.v2';
 const SETTINGS_KEY = 'headliners.settings.v1';
 const BESTS_KEY = 'headliners.bests.v1';
+const TUTORIAL_KEY = 'headliners.soundcheck.v1';
 
 export interface Settings {
+  sound: boolean;
   relaxedTiming: boolean;
   scientific: boolean;
   reduceFlash: boolean;
@@ -40,7 +42,7 @@ function write(key: string, value: string): void {
 
 export function loadSettings(): Settings {
   const s = read<Partial<Settings>>(SETTINGS_KEY) ?? {};
-  return { relaxedTiming: s.relaxedTiming === true, scientific: s.scientific === true, reduceFlash: s.reduceFlash === true };
+  return { sound: s.sound !== false, relaxedTiming: s.relaxedTiming === true, scientific: s.scientific === true, reduceFlash: s.reduceFlash === true };
 }
 
 export function saveSettings(settings: Settings): void {
@@ -69,7 +71,16 @@ export function recordRun(state: EngineState): { bests: Bests; newBest: { wave: 
   return { bests, newBest };
 }
 
+export function tutorialDone(): boolean {
+  return read<boolean>(TUTORIAL_KEY) === true;
+}
+
+export function markTutorialDone(): void {
+  write(TUTORIAL_KEY, 'true');
+}
+
 export function saveRun(state: EngineState): void {
+  if (state.mode === 'tutorial') return;
   if (state.phase === 'over') {
     clearRun();
     return;

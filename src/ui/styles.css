@@ -107,6 +107,12 @@ button:disabled {
   color: var(--amber);
 }
 
+.hud-label {
+  font-size: 12px;
+  color: var(--dim);
+  font-weight: 400;
+}
+
 .hud-crowd {
   display: flex;
   align-items: center;
@@ -349,6 +355,11 @@ button:disabled {
   color: var(--thrum);
 }
 
+.chain-dmg {
+  font-size: 12px;
+  color: var(--dim);
+}
+
 .icon-btn {
   --frame: var(--line);
   width: 40px;
@@ -372,7 +383,7 @@ button:disabled {
 .hand {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 9px;
+  gap: 7px;
   min-height: 0;
   padding: 3px;
 }
@@ -385,7 +396,7 @@ button:disabled {
   min-width: 0;
   background: var(--raised);
   border-bottom: 5px solid var(--accent);
-  padding: 20px 4px 4px;
+  padding: 20px 3px 4px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -435,7 +446,7 @@ button:disabled {
 }
 
 .card-name {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   line-height: 1.15;
   hyphens: auto;
@@ -446,6 +457,16 @@ button:disabled {
 .card-type {
   font-size: 11px;
   color: var(--dim);
+}
+
+.card-short {
+  font-size: 11px;
+  line-height: 1.15;
+  color: var(--lilac);
+}
+
+.card.poor .card-short {
+  opacity: 0.45;
 }
 
 .card-slot {
@@ -487,6 +508,11 @@ button:disabled {
   color: var(--lilac);
 }
 
+.info em {
+  font-style: normal;
+  color: var(--amber);
+}
+
 .info[data-tone='tight'] strong {
   color: var(--amber);
 }
@@ -506,13 +532,30 @@ button:disabled {
 
 .energy {
   display: grid;
-  grid-template-columns: repeat(5, 7px);
+  justify-items: end;
   gap: 3px;
 }
 
+.energy-label {
+  font-size: 12px;
+  color: var(--lilac);
+  white-space: nowrap;
+}
+
+.energy-label b {
+  font-size: 15px;
+  color: var(--amber);
+}
+
+.pips {
+  display: grid;
+  grid-template-columns: repeat(10, 5px);
+  gap: 2px;
+}
+
 .pip {
-  width: 7px;
-  height: 7px;
+  width: 5px;
+  height: 6px;
   background: var(--line);
 }
 
@@ -856,5 +899,102 @@ button:disabled {
     to {
       opacity: 0;
     }
+  }
+}
+
+/* ---------- Soundcheck coach ---------- */
+.coach {
+  outline: 3px solid var(--amber) !important;
+  outline-offset: 3px;
+  animation: coach-pulse 1s steps(2, end) infinite;
+}
+
+@keyframes coach-pulse {
+  50% {
+    outline-color: transparent;
+  }
+}
+
+.coach-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 5;
+  background: rgba(26, 20, 41, 0.9);
+  border-bottom: var(--px) solid var(--amber);
+  padding: 6px 10px 8px;
+}
+
+.coach-panel p {
+  margin: 0 0 4px;
+}
+
+.coach-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.coach-count {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.coach-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--amber);
+}
+
+.coach-body {
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.coach-progress {
+  font-size: 14px;
+  color: var(--lyra);
+}
+
+.coach-nudge {
+  font-size: 14px;
+  color: var(--thrum);
+}
+
+.coach-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.link-btn {
+  background: none;
+  color: var(--dim);
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 32px;
+}
+
+.coach-btn {
+  --frame: #8a6a1f;
+  background: var(--amber);
+  color: var(--night);
+  font-weight: 700;
+  font-size: 16px;
+  min-height: 40px;
+  padding: 0 16px;
+  box-shadow:
+    0 -3px 0 0 var(--frame),
+    0 3px 0 0 var(--frame),
+    -3px 0 0 0 var(--frame),
+    3px 0 0 0 var(--frame);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach {
+    animation: none;
   }
 }

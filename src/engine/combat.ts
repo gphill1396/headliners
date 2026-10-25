@@ -72,7 +72,8 @@ export function moveEnemies(state: EngineState, ctx: TickCtx): void {
     e.depth += e.speed;
     if (e.depth >= STAGE_LINE) {
       e.hp = 0;
-      state.crowd -= e.crowdDamage;
+      // In the tutorial a leak is shown but costs nothing.
+      if (state.mode === 'encore') state.crowd -= e.crowdDamage;
       state.stats.leaks += 1;
       ctx.events.push({ type: 'leaked', enemyId: e.id, kind: e.kind, lane: e.lane, crowdDamage: e.crowdDamage });
       e.depth = STAGE_LINE;

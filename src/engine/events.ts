@@ -6,6 +6,8 @@ export type EngineEvent =
   | { type: 'beat'; beat: number; beatInBar: number; downbeat: boolean }
   | { type: 'graded'; id: number; iid: number; cardId: string; lane: number; grade: Grade; offsetMilli: number; resolveBeat: number }
   | { type: 'rejected'; iid: number; reason: RejectReason }
+  /** A practice tap (no card): graded, nothing else happens. */
+  | { type: 'tapped'; lane: number; grade: Grade; offsetMilli: number }
   | { type: 'resolved'; id: number; cardId: string; lane: number; grade: Grade; beat: number; isEcho: boolean }
   | { type: 'link'; links: number; multPct: number; cardId: string; label: string; lane: number }
   | { type: 'chainEnd'; links: number; dropped: boolean }

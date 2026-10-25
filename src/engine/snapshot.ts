@@ -58,7 +58,11 @@ export function fromSnapshot(snapshot: string): EngineState {
     // v1 was the Phase 0 rhythm sandbox; its state has nothing a real run can use.
     throw new Error(`fromSnapshot: v${parsed.version} saves are from the Phase 0 sandbox and can't be resumed`);
   }
-  // Future migrations go here: if (parsed.version === 2) { ...; parsed.version = 3; }
+  // v2 → v3: added `mode`. Every v2 save was a real Encore run.
+  if (parsed.version === 2) {
+    parsed.mode = 'encore';
+    parsed.version = 3;
+  }
   return parsed as EngineState;
 }
 

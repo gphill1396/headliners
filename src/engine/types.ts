@@ -90,7 +90,10 @@ export interface CardDef {
   triggers?: Trigger[];
   /** Echo: onPlay happens again on the next beat. */
   echo?: boolean;
+  /** Full rules text. */
   text: string;
+  /** A few words shown on the card in hand: what it does at a glance. */
+  short: string;
   flavor: string;
 }
 

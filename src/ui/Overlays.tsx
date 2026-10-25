@@ -21,6 +21,7 @@ interface SettingsProps {
 function SettingsList({ settings, onToggle }: SettingsProps) {
   return (
     <div className="settings">
+      <Toggle label="Sound" checked={settings.sound} onChange={() => onToggle('sound')} />
       <Toggle label="Relaxed timing" checked={settings.relaxedTiming} onChange={() => onToggle('relaxedTiming')} />
       <Toggle label="Calmer flashes" checked={settings.reduceFlash} onChange={() => onToggle('reduceFlash')} />
     </div>
@@ -30,18 +31,28 @@ function SettingsList({ settings, onToggle }: SettingsProps) {
 export function TitleOverlay({
   bests,
   canResume,
+  tutorialDone,
+  onTutorial,
   onResume,
   onNew,
   ...settings
-}: SettingsProps & { bests: Bests; canResume: boolean; onResume: () => void; onNew: () => void }) {
+}: SettingsProps & {
+  bests: Bests;
+  canResume: boolean;
+  tutorialDone: boolean;
+  onTutorial: () => void;
+  onResume: () => void;
+  onNew: () => void;
+}) {
   const thrum = HEADLINERS.thrum!;
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Headliners">
       <div className="overlay-top">
         <h1 className="title">Headliners</h1>
         <p className="lede">
-          Hold the stage. Tap a card, then tap a lane on the beat. Units fire up their lane, gates multiply the shots,
-          and plays on the beat chain together. Off-beat plays break the chain.
+          {tutorialDone
+            ? 'Tap a card, then tap a lane on the beat. Units shoot up their lane, gates multiply the shots, and plays on back-to-back beats chain together.'
+            : 'A card game played to the beat. Hold back the horde and keep your crowd. New here? The soundcheck teaches it in about two minutes.'}
         </p>
         <div className="headliner">
           <p className="headliner-name">
@@ -63,14 +74,34 @@ export function TitleOverlay({
       </div>
       <div className="overlay-controls">
         <SettingsList {...settings} />
-        {canResume && (
-          <button className="primary-btn" onClick={onResume}>
-            Resume run
+        {canResume ? (
+          <>
+            <button className="primary-btn" onClick={onResume}>
+              Resume run
+            </button>
+            <button className="secondary-btn" onClick={onNew}>
+              Start a new run
+            </button>
+          </>
+        ) : tutorialDone ? (
+          <button className="primary-btn" onClick={onNew}>
+            Start
+          </button>
+        ) : (
+          <>
+            <button className="primary-btn" onClick={onTutorial}>
+              Learn to play
+            </button>
+            <button className="secondary-btn" onClick={onNew}>
+              Skip and play
+            </button>
+          </>
+        )}
+        {(tutorialDone || canResume) && (
+          <button className="link-btn" onClick={onTutorial}>
+            How to play
           </button>
         )}
-        <button className={canResume ? 'secondary-btn' : 'primary-btn'} onClick={onNew}>
-          {canResume ? 'Start a new run' : 'Start'}
-        </button>
       </div>
     </div>
   );
@@ -78,22 +109,25 @@ export function TitleOverlay({
 
 export function PauseOverlay({
   state,
+  tutorial,
   onResume,
   onRestart,
   ...settings
-}: SettingsProps & { state: EngineState; onResume: () => void; onRestart: () => void }) {
+}: SettingsProps & { state: EngineState; tutorial: boolean; onResume: () => void; onRestart: () => void }) {
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Paused">
       <div className="overlay-top">
         <h2 className="title small">Paused</h2>
         <p className="lede">
-          Wave {state.wave.index}, {formatNumber(state.score)} score. Your run is saved right where you left it.
+          {tutorial
+            ? 'Soundcheck paused. Pick up where you left off, or skip ahead to the real show.'
+            : `Wave ${state.wave.index}, ${formatNumber(state.score)} score. Your run is saved right where you left it.`}
         </p>
       </div>
       <div className="overlay-controls">
         <SettingsList {...settings} />
         <button className="secondary-btn" onClick={onRestart}>
-          Start a new run
+          {tutorial ? 'Skip soundcheck' : 'Start a new run'}
         </button>
         <button className="primary-btn" onClick={onResume}>
           Resume

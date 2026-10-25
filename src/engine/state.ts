@@ -4,7 +4,7 @@ import { createRng, shuffleInPlace, type RngState } from './rng';
 import type { EnemyKind, GateKind, HeadlinerId } from './types';
 import { STARTER_DECK } from '../content/cards';
 
-export const ENGINE_STATE_VERSION = 2;
+export const ENGINE_STATE_VERSION = 3;
 
 /** A specific copy of a card. `iid` is unique for the run so inputs can name it exactly. */
 export interface CardInstance {
@@ -134,11 +134,19 @@ export interface EngineStats {
 export type Phase = 'playing' | 'picking' | 'over';
 
 /**
+ * 'encore': the real game.
+ * 'tutorial': the guided soundcheck — no waves, leaks cost nothing, and the
+ * script can hand out cards and place enemies with 'grant' and 'spawn' inputs.
+ */
+export type Mode = 'encore' | 'tutorial';
+
+/**
  * Entire game state. Must stay plain JSON-safe data so it snapshots, hashes
  * and restores exactly (SPEC §2, §7).
  */
 export interface EngineState {
   version: number;
+  mode: Mode;
   seed: string;
   tick: number;
   rng: RngState;
@@ -174,6 +182,7 @@ export interface CreateOptions {
   bpm?: number;
   relaxedTiming?: boolean;
   deck?: readonly string[];
+  mode?: Mode;
 }
 
 export function emptyChain(): ChainState {
@@ -188,6 +197,7 @@ export function createState(opts: CreateOptions): EngineState {
   const hand = deck.splice(0, HAND_SIZE);
   return {
     version: ENGINE_STATE_VERSION,
+    mode: opts.mode ?? 'encore',
     seed: opts.seed,
     tick: 0,
     rng,

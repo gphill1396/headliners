@@ -79,6 +79,11 @@ export class GameRunner {
     this.countInEnd = now + ms;
   }
 
+  /** Real (performance.now) time at which a simulation tick happens; fractional ticks allowed. */
+  realTimeOfTick(tick: number): number {
+    return this.origin + tick * TICK_MS;
+  }
+
   barMs(): number {
     return (60_000 / this.state.clock.bpm) * BEATS_PER_BAR;
   }

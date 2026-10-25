@@ -6,7 +6,8 @@ import { addCardToDeck, refillHand } from './deck';
 import { checkChainEnd, checkGameOver, fireUnitsOnEighth, resolvePlay, runDownbeatTriggers } from './effects';
 import type { EngineEvent } from './events';
 import type { EngineState } from './state';
-import { onBeatWaves, startWave } from './waves';
+import type { EnemyKind } from './types';
+import { onBeatWaves, spawnGroup, startWave } from './waves';
 import { getCard } from '../content/cards';
 import { HEADLINERS } from '../content/headliners';
 
@@ -22,6 +23,12 @@ export type Input =
   | { type: 'activate'; permille: number }
   /** Choose a card pick option by index, or null to skip. */
   | { type: 'pick'; index: number | null }
+  /** Practice tap on a lane with no card: graded for timing, no other effect. */
+  | { type: 'tap'; lane: number; permille: number }
+  /** Tutorial only: put cards in hand and/or set energy. Ignored in Encore. */
+  | { type: 'grant'; cardIds?: string[]; energy?: number }
+  /** Tutorial only: place an enemy. Ignored in Encore. */
+  | { type: 'spawn'; kind: EnemyKind; lane: number; travelBeats?: number }
   | { type: 'setRelaxedTiming'; value: boolean }
   | { type: 'setTempo'; bpm: number };
 
@@ -71,7 +78,7 @@ export function step(state: EngineState, inputs: readonly Input[] = []): EngineE
 }
 
 function permilleOf(input: Input): number {
-  return input.type === 'commit' || input.type === 'activate' ? input.permille : 0;
+  return input.type === 'commit' || input.type === 'activate' || input.type === 'tap' ? input.permille : 0;
 }
 
 function onBeat(state: EngineState, ctx: TickCtx): void {
@@ -80,12 +87,13 @@ function onBeat(state: EngineState, ctx: TickCtx): void {
   ctx.events.push({ type: 'beat', beat, beatInBar: beatInBar(beat), downbeat });
 
   state.energy = Math.min(MAX_ENERGY, state.energy + 1);
-  if (downbeat) refillHand(state, ctx.events);
+  // The tutorial script hands out exactly the cards each step needs.
+  if (downbeat && state.mode === 'encore') refillHand(state, ctx.events);
 
   checkChainEnd(state, ctx);
   resolveDuePlays(state, ctx);
   if (downbeat) runDownbeatTriggers(state, ctx);
-  if (state.phase === 'playing') onBeatWaves(state, ctx);
+  if (state.phase === 'playing' && state.mode === 'encore') onBeatWaves(state, ctx);
 }
 
 function applyInput(state: EngineState, ctx: TickCtx, input: Input): void {
@@ -98,6 +106,24 @@ function applyInput(state: EngineState, ctx: TickCtx, input: Input): void {
       return;
     case 'pick':
       pick(state, ctx, input.index);
+      return;
+    case 'tap': {
+      if (state.phase !== 'playing' || !Number.isInteger(input.lane) || input.lane < 0 || input.lane >= LANES) return;
+      const timing = gradeInput(state.clock, clampPermille(input.permille), state.settings.relaxedTiming);
+      ctx.events.push({ type: 'tapped', lane: input.lane, grade: timing.grade, offsetMilli: timing.offsetMilli });
+      return;
+    }
+    case 'grant':
+      if (state.mode !== 'tutorial') return;
+      for (const cardId of input.cardIds ?? []) {
+        getCard(cardId); // throws on unknown ids
+        state.hand.push({ iid: state.nextId++, cardId });
+      }
+      if (input.energy !== undefined) state.energy = Math.max(0, Math.min(MAX_ENERGY, Math.floor(input.energy)));
+      return;
+    case 'spawn':
+      if (state.mode !== 'tutorial' || !Number.isInteger(input.lane) || input.lane < 0 || input.lane >= LANES) return;
+      spawnGroup(state, input.kind, input.lane, input.travelBeats);
       return;
     case 'setRelaxedTiming':
       state.settings.relaxedTiming = input.value;

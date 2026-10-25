@@ -18,8 +18,12 @@ import { CardTile } from './CardTile';
 import { formatNumber } from './format';
 import { GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay } from './Overlays';
 import { GameRunner, type CountIn } from './runner';
+import { scheduleEighth, Synth } from '../audio/synth';
+import { createTutorialState, freshProgress, TUTORIAL, type Progress, type Target } from './tutorial';
 import {
   clearRun,
+  markTutorialDone,
+  tutorialDone as loadTutorialDone,
   loadBests,
   loadRun,
   loadSettings,
@@ -56,6 +60,7 @@ interface Hud {
   fillIn: number;
   filling: boolean;
   phase: EngineState['phase'];
+  mode: EngineState['mode'];
   hand: { iid: number; cardId: string }[];
   queuedLanes: number[];
   gates: { id: number; lane: number; depth: number; kind: keyof typeof GATE_COLORS; amount: number }[];
@@ -74,6 +79,7 @@ function sampleHud(s: EngineState): Hud {
     fillIn: Math.max(0, s.headliner.readyBeat - s.clock.beat),
     filling,
     phase: s.phase,
+    mode: s.mode,
     hand: s.hand.map((c) => ({ iid: c.iid, cardId: c.cardId })),
     queuedLanes: [0, 1, 2].map((l) => s.queue.filter((q) => q.lane === l && !q.isEcho).length),
     gates: s.gates.map((g) => ({ id: g.id, lane: g.lane, depth: g.depth, kind: g.kind, amount: g.amount })),
@@ -108,11 +114,27 @@ export function App() {
   const runnerRef = useRef<GameRunner | null>(null);
   if (!runnerRef.current) runnerRef.current = new GameRunner(newRun(settings));
   const runner = runnerRef.current;
+  // Dev builds only: lets automated play-throughs read the beat clock. Stripped from production.
+  if (import.meta.env.DEV) {
+    const w = window as unknown as { __runner?: GameRunner; __synth?: () => Synth | null };
+    w.__runner = runner;
+    w.__synth = () => synthRef.current;
+  }
 
   const [view, setView] = useState<View>('title');
   const [hud, setHud] = useState<Hud>(() => sampleHud(runner.state));
   const [selected, setSelected] = useState<number | null>(null);
   const [pickSent, setPickSent] = useState(false);
+  const [tutorialDone, setTutorialDone] = useState(loadTutorialDone);
+  const [tutStep, setTutStep] = useState<number | null>(null);
+  const [nudge, setNudge] = useState<string | null>(null);
+  const [practiceHits, setPracticeHits] = useState(0);
+  const tutStepRef = useRef<number | null>(null);
+  const progressRef = useRef<Progress>(freshProgress());
+  const synthRef = useRef<Synth | null>(null);
+  const lastEighthScheduled = useRef(-1);
+  const lastCountBeat = useRef(-1);
+  const tutorialTick = useRef<((events: EngineEvent[], s: EngineState) => void) | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -203,7 +225,18 @@ export function App() {
 
     const onEvents = (events: EngineEvent[], s: EngineState) => {
       const now = performance.now();
+      const sfx = settingsRef.current.sound ? synthRef.current : null;
       for (const e of events) {
+        if (sfx) {
+          if (e.type === 'resolved' && !e.isEcho) sfx.play(e.grade);
+          else if (e.type === 'tapped') sfx.play(e.grade);
+          else if (e.type === 'link' && e.links >= 2) sfx.link(e.links);
+          else if (e.type === 'killed') sfx.kill();
+          else if (e.type === 'leaked') sfx.leak();
+          else if (e.type === 'showstopper') sfx.crash();
+          else if (e.type === 'gatePlaced') sfx.place('gate');
+          else if (e.type === 'unitPlaced') sfx.place('unit');
+        }
         switch (e.type) {
           case 'graded': {
             const ms = Math.round(milliToMs(e.offsetMilli, s.clock.bpm));
@@ -214,6 +247,12 @@ export function App() {
           case 'rejected':
             flashInfo(`<span>${REJECT_TEXT[e.reason]}</span>`, 'off');
             break;
+          case 'tapped': {
+            const ms = Math.round(milliToMs(e.offsetMilli, s.clock.bpm));
+            const when = Math.abs(ms) <= 2 ? 'on the beat' : ms < 0 ? `${-ms} ms early` : `${ms} ms late`;
+            flashInfo(`<strong>${GRADE_LABEL[e.grade]}</strong><span>${when}</span>`, e.grade);
+            break;
+          }
           case 'resolved':
             fx.laneFlash[e.lane] = e.grade === 'tight' ? 1 : e.grade === 'good' ? 0.7 : 0.4;
             fx.flashColor[e.lane] = PALETTE.footlight;
@@ -259,6 +298,7 @@ export function App() {
             break;
         }
       }
+      tutorialTick.current?.(events, s);
       if (events.some((e) => e.type === 'gameOver')) {
         runner.pause();
         finishRun(s);
@@ -276,6 +316,31 @@ export function App() {
       decayFx(fx, dt);
 
       const phase = countIn ? countIn.phase : Math.min(0.999, (s.clock.phase + s.clock.bpm * alpha) / BEAT_UNITS);
+
+      // Sound: stick clicks during a count-in, then the drum loop scheduled ~120 ms ahead on the audio clock.
+      const synth = settingsRef.current.sound ? synthRef.current : null;
+      if (synth && runner.running) {
+        if (countIn) {
+          if (countIn.beat !== lastCountBeat.current) {
+            lastCountBeat.current = countIn.beat;
+            synth.click(synth.ctx.currentTime, countIn.beat === 0);
+          }
+          lastEighthScheduled.current = Math.floor((s.clock.beat * BEAT_UNITS + s.clock.phase) / (BEAT_UNITS / 2));
+        } else if (s.phase === 'playing') {
+          lastCountBeat.current = -1;
+          const pos = s.clock.beat * BEAT_UNITS + s.clock.phase;
+          const next = Math.floor(pos / (BEAT_UNITS / 2)) + 1;
+          if (next > lastEighthScheduled.current) {
+            const tickAt = s.tick + (next * (BEAT_UNITS / 2) - pos) / s.clock.bpm;
+            const at = runner.realTimeOfTick(tickAt);
+            if (at - now < 120) {
+              lastEighthScheduled.current = next;
+              const filling = Math.floor(next / 2) < s.headliner.activeUntilBeat;
+              scheduleEighth(synth, next, synth.audioTimeAt(at), filling);
+            }
+          }
+        }
+      }
       drawField(ctx, s, s.phase === 'playing' ? alpha : 0, fx, phase, now);
 
       const current = countIn ? countIn.beat : beatInBar(s.clock.beat);
@@ -353,7 +418,7 @@ export function App() {
     const def = getCard(card.cardId);
     window.clearTimeout(infoTimer.current);
     el.dataset.tone = 'card';
-    el.innerHTML = `<span>${def.text}</span>`;
+    el.innerHTML = `<span>${def.text} <em>Now tap a lane on the beat.</em></span>`;
     el.classList.remove('show');
     void el.offsetWidth;
     el.classList.add('show');
@@ -370,7 +435,16 @@ export function App() {
       if (!runner.running || runner.state.phase !== 'playing') return;
       const iid = selectedRef.current;
       if (iid === null) {
-        flashInfo('<span>Pick a card first, then tap a lane on the beat.</span>', 'off');
+        const step = tutStepRef.current === null ? null : TUTORIAL[tutStepRef.current];
+        if (step?.practiceTaps) runner.send({ type: 'tap', lane, permille: 0 }, timeStamp);
+        else flashInfo('<span>Tap a card first, then tap a lane on the beat.</span>', 'off');
+        if (!step?.practiceTaps) return;
+        const btn = laneRefs.current[lane];
+        if (btn) {
+          btn.classList.remove('hit');
+          void btn.offsetWidth;
+          btn.classList.add('hit');
+        }
         return;
       }
       runner.send({ type: 'commit', iid, lane, permille: 0 }, timeStamp);
@@ -415,6 +489,13 @@ export function App() {
 
   const startPlaying = (countIn: boolean) => {
     lastFrame.current = 0;
+    // Audio must be created/resumed inside a tap (iOS rule); every start goes through here.
+    if (settings.sound) {
+      if (!synthRef.current) synthRef.current = Synth.create();
+      synthRef.current?.resume();
+    }
+    lastEighthScheduled.current = -1;
+    lastCountBeat.current = -1;
     setView('playing');
     runner.start(countIn);
   };
@@ -433,6 +514,8 @@ export function App() {
   };
 
   const startNew = () => {
+    tutStepRef.current = null;
+    setTutStep(null);
     clearRun();
     savedRun.current = null;
     setCanResume(false);
@@ -450,11 +533,94 @@ export function App() {
     runner.delay(runner.barMs());
   };
 
+  // ---------------------------------------------------------------- soundcheck
+
+  const goToStep = (i: number) => {
+    if (i >= TUTORIAL.length) {
+      finishTutorial();
+      return;
+    }
+    tutStepRef.current = i;
+    progressRef.current = freshProgress();
+    setTutStep(i);
+    setNudge(null);
+    setPracticeHits(0);
+    setSelected(null);
+    for (const input of TUTORIAL[i]!.setup ?? []) runner.send(input);
+  };
+
+  tutorialTick.current = (events, s) => {
+    const i = tutStepRef.current;
+    if (i === null) return;
+    const step = TUTORIAL[i]!;
+    const p = progressRef.current;
+    for (const e of events) {
+      if (e.type === 'tapped') {
+        p.taps += 1;
+        if (e.grade !== 'off') p.hits += 1;
+        setPracticeHits(p.hits);
+      } else if (e.type === 'beat') p.beats += 1;
+      else if (e.type === 'killed') p.kills += 1;
+      else if (e.type === 'resolved' && !e.isEcho) p.plays += 1;
+    }
+    const before = p.nudge;
+    const again = step.retry?.(events, s, p);
+    if (again) for (const input of again) runner.send(input);
+    if (p.nudge !== before) setNudge(p.nudge);
+    if (step.done?.(events, s, p)) goToStep(i + 1);
+  };
+
+  const startTutorial = () => {
+    // A saved run is left alone; the soundcheck never saves.
+    runner.load(createTutorialState(settings.relaxedTiming));
+    fxRef.current = createFx();
+    overlayRef.current?.replaceChildren();
+    setHud(sampleHud(runner.state));
+    goToStep(0);
+    startPlaying(true);
+  };
+
+  function finishTutorial() {
+    markTutorialDone();
+    setTutorialDone(true);
+    tutStepRef.current = null;
+    setTutStep(null);
+    setNudge(null);
+    const saved = loadRun();
+    if (saved) {
+      // They had a run going: back to the title so they can resume it.
+      runner.pause();
+      savedRun.current = saved;
+      setCanResume(true);
+      setView('title');
+      return;
+    }
+    startNew();
+  }
+
+  const coachStep = tutStep === null ? null : TUTORIAL[tutStep]!;
+  const selectedCardId = hud.hand.find((c) => c.iid === selected)?.cardId ?? null;
+  const targets = new Set<Target>(coachStep ? coachStep.targets(selectedCardId) : []);
+  const coached = (t: Target) => (targets.has(t) ? ' coach' : '');
+  const coachedCardIid = (() => {
+    for (const t of targets) {
+      if (!t.startsWith('card:')) continue;
+      const id = t.slice(5);
+      return hud.hand.find((c) => c.cardId === id)?.iid ?? null;
+    }
+    return null;
+  })();
+
   const toggleSetting = (key: keyof Settings) => {
     const next = { ...settings, [key]: !settings[key] };
     setSettings(next);
     saveSettings(next);
     if (key === 'relaxedTiming') runner.send({ type: 'setRelaxedTiming', value: next.relaxedTiming });
+    if (key === 'sound' && next.sound) {
+      // Toggling on is a tap, so audio can start here.
+      if (!synthRef.current) synthRef.current = Synth.create();
+      synthRef.current?.resume();
+    }
   };
 
   const selectedDef = (() => {
@@ -465,14 +631,17 @@ export function App() {
   return (
     <div className="app">
       <header className="hud">
-        <span className="hud-wave">{hud.wave > 0 ? `Wave ${hud.wave}` : 'Count-in'}</span>
-        <span className="hud-crowd" aria-label={`Crowd ${hud.crowd} of ${hud.maxCrowd}`}>
+        <span className="hud-wave">{hud.mode === 'tutorial' ? 'Soundcheck' : hud.wave > 0 ? `Wave ${hud.wave}` : 'Get ready'}</span>
+        <span className={`hud-crowd${coached('crowd')}`} aria-label={`Crowd ${hud.crowd} of ${hud.maxCrowd}`}>
+          <span className="hud-label">Crowd</span>
           <span className="crowd-bar">
             <span style={{ width: `${(hud.crowd / hud.maxCrowd) * 100}%` }} />
           </span>
           {hud.crowd}
         </span>
-        <span className="hud-score">{formatNumber(hud.score, settings.scientific)}</span>
+        <span className="hud-score">
+          <span className="hud-label">Score</span> {formatNumber(hud.score, settings.scientific)}
+        </span>
       </header>
 
       <main className="field">
@@ -495,20 +664,44 @@ export function App() {
         <div ref={overlayRef} className="field-layer pops" aria-hidden="true" />
         <div ref={linkRef} className="link-pop" aria-hidden="true" />
         <div ref={bannerRef} className="banner" aria-live="polite" />
+        {coachStep && view === 'playing' && (
+          <div className="coach-panel" role="status">
+            <div className="coach-head">
+              <p className="coach-count">
+                Soundcheck {tutStep! + 1} of {TUTORIAL.length}
+              </p>
+              <button className="link-btn" onClick={finishTutorial}>
+                Skip soundcheck
+              </button>
+            </div>
+            <p className="coach-title">{coachStep.title}</p>
+            <p className="coach-body">{coachStep.body}</p>
+            {coachStep.practiceTaps && <p className="coach-progress">On the beat: {Math.min(3, practiceHits)} of 3</p>}
+            {nudge && <p className="coach-nudge">{nudge}</p>}
+            {coachStep.button && (
+              <div className="coach-actions">
+                <button className="coach-btn" onClick={() => goToStep(tutStep! + 1)}>
+                  {coachStep.button}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       <section className="controls" aria-label="Controls">
         <div className="control-top">
-          <div className="pads" aria-hidden="true">
+          <div className={`pads${coached('pads')}`} aria-hidden="true">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} ref={(el) => void (padRefs.current[i] = el)} className={i === 0 ? 'pad pad-down' : 'pad'} />
             ))}
           </div>
-          <div ref={chainRef} className={`chain${hud.chain >= 8 ? ' hot' : ''}${hud.chain > 0 ? ' on' : ''}`}>
+          <div ref={chainRef} className={`chain${hud.chain >= 8 ? ' hot' : ''}${hud.chain > 0 ? ' on' : ''}${coached('chain')}`}>
             {hud.chain > 0 ? (
               <>
                 <span>Chain {hud.chain}</span>
                 <strong>×{(hud.mult / 100).toFixed(2).replace(/\.?0+$/, '')}</strong>
+                <span className="chain-dmg">dmg</span>
               </>
             ) : (
               <span className="muted">No chain</span>
@@ -530,6 +723,7 @@ export function App() {
                 def={def}
                 selected={selected === card.iid}
                 affordable={def.cost <= hud.energy}
+                coach={coachedCardIid === card.iid}
                 onSelect={() => selectCard(card.iid)}
               />
             );
@@ -538,17 +732,22 @@ export function App() {
 
         <div className="info-row">
           <div ref={infoRef} className="info" aria-live="polite" />
-          <div className="energy" aria-label={`Energy ${hud.energy} of ${MAX_ENERGY}`}>
-            {Array.from({ length: MAX_ENERGY }, (_, i) => (
-              <span
-                key={i}
-                className={i < hud.energy ? 'pip on' : 'pip'}
-                data-need={selectedDef && i < selectedDef.cost ? 'y' : undefined}
-              />
-            ))}
+          <div className={`energy${coached('energy')}`} aria-label={`Energy ${hud.energy} of ${MAX_ENERGY}`}>
+            <span className="energy-label">
+              Energy <b>{hud.energy}</b>
+            </span>
+            <span className="pips">
+              {Array.from({ length: MAX_ENERGY }, (_, i) => (
+                <span
+                  key={i}
+                  className={i < hud.energy ? 'pip on' : 'pip'}
+                  data-need={selectedDef && i < selectedDef.cost ? 'y' : undefined}
+                />
+              ))}
+            </span>
           </div>
           <button
-            className={`fill-btn${hud.filling ? ' active' : ''}`}
+            className={`fill-btn${hud.filling ? ' active' : ''}${coached('fill')}`}
             disabled={hud.fillIn > 0 || view !== 'playing'}
             onPointerDown={(e) => {
               e.preventDefault();
@@ -564,7 +763,7 @@ export function App() {
             <button
               key={name}
               ref={(el) => void (laneRefs.current[lane] = el)}
-              className={`lane-btn${selected !== null ? ' armed' : ''}`}
+              className={`lane-btn${selected !== null ? ' armed' : ''}${coached('lanes') || coached(`lane-${lane}` as Target)}`}
               onPointerDown={(e) => {
                 e.preventDefault();
                 playLane(lane, e.timeStamp);
@@ -582,6 +781,8 @@ export function App() {
         <TitleOverlay
           bests={bests}
           canResume={canResume}
+          tutorialDone={tutorialDone}
+          onTutorial={startTutorial}
           onResume={resumeSaved}
           onNew={startNew}
           settings={settings}
@@ -591,8 +792,9 @@ export function App() {
       {view === 'paused' && (
         <PauseOverlay
           state={runner.state}
+          tutorial={tutStep !== null}
           onResume={() => startPlaying(true)}
-          onRestart={startNew}
+          onRestart={tutStep !== null ? finishTutorial : startNew}
           settings={settings}
           onToggle={toggleSetting}
         />

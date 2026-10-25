@@ -1,13 +1,12 @@
-import { gradeMultiplierPct, type Grade } from './clock';
 import { damageEnemy, fireUnit, frontEnemy, gateDepth } from './combat';
 import {
   BIG_CHAIN,
   CHAIN_BASE_PCT,
   CHAIN_CAP,
   CHAIN_GRACE_BEATS,
-  CHAIN_STEP_PCT,
-  CHAIN_TIGHT_START_PCT,
+  CHAIN_STEP_AUTO_PCT,
   GATE_DEPTHS,
+  POCKET_STEP_PCT,
   MAX_ENERGY,
   UNIT_SLOTS,
 } from './constants';
@@ -24,16 +23,27 @@ export function chainMultPct(state: EngineState): number {
   return state.chain.links > 0 ? state.chain.multPct : 100;
 }
 
+/** Bonus from being in the pocket, as a percent. */
+export function pocketPct(state: EngineState): number {
+  return 100 + POCKET_STEP_PCT * state.pocket.depth;
+}
+
+/** Everything that boosts all damage: chain × pocket. */
+export function boostPct(state: EngineState): number {
+  return (chainMultPct(state) * pocketPct(state)) / 100;
+}
+
 /**
  * Add a link to the chain (SPEC §4.6). Fires 'chainGrow' triggers, and
  * converts the chain into a Showstopper when it hits the cap.
  */
-export function addLink(state: EngineState, ctx: TickCtx, cardId: string, label: string, lane: number, starter: Grade | null): void {
+export function addLink(state: EngineState, ctx: TickCtx, cardId: string, label: string, lane: number, stepPct: number): void {
   const chain = state.chain;
-  if (chain.links === 0) chain.tightStart = starter === 'tight';
+  if (chain.links === 0) chain.multPct = CHAIN_BASE_PCT;
   chain.links += 1;
   chain.lastLinkBeat = state.clock.beat;
-  chain.multPct = CHAIN_BASE_PCT + CHAIN_STEP_PCT * (chain.links - 1) + (chain.tightStart ? CHAIN_TIGHT_START_PCT : 0);
+  // The closer to the beat, the more each link raises the multiplier.
+  chain.multPct += stepPct;
   if (chain.links > state.stats.bestChain) state.stats.bestChain = chain.links;
   ctx.events.push({ type: 'link', links: chain.links, multPct: chain.multPct, cardId, label, lane });
 
@@ -54,6 +64,10 @@ export function checkChainEnd(state: EngineState, ctx: TickCtx): void {
   if (state.clock.beat - chain.lastLinkBeat > CHAIN_GRACE_BEATS) {
     ctx.events.push({ type: 'chainEnd', links: chain.links, dropped: false });
     state.chain = emptyChain();
+    // Stopping playing lets you drift out of the pocket.
+    const before = state.pocket.depth;
+    state.pocket.depth = Math.floor(before / 2);
+    if (state.pocket.depth !== before) ctx.events.push({ type: 'pocket', depth: state.pocket.depth, delta: state.pocket.depth - before });
   }
 }
 
@@ -147,9 +161,9 @@ function runTriggers(
     // Copies of the same card play as one section: only the first adds a link each time.
     if (t.link && when !== 'chainGrow' && !linked?.has(cardId)) {
       linked?.add(cardId);
-      addLink(state, ctx, cardId, `${def.name} triggers`, lane, null);
+      addLink(state, ctx, cardId, `${def.name} triggers`, lane, CHAIN_STEP_AUTO_PCT);
     }
-    runEffects(state, ctx, t.effects, { cardId, lane, multPct: chainMultPct(state), unit });
+    runEffects(state, ctx, t.effects, { cardId, lane, multPct: boostPct(state), unit });
   }
 }
 
@@ -176,7 +190,7 @@ export function checkGameOver(state: EngineState, ctx: TickCtx): void {
 export function resolvePlay(state: EngineState, ctx: TickCtx, play: QueuedPlay): void {
   const def = getCard(play.card.cardId);
   const beat = state.clock.beat;
-  const gradePct = gradeMultiplierPct(play.grade);
+  const gradePct = play.accuracyPct;
   ctx.events.push({ type: 'resolved', id: play.id, cardId: def.id, lane: play.lane, grade: play.grade, beat, isEcho: play.isEcho });
   if (!play.isEcho) state.stats.cardsPlayed += 1;
 
@@ -186,8 +200,8 @@ export function resolvePlay(state: EngineState, ctx: TickCtx, play: QueuedPlay):
     state.chain = emptyChain();
   }
 
-  addLink(state, ctx, def.id, play.isEcho ? `${def.name} echoes` : def.name, play.lane, play.grade);
-  const multPct = (gradePct * chainMultPct(state)) / 100;
+  addLink(state, ctx, def.id, play.isEcho ? `${def.name} echoes` : def.name, play.lane, play.isEcho ? CHAIN_STEP_AUTO_PCT : play.chainStepPct);
+  const multPct = (gradePct * boostPct(state)) / 100;
 
   switch (def.type) {
     case 'unit':
@@ -281,7 +295,7 @@ function placeGate(state: EngineState, ctx: TickCtx, play: QueuedPlay, gradePct:
 /** Units fire on the eighth-note grid. Thrum's Fill makes every unit fire on every eighth. */
 export function fireUnitsOnEighth(state: EngineState, eighth: number): void {
   const fill = state.clock.beat < state.headliner.activeUntilBeat;
-  const mult = chainMultPct(state);
+  const mult = boostPct(state);
   for (const u of state.units) {
     if (fill || eighth % u.fireEvery === 0) fireUnit(state, u, 1, mult);
   }

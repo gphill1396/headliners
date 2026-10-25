@@ -4,7 +4,7 @@ import { createRng, shuffleInPlace, type RngState } from './rng';
 import type { EnemyKind, GateKind, HeadlinerId } from './types';
 import { STARTER_DECK } from '../content/cards';
 
-export const ENGINE_STATE_VERSION = 3;
+export const ENGINE_STATE_VERSION = 4;
 
 /** A specific copy of a card. `iid` is unique for the run so inputs can name it exactly. */
 export interface CardInstance {
@@ -19,6 +19,10 @@ export interface QueuedPlay {
   lane: number;
   grade: Grade;
   offsetMilli: number;
+  /** Multiplier for this play's own effect, from how on-beat it was. */
+  accuracyPct: number;
+  /** How much this play raises the chain multiplier. */
+  chainStepPct: number;
   resolveBeat: number;
   /** True for the repeat queued by Echo. Echoes don't echo again. */
   isEcho: boolean;
@@ -93,7 +97,13 @@ export interface ChainState {
   multPct: number;
   /** Beat of the most recent link; -1 when no chain is running. */
   lastLinkBeat: number;
-  tightStart: boolean;
+}
+
+/** The pocket: how consistently you've been landing your plays (0–POCKET_MAX). */
+export interface PocketState {
+  depth: number;
+  /** Running average of your timing offsets, in milli-units (where *your* pocket sits). */
+  avgOffsetMilli: number;
 }
 
 export interface WaveState {
@@ -170,6 +180,7 @@ export interface EngineState {
   enemies: Enemy[];
   projectiles: Projectile[];
   chain: ChainState;
+  pocket: PocketState;
   wave: WaveState;
   /** Card ids on offer while phase === 'picking'. */
   pick: string[];
@@ -186,7 +197,7 @@ export interface CreateOptions {
 }
 
 export function emptyChain(): ChainState {
-  return { links: 0, multPct: 100, lastLinkBeat: -1, tightStart: false };
+  return { links: 0, multPct: 100, lastLinkBeat: -1 };
 }
 
 export function createState(opts: CreateOptions): EngineState {
@@ -220,6 +231,7 @@ export function createState(opts: CreateOptions): EngineState {
     enemies: [],
     projectiles: [],
     chain: emptyChain(),
+    pocket: { depth: 0, avgOffsetMilli: 0 },
     // Wave 0 is a short count-in; wave 1 starts on beat 4.
     wave: { index: 0, startBeat: 0, hpMult: 1, spawns: [], nextSpawn: 0, kinds: [] },
     pick: [],

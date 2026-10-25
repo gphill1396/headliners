@@ -998,3 +998,97 @@ button:disabled {
     animation: none;
   }
 }
+
+/* Card pick: briefly ignore taps when it opens, then pick → confirm. */
+.overlay.arming .pick-row,
+.overlay.arming .primary-btn,
+.overlay.arming .secondary-btn {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.primary-btn:disabled {
+  --frame: var(--line);
+  background: var(--raised);
+  color: var(--dim);
+}
+
+.secondary-btn:disabled {
+  opacity: 0.45;
+}
+
+/* ---------- The pocket ---------- */
+.beat-stack {
+  flex: 1;
+  display: grid;
+  gap: 3px;
+}
+
+.beat-stack .pads {
+  height: 15px;
+}
+
+.pocket-segs {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+}
+
+.pocket-segs span {
+  height: 4px;
+  background: var(--raised);
+}
+
+.pocket-segs span.on {
+  background: var(--lyra);
+}
+
+.pocket.deep .pocket-segs span.on {
+  background: var(--amber);
+}
+
+.chain {
+  flex-direction: column;
+  align-items: flex-end !important;
+  gap: 0 !important;
+  line-height: 1.1;
+}
+
+.chain-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.pocket-line {
+  font-size: 12px;
+  color: var(--lyra);
+}
+
+.pocket-line.deep {
+  color: var(--amber);
+}
+
+.pop-pocket {
+  font-size: 15px;
+  color: var(--lyra);
+}
+
+/* Info line: never more than two lines, never spills into the lanes. */
+.info {
+  max-height: 2.6em;
+  overflow: hidden;
+  align-items: center;
+}
+
+.info span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.info strong {
+  font-size: 17px;
+  white-space: nowrap;
+}

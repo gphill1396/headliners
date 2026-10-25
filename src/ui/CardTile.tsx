@@ -24,19 +24,28 @@ interface Props {
   large?: boolean;
   /** Highlighted by the soundcheck coach. */
   coach?: boolean;
+  /**
+   * 'pointerdown' for the hand (instant, for timing). 'click' for menus, so a tap
+   * that started before the menu opened can't select anything.
+   */
+  activateOn?: 'pointerdown' | 'click';
   onSelect?: () => void;
 }
 
 /** A card in the hand (compact) or in a card pick (large, with rules text). */
-export function CardTile({ def, selected = false, affordable = true, large = false, coach = false, onSelect }: Props) {
+export function CardTile({ def, selected = false, affordable = true, large = false, coach = false, activateOn = 'pointerdown', onSelect }: Props) {
   return (
     <button
       type="button"
       className={`card${selected ? ' selected' : ''}${affordable ? '' : ' poor'}${large ? ' large' : ''}${coach ? ' coach' : ''}`}
       style={{ ['--accent' as string]: cardAccent(def) }}
       onPointerDown={(e) => {
+        if (activateOn !== 'pointerdown') return;
         e.preventDefault();
         onSelect?.();
+      }}
+      onClick={() => {
+        if (activateOn === 'click') onSelect?.();
       }}
       aria-pressed={selected}
       aria-label={`${def.name}, costs ${def.cost}. ${def.text}`}

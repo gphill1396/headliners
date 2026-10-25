@@ -1,3 +1,4 @@
+import { gradeMultiplierPct } from './clock';
 import { ENGINE_STATE_VERSION, type EngineState } from './state';
 
 /**
@@ -62,6 +63,16 @@ export function fromSnapshot(snapshot: string): EngineState {
   if (parsed.version === 2) {
     parsed.mode = 'encore';
     parsed.version = 3;
+  }
+  // v3 → v4: continuous accuracy and the pocket.
+  if (parsed.version === 3) {
+    parsed.pocket = { depth: 0, avgOffsetMilli: 0 };
+    for (const q of parsed.queue ?? []) {
+      q.accuracyPct ??= gradeMultiplierPct(q.grade);
+      q.chainStepPct ??= q.grade === 'tight' ? 20 : q.grade === 'good' ? 8 : 0;
+    }
+    if (parsed.chain) delete (parsed.chain as { tightStart?: boolean }).tightStart;
+    parsed.version = 4;
   }
   return parsed as EngineState;
 }

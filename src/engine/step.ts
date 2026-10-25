@@ -1,6 +1,6 @@
-import { advanceClock, beatInBar, gradeInput, isDownbeat, setTempo } from './clock';
+import { accuracyPct, advanceClock, beatInBar, chainStepPct, gradeInput, inPocket, isDownbeat, setTempo, type Grade } from './clock';
 import { moveEnemies, moveProjectiles, sweepDead } from './combat';
-import { BEAT_UNITS, BEATS_PER_BAR, LANES, MAX_ENERGY, SUBTICK } from './constants';
+import { BEAT_UNITS, BEATS_PER_BAR, LANES, MAX_ENERGY, POCKET_MAX, SUBTICK } from './constants';
 import { createCtx, flushDamage, type TickCtx } from './context';
 import { addCardToDeck, refillHand } from './deck';
 import { checkChainEnd, checkGameOver, fireUnitsOnEighth, resolvePlay, runDownbeatTriggers } from './effects';
@@ -157,7 +157,9 @@ function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: nu
 
   state.energy -= def.cost;
   state.hand.splice(handIndex, 1);
-  const timing = gradeInput(state.clock, clampPermille(input.permille), state.settings.relaxedTiming);
+  const relaxed = state.settings.relaxedTiming;
+  const timing = gradeInput(state.clock, clampPermille(input.permille), relaxed);
+  const accuracy = accuracyPct(timing.offsetMilli, state.clock.bpm, relaxed);
   state.stats[timing.grade] += 1;
   const id = state.nextId++;
   state.queue.push({
@@ -166,6 +168,8 @@ function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: nu
     lane: input.lane,
     grade: timing.grade,
     offsetMilli: timing.offsetMilli,
+    accuracyPct: accuracy,
+    chainStepPct: chainStepPct(timing.offsetMilli, state.clock.bpm, relaxed),
     resolveBeat: timing.resolveBeat,
     isEcho: false,
   });
@@ -177,8 +181,10 @@ function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: nu
     lane: input.lane,
     grade: timing.grade,
     offsetMilli: timing.offsetMilli,
+    accuracyPct: accuracy,
     resolveBeat: timing.resolveBeat,
   });
+  updatePocket(state, ctx, timing.grade, timing.offsetMilli);
 
   // Thrum passive: a Tight hit refunds 1 energy, once per bar.
   if (timing.grade === 'tight' && state.headliner.id === 'thrum') {
@@ -189,6 +195,22 @@ function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: nu
       ctx.events.push({ type: 'energy', amount: 1, reason: 'tight' });
     }
   }
+}
+
+/**
+ * The pocket (consistency, not perfection): a Tight play close to your own
+ * running average timing deepens it; drifting, Good plays and Off plays don't.
+ */
+function updatePocket(state: EngineState, ctx: TickCtx, grade: Grade, offsetMilli: number): void {
+  const p = state.pocket;
+  const before = p.depth;
+  if (grade === 'off') p.depth = 0;
+  else if (grade === 'good') p.depth = Math.max(0, p.depth - 2);
+  else if (inPocket(offsetMilli, p.avgOffsetMilli, state.clock.bpm, state.settings.relaxedTiming)) p.depth = Math.min(POCKET_MAX, p.depth + 1);
+  else p.depth = Math.max(0, p.depth - 1);
+  // Where your pocket sits: a running average, so a consistent laid-back feel counts.
+  p.avgOffsetMilli = Math.trunc((p.avgOffsetMilli * 3 + offsetMilli) / 4);
+  if (p.depth !== before) ctx.events.push({ type: 'pocket', depth: p.depth, delta: p.depth - before });
 }
 
 function activate(state: EngineState, ctx: TickCtx): void {

@@ -4,7 +4,9 @@ import type { EnemyKind } from './types';
 /** What happened during a tick, for rendering, audio and haptics. Never fed back into the engine. */
 export type EngineEvent =
   | { type: 'beat'; beat: number; beatInBar: number; downbeat: boolean }
-  | { type: 'graded'; id: number; iid: number; cardId: string; lane: number; grade: Grade; offsetMilli: number; resolveBeat: number }
+  | { type: 'graded'; id: number; iid: number; cardId: string; lane: number; grade: Grade; offsetMilli: number; accuracyPct: number; resolveBeat: number }
+  /** The pocket got deeper or shallower. */
+  | { type: 'pocket'; depth: number; delta: number }
   | { type: 'rejected'; iid: number; reason: RejectReason }
   /** A practice tap (no card): graded, nothing else happens. */
   | { type: 'tapped'; lane: number; grade: Grade; offsetMilli: number }

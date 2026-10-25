@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { getCard, HEADLINERS, type EngineState } from '../engine';
 import { CardTile } from './CardTile';
 import { formatNumber } from './format';
@@ -138,20 +139,42 @@ export function PauseOverlay({
   );
 }
 
+/** How long the pick screen ignores taps after it opens, so a play in progress can't pick by accident. */
+const PICK_LOCKOUT_MS = 600;
+
 export function PickOverlay({ state, onPick }: { state: EngineState; onPick: (index: number | null) => void }) {
+  const [armed, setArmed] = useState(false);
+  const [chosen, setChosen] = useState<number | null>(null);
+  useEffect(() => {
+    const id = window.setTimeout(() => setArmed(true), PICK_LOCKOUT_MS);
+    return () => window.clearTimeout(id);
+  }, []);
+  const chosenId = chosen === null ? null : state.pick[chosen];
   return (
-    <div className="overlay" role="dialog" aria-modal="true" aria-label="Encore pick">
+    <div className={`overlay${armed ? '' : ' arming'}`} role="dialog" aria-modal="true" aria-label="Encore pick">
       <div className="overlay-top">
         <h2 className="title small">Encore pick</h2>
-        <p className="lede">Wave {state.wave.index} survived. Add one card to your deck, or skip to keep it lean.</p>
+        <p className="lede">
+          Wave {state.wave.index} survived. Tap a card to look at it, then add it to your deck. Or skip to keep it lean.
+        </p>
       </div>
       <div className="overlay-controls">
         <div className="pick-row">
           {state.pick.map((id, i) => (
-            <CardTile key={id + i} def={getCard(id)} large onSelect={() => onPick(i)} />
+            <CardTile
+              key={id + i}
+              def={getCard(id)}
+              large
+              selected={chosen === i}
+              activateOn="click"
+              onSelect={() => armed && setChosen(i)}
+            />
           ))}
         </div>
-        <button className="secondary-btn" onClick={() => onPick(null)}>
+        <button className="primary-btn" disabled={!armed || chosenId === null} onClick={() => armed && chosen !== null && onPick(chosen)}>
+          {chosenId ? `Add ${getCard(chosenId).name}` : 'Pick a card'}
+        </button>
+        <button className="secondary-btn" disabled={!armed} onClick={() => armed && onPick(null)}>
           Skip
         </button>
       </div>

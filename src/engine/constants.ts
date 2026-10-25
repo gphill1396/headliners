@@ -57,10 +57,30 @@ export const MAX_ENERGY = 10;
 export const HAND_SIZE = 5;
 export const START_CROWD = 30;
 
-/** Chain multiplier (SPEC §4.6), in percent. */
+/**
+ * Accuracy multiplier for a play's own effect, in percent, sliding continuously
+ * across the timing window: dead-on → edge of Tight → edge of Good. Off is OFF_MULT_PCT.
+ */
+export const ACC_DEAD_ON_PCT = 160;
+export const ACC_TIGHT_EDGE_PCT = 130;
+export const ACC_GOOD_EDGE_PCT = 105;
+
+/** Chain multiplier (SPEC §4.6): each link raises it by how on-beat that play was. */
 export const CHAIN_BASE_PCT = 100;
-export const CHAIN_STEP_PCT = 25;
-export const CHAIN_TIGHT_START_PCT = 50;
+export const DEAD_ON_WINDOW_MS = 15;
+export const CHAIN_STEP_DEAD_ON_PCT = 30;
+export const CHAIN_STEP_TIGHT_PCT = 20;
+export const CHAIN_STEP_GOOD_PCT = 8;
+/** Automatic links (Echo, Downbeat triggers) have no timing of their own. */
+export const CHAIN_STEP_AUTO_PCT = 5;
+
+/**
+ * The pocket: consistency, not perfection. Tight plays that land close to your
+ * own recent timing deepen it; each level adds POCKET_STEP_PCT to all damage.
+ */
+export const POCKET_MAX = 10;
+export const POCKET_STEP_PCT = 4;
+export const POCKET_WINDOW_MS = 25;
 export const CHAIN_CAP = 50;
 /** A chain ends when this many beats pass with no new link. */
 export const CHAIN_GRACE_BEATS = 1;

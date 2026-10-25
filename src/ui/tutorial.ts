@@ -8,7 +8,7 @@ import { createState, type EngineEvent, type EngineState, type Input } from '../
  */
 
 /** Things the coach can point at. */
-export type Target = 'pads' | 'lanes' | 'lane-0' | 'lane-1' | 'lane-2' | 'crowd' | 'energy' | 'chain' | 'fill' | `card:${string}`;
+export type Target = 'pads' | 'pocket' | 'lanes' | 'lane-0' | 'lane-1' | 'lane-2' | 'crowd' | 'energy' | 'chain' | 'fill' | `card:${string}`;
 
 export interface Progress {
   /** Practice taps that landed Good or Tight. */
@@ -109,7 +109,7 @@ export const TUTORIAL: readonly TutorialStep[] = [
   {
     id: 'chain',
     title: 'Chain plays together',
-    body: 'Cards played on back-to-back beats build a chain, and each link multiplies your damage. Play both Power Chords on two beats in a row, any lane.',
+    body: 'Cards played on back-to-back beats build a chain. The closer to the beat each one lands, the more it multiplies your damage. Play both Power Chords on two beats in a row, any lane.',
     targets: (sel) => (sel === 'power-chord' ? ['lanes', 'chain'] : ['card:power-chord', 'chain']),
     setup: [
       { type: 'grant', cardIds: ['power-chord', 'power-chord'], energy: 10 },
@@ -122,6 +122,13 @@ export const TUTORIAL: readonly TutorialStep[] = [
       if (!has(s, 'power-chord')) return [{ type: 'grant', cardIds: ['power-chord', 'power-chord'], energy: 10 }];
       return null;
     },
+  },
+  {
+    id: 'pocket',
+    title: 'Find the pocket',
+    body: 'The bar under the lights is your pocket. Land plays in time, and consistently, and it fills, adding up to +40% to all your damage. You can sit a hair behind the beat, as long as you stay there. An off-beat play empties it.',
+    targets: () => ['pocket'],
+    button: 'Got it',
   },
   {
     id: 'crowd',

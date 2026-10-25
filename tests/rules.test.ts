@@ -60,11 +60,13 @@ test('a played card pays energy now and resolves on the beat', () => {
   assert.equal(s.units[0]!.lane, 1);
 });
 
-test('timing grade scales the unit for good: Tight = 150% damage', () => {
+test('timing scales the unit for good: a near-dead-on play is worth ~1.5–1.6× damage', () => {
   const s = testState();
   noWaves(s);
-  placeUnit(s, 'stagehand', 0);
-  assert.equal(s.units[0]!.damage, 4.5);
+  const events = placeUnit(s, 'stagehand', 0);
+  const acc = ofType(events, 'graded')[0]!.accuracyPct;
+  assert.ok(acc >= 150 && acc <= 160, `accuracy ${acc}`);
+  assert.equal(s.units[0]!.damage, (3 * acc) / 100);
 });
 
 test('a full lane replaces its oldest unit, which goes back to the deck', () => {
@@ -156,12 +158,13 @@ test('a copy gate doubles shots and wears down, then breaks back into the deck',
   playOnBeat(s, 'double-stop', 0);
   const gate = s.gates[0]!;
   assert.equal(gate.depth, GATE_DEPTHS[0]);
-  assert.equal(gate.durability, 60); // 40 × Tight
+  assert.ok(gate.durability >= 60 && gate.durability <= 64, `durability ${gate.durability}`); // 40 × accuracy
+  const startDurability = gate.durability;
   for (let i = 0; i < 5; i++) {
     s.projectiles.push({ id: s.nextId++, lane: 0, x: 500, depth: STAGE_LINE - i * 3_000, damage: 1, pierceLeft: 0, splash: false, gatesPassed: 0, sourceCardId: 't' });
   }
   runTicks(s, 12);
-  assert.equal(gate.durability, 55);
+  assert.equal(gate.durability, startDurability - 5);
   // Five originals plus five copies, some may have left the top already: count copies spawned via ids.
   gate.durability = 1;
   s.projectiles.push({ id: s.nextId++, lane: 0, x: 500, depth: STAGE_LINE, damage: 1, pierceLeft: 0, splash: false, gatesPassed: 0, sourceCardId: 't' });
@@ -193,13 +196,16 @@ test('a damage gate gets shots through armor', () => {
 
 // ---------------------------------------------------------------- chains
 
-test('plays on consecutive beats build a chain; a Tight start adds +50%', () => {
+test('plays on consecutive beats build a chain; each link raises it by how on-beat it was', () => {
   const s = testState();
   noWaves(s);
-  const first = playOnBeat(s, 'power-chord', 0);
-  assert.deepEqual(ofType(first, 'link').map((l) => [l.links, l.multPct]), [[1, 150]]);
-  const second = playOnBeat(s, 'power-chord', 1);
-  assert.deepEqual(ofType(second, 'link').map((l) => [l.links, l.multPct]), [[2, 175]]);
+  const first = ofType(playOnBeat(s, 'power-chord', 0), 'link');
+  const second = ofType(playOnBeat(s, 'power-chord', 1), 'link');
+  assert.deepEqual([first[0]!.links, second[0]!.links], [1, 2]);
+  const step1 = first[0]!.multPct - 100;
+  const step2 = second[0]!.multPct - first[0]!.multPct;
+  // Within a tick of the beat: dead-on (+30) or Tight (+20).
+  for (const step of [step1, step2]) assert.ok(step === 30 || step === 20, `step ${step}`);
 });
 
 test('a chain survives one empty beat and ends after two', () => {
@@ -215,8 +221,12 @@ test('chain multiplier scales riff damage', () => {
   const s = testState();
   noWaves(s);
   const e = addEnemy(s, { lane: 0, depth: 50_000, hp: 1_000, maxHp: 1_000 });
-  playOnBeat(s, 'power-chord', 0); // 30 × Tight 1.5 × chain 1.5
-  assert.equal(e.hp, 1_000 - 67.5);
+  const events = playOnBeat(s, 'power-chord', 0);
+  const acc = ofType(events, 'graded')[0]!.accuracyPct;
+  const chain = ofType(events, 'link')[0]!.multPct;
+  const pocket = 100 + 4 * s.pocket.depth;
+  // 30 × accuracy × chain × pocket
+  assert.ok(Math.abs(e.hp - (1_000 - (30 * acc * chain * pocket) / 1e6)) < 1e-6);
 });
 
 test('Echo repeats on the next beat as a second link, and the card is discarded once', () => {

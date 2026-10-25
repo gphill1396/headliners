@@ -124,6 +124,12 @@ tests/
   - **Tight:** ±60 ms, gives ×1.5 to that card's effects.
   - **Good:** ±120 ms, gives ×1.2.
   - **Off:** gives ×0.75. Changed from ×1 in the Phase 1b balance pass, so timing is the skill.
+- **Accuracy is continuous** (Grant's change, Phase 1b). A play's own effect scales with how close it lands to the beat: dead-on ×1.6, edge of Tight ×1.3, edge of Good ×1.05, Off ×0.75. The Tight/Good/Off grades still name the windows.
+- **The pocket** rewards consistency, not perfection.
+  - A Tight play that lands within ±25 ms of your own running average timing deepens the pocket by 1, up to 10.
+  - A Tight play that drifts costs 1, a Good play costs 2, and an Off play empties it. If a chain lapses because you stopped playing, the pocket halves.
+  - Each level adds +4% to all damage, including units firing on their own, for up to +40%.
+  - Sitting a little behind the beat counts, as long as you stay there.
 - **Downbeat** cards gain their bonus when they resolve on beat 1 of a bar.
 - The beat is always visible as a pulsing bar in the control zone, marked for beat 1 vs beats 2–4. Haptics fire where the device supports them.
 - **Accessibility setting:** "relaxed timing" doubles the windows. Daily scores record whether it was on.
@@ -164,9 +170,7 @@ tests/
 ### 4.6 Chains (the combo engine)
 
 - Every trigger that happens within the same beat links into a **chain**.
-- **Chain multiplier:**
-  - ×1 for the first link, then +0.25 for each link after it.
-  - Tight timing on the card that starts the chain adds +0.5.
+- **Chain multiplier:** each link raises it by how on-beat that play was: dead-on (±15 ms) +30%, Tight +20%, Good +8%. Automatic links (Echo, Downbeat triggers) add +5%. *(Changed in Phase 1b; it was a flat +25% per link plus a Tight-start bonus.)*
 - **Chain resolution must be readable:**
   - Each link shows as a small labeled pop: card name → effect → number.
   - The chain counter in the control zone counts up.
@@ -358,7 +362,9 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
   - At game over the band fades out over two bars into the metronome.
   - Every start and resume drops in on the running beat.
 - *Slice addition:* **off-beat plays drop the chain**, so timing is the skill that keeps chains alive.
-- *Slice addition:* every 3 waves, Encore offers a **card pick** (choose 1 of 3 to add to your deck, or skip), so long runs grow. To be revisited with the simulator in 1b.
+- *Slice addition:* every 3 waves, Encore offers a **card pick**: choose 1 of 3 to add to your deck, or skip, so long runs grow.
+  - It ignores taps for 0.6 s after opening and only counts fresh taps.
+  - It needs a tap on a card plus a confirm, so a play in progress can't pick by accident.
 - *Slice simplifications:*
   - Card text is hand-written for now, not yet generated from effect data.
   - No discard-cycle.

@@ -19,7 +19,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     hp: 70,
     armor: 3,
     travelBeats: 16,
-    crowdDamage: 4,
+    crowdDamage: 3,
     packSize: 1,
   },
   swarmling: {
@@ -30,6 +30,6 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     armor: 0,
     travelBeats: 9,
     crowdDamage: 1,
-    packSize: 8,
+    packSize: 10,
   },
 };

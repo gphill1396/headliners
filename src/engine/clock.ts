@@ -1,5 +1,13 @@
 import {
+  ACC_DEAD_ON_PCT,
+  ACC_GOOD_EDGE_PCT,
+  ACC_TIGHT_EDGE_PCT,
   BEAT_MILLI,
+  CHAIN_STEP_DEAD_ON_PCT,
+  CHAIN_STEP_GOOD_PCT,
+  CHAIN_STEP_TIGHT_PCT,
+  DEAD_ON_WINDOW_MS,
+  POCKET_WINDOW_MS,
   BEAT_UNITS,
   BEATS_PER_BAR,
   GOOD_MULT_PCT,
@@ -137,6 +145,37 @@ export function gradeInput(clock: ClockState, permille: number, relaxed: boolean
   return { grade: 'off', offsetMilli: sinceBeat, resolveBeat: beat + 1, immediate: false };
 }
 
+/** Milli-units per ms of timing window, honoring relaxed timing. */
+function windowMilli(ms: number, bpm: number, relaxed: boolean): number {
+  return ms * (relaxed ? 2 : 1) * ((BEAT_MILLI * bpm) / 60_000);
+}
+
+/** How much a play's own effect is multiplied by its timing, in percent (continuous, not stepped). */
+export function accuracyPct(offsetMilli: number, bpm: number, relaxed: boolean): number {
+  const a = offsetMilli < 0 ? -offsetMilli : offsetMilli;
+  const tight = windowMilli(TIGHT_WINDOW_MS, bpm, relaxed);
+  const good = windowMilli(GOOD_WINDOW_MS, bpm, relaxed);
+  if (a <= tight) return ACC_DEAD_ON_PCT - Math.floor(((ACC_DEAD_ON_PCT - ACC_TIGHT_EDGE_PCT) * a) / tight);
+  if (a <= good) return ACC_TIGHT_EDGE_PCT - Math.floor(((ACC_TIGHT_EDGE_PCT - ACC_GOOD_EDGE_PCT) * (a - tight)) / (good - tight));
+  return OFF_MULT_PCT;
+}
+
+/** How much a played link raises the chain multiplier, by how on-beat it was. */
+export function chainStepPct(offsetMilli: number, bpm: number, relaxed: boolean): number {
+  const a = offsetMilli < 0 ? -offsetMilli : offsetMilli;
+  if (a <= windowMilli(DEAD_ON_WINDOW_MS, bpm, relaxed)) return CHAIN_STEP_DEAD_ON_PCT;
+  if (a <= windowMilli(TIGHT_WINDOW_MS, bpm, relaxed)) return CHAIN_STEP_TIGHT_PCT;
+  if (a <= windowMilli(GOOD_WINDOW_MS, bpm, relaxed)) return CHAIN_STEP_GOOD_PCT;
+  return 0;
+}
+
+/** Is this offset within the pocket window of your running average? */
+export function inPocket(offsetMilli: number, avgOffsetMilli: number, bpm: number, relaxed: boolean): boolean {
+  const d = offsetMilli - avgOffsetMilli;
+  return (d < 0 ? -d : d) <= windowMilli(POCKET_WINDOW_MS, bpm, relaxed);
+}
+
+/** Stepped multiplier by grade (pre-pocket saves and tests). */
 export function gradeMultiplierPct(grade: Grade): number {
   switch (grade) {
     case 'tight':

@@ -15,7 +15,7 @@ export * from './events';
 export * from './state';
 export * from './step';
 export * from './snapshot';
-export { chainMultPct, isBigChain } from './effects';
+export { boostPct, chainMultPct, isBigChain, pocketPct } from './effects';
 export { frontEnemy } from './combat';
 export { getCard, CARDS, STARTER_DECK } from '../content/cards';
 export { ENEMIES } from '../content/enemies';

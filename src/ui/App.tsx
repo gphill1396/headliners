@@ -59,6 +59,7 @@ interface Hud {
   energy: number;
   chain: number;
   mult: number;
+  pocket: number;
   fillIn: number;
   filling: boolean;
   phase: EngineState['phase'];
@@ -78,6 +79,7 @@ function sampleHud(s: EngineState): Hud {
     energy: s.energy,
     chain: s.chain.links,
     mult: s.chain.links > 0 ? s.chain.multPct : 100,
+    pocket: s.pocket.depth,
     fillIn: Math.max(0, s.headliner.readyBeat - s.clock.beat),
     filling,
     phase: s.phase,
@@ -312,7 +314,8 @@ export function App() {
           case 'graded': {
             const ms = Math.round(milliToMs(e.offsetMilli, s.clock.bpm));
             const when = Math.abs(ms) <= 2 ? 'on the beat' : ms < 0 ? `${-ms} ms early` : `${ms} ms late`;
-            flashInfo(`<strong>${GRADE_LABEL[e.grade]}</strong><span>${getCard(e.cardId).name}, ${when}</span>`, e.grade);
+            const mult = (e.accuracyPct / 100).toFixed(2);
+            flashInfo(`<strong>${GRADE_LABEL[e.grade]} ×${mult}</strong><span>${getCard(e.cardId).name}, ${when}</span>`, e.grade);
             break;
           }
           case 'rejected':
@@ -334,7 +337,7 @@ export function App() {
             if (isBigChain(e.links) && e.links % 8 === 0 && !settingsRef.current.reduceFlash) fx.bigFlash = 0.7;
             break;
           case 'chainEnd':
-            if (e.dropped) flashInfo(`<strong>Chain dropped</strong><span>${e.links} links. Off-beat plays break the chain.</span>`, 'off');
+            if (e.dropped) flashInfo(`<strong>Chain dropped</strong><span>Off-beat play</span>`, 'off');
             break;
           case 'showstopper':
             showBanner('Showstopper!', `${e.links}-link chain hits everything for ${formatNumber(e.damage)}`);
@@ -362,6 +365,11 @@ export function App() {
             break;
           case 'fill':
             showBanner('Fill!', 'Every unit fires on every eighth note');
+            break;
+          case 'pocket':
+            if (e.depth === 10 && e.delta > 0) pop('Deep in the pocket', 1, 30_000, 'pop-pocket');
+            else if (e.depth === 5 && e.delta > 0) pop('In the pocket', 1, 30_000, 'pop-pocket');
+            else if (e.depth === 0 && e.delta <= -4) pop('Lost the pocket', 1, 30_000, 'pop-note');
             break;
           case 'pickOffered':
             handToConductor('muffled', s);
@@ -770,21 +778,37 @@ export function App() {
 
       <section className="controls" aria-label="Controls">
         <div className="control-top">
-          <div className={`pads${coached('pads')}`} aria-hidden="true">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} ref={(el) => void (padRefs.current[i] = el)} className={i === 0 ? 'pad pad-down' : 'pad'} />
-            ))}
+          <div className="beat-stack">
+            <div className={`pads${coached('pads')}`} aria-hidden="true">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} ref={(el) => void (padRefs.current[i] = el)} className={i === 0 ? 'pad pad-down' : 'pad'} />
+              ))}
+            </div>
+            <div
+              className={`pocket${hud.pocket >= 8 ? ' deep' : ''}${coached('pocket')}`}
+              aria-label={`Pocket ${hud.pocket} of 10, plus ${hud.pocket * 4} percent damage`}
+            >
+              <span className="pocket-segs" aria-hidden="true">
+                {Array.from({ length: 10 }, (_, i) => (
+                  <span key={i} className={i < hud.pocket ? 'on' : ''} />
+                ))}
+              </span>
+            </div>
           </div>
           <div ref={chainRef} className={`chain${hud.chain >= 8 ? ' hot' : ''}${hud.chain > 0 ? ' on' : ''}${coached('chain')}`}>
-            {hud.chain > 0 ? (
-              <>
-                <span>Chain {hud.chain}</span>
-                <strong>×{(hud.mult / 100).toFixed(2).replace(/\.?0+$/, '')}</strong>
-                <span className="chain-dmg">dmg</span>
-              </>
-            ) : (
-              <span className="muted">No chain</span>
-            )}
+            <span className="chain-line">
+              {hud.chain > 0 ? (
+                <>
+                  <span>Chain {hud.chain}</span>
+                  <strong>×{(hud.mult / 100).toFixed(2).replace(/\.?0+$/, '')}</strong>
+                </>
+              ) : (
+                <span className="muted">No chain</span>
+              )}
+            </span>
+            <span className={`pocket-line${hud.pocket >= 8 ? ' deep' : ''}`}>
+              Pocket {hud.pocket > 0 ? `+${hud.pocket * 4}%` : '—'}
+            </span>
           </div>
           <button className="icon-btn" onClick={pauseGame} aria-label="Pause" disabled={view !== 'playing'}>
             <span className="pause-glyph" />

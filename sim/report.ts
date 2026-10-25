@@ -101,7 +101,7 @@ export function evaluate(byBot: Record<string, RunResult[]>, runsPerBot: number)
   const pickRates: Record<string, number> = {};
   for (const c of CARDS) pickRates[c.id] = top.filter((r) => r.picks.includes(c.id)).length / Math.max(1, top.length);
   const [topPick, topPickRate] = Object.entries(pickRates).sort((a, b) => b[1] - a[1])[0] ?? ['-', 0];
-  checks.push({ id: 'D4', name: 'No must-pick card (top-25% runs)', pass: topPickRate <= T.D4_mustPick, value: `${topPick} in ${pct(topPickRate)}`, target: `≤ ${pct(T.D4_mustPick)}`, note: 'Measured on card picks, since every run starts from the same deck.' });
+  checks.push({ id: 'D4', name: 'No must-pick card (top-25% runs)', pass: topPickRate <= T.D4_mustPick, value: `${topPick} in ${pct(topPickRate)}`, target: `≤ ${pct(T.D4_mustPick)}`, note: 'Not meaningful yet: with a 12-card pool only 3 cards are outside the starter deck, so any sensible picker takes them. Revisit with the full card set.' });
 
   // D5 — no single damage source (top runs stand in for "winning", since Encore is endless).
   const damageShare: Record<string, number> = {};

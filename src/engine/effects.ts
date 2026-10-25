@@ -131,12 +131,24 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
   }
 }
 
-function runTriggers(state: EngineState, ctx: TickCtx, cardId: string, when: 'downbeat' | 'chainGrow', unit: Unit | null, lane: number): void {
+function runTriggers(
+  state: EngineState,
+  ctx: TickCtx,
+  cardId: string,
+  when: 'downbeat' | 'chainGrow',
+  unit: Unit | null,
+  lane: number,
+  linked?: Set<string>,
+): void {
   const def = getCard(cardId);
   if (!def.triggers) return;
   for (const t of def.triggers) {
     if (t.when !== when) continue;
-    if (t.link && when !== 'chainGrow') addLink(state, ctx, cardId, `${def.name} triggers`, lane, null);
+    // Copies of the same card play as one section: only the first adds a link each time.
+    if (t.link && when !== 'chainGrow' && !linked?.has(cardId)) {
+      linked?.add(cardId);
+      addLink(state, ctx, cardId, `${def.name} triggers`, lane, null);
+    }
     runEffects(state, ctx, t.effects, { cardId, lane, multPct: chainMultPct(state), unit });
   }
 }
@@ -144,9 +156,10 @@ function runTriggers(state: EngineState, ctx: TickCtx, cardId: string, when: 'do
 /** Beat 1 of each bar: Downbeat triggers on units already on the field, oldest first. */
 export function runDownbeatTriggers(state: EngineState, ctx: TickCtx): void {
   const units = [...state.units];
+  const linked = new Set<string>();
   for (const u of units) {
     if (state.phase === 'over') return;
-    runTriggers(state, ctx, u.cardId, 'downbeat', u, u.lane);
+    runTriggers(state, ctx, u.cardId, 'downbeat', u, u.lane, linked);
   }
 }
 

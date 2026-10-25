@@ -131,5 +131,5 @@ test('sub-tick input that crosses the beat inside the tick is graded as late', (
 test('grade multipliers match the spec', () => {
   assert.equal(gradeMultiplierPct('tight'), 150);
   assert.equal(gradeMultiplierPct('good'), 120);
-  assert.equal(gradeMultiplierPct('off'), 100);
+  assert.equal(gradeMultiplierPct('off'), 75); // balance pass: off-beat plays land weaker
 });

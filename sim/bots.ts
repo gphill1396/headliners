@@ -132,9 +132,10 @@ function choosePlay(config: BotConfig, s: EngineState, rng: RngState): Choice | 
     for (let lane = 0; lane < 3; lane++) {
       let value = estimateValue(def, lane, s, threat);
       if (config.kind === 'archetype') {
-        if (def.headliner === 'thrum') value *= 1.3;
-        // Keeping the chain alive is worth something on its own.
-        if (s.chain.links > 0) value += 4 + s.chain.links * 0.5;
+        if (def.headliner === 'thrum') value *= 1.15;
+        // Keep a running chain alive, but only when it's about to drop and only with cheap cards.
+        const aboutToDrop = s.chain.links > 0 && s.chain.lastLinkBeat < s.clock.beat;
+        if (aboutToDrop && def.cost <= 1) value += 2 + Math.min(8, s.chain.links * 0.4);
       }
       value /= Math.max(1, def.cost);
       value += nextFloat(rng) * 0.5; // break ties, avoid robotic repetition
@@ -202,11 +203,14 @@ function wantsFill(config: BotConfig, s: EngineState, rng: RngState): boolean {
 function choosePick(config: BotConfig, s: EngineState, rng: RngState): number | null {
   if (s.pick.length === 0) return null;
   if (config.kind === 'random') return nextFloat(rng) < 0.25 ? null : nextInt(rng, 0, s.pick.length);
+  // Pick what the deck is short on: every copy already owned makes a card less attractive.
+  const owned = (id: string) => [...s.hand, ...s.draw, ...s.discard].filter((c) => c.cardId === id).length +
+    s.units.filter((u) => u.cardId === id).length + s.gates.filter((g) => g.cardId === id).length + s.amps.filter((a) => a.cardId === id).length;
+  const base: Record<string, number> = { unit: 2, gate: 2, riff: 1.6, amp: 1.6 };
   const scores = s.pick.map((id) => {
     const def = getCard(id);
-    let v = nextFloat(rng) * 1.5;
-    if (config.kind === 'archetype' && def.headliner === 'thrum') v += 1.5;
-    if (def.type === 'gate' || def.type === 'unit') v += 1;
+    let v = (base[def.type] ?? 1.5) - 0.6 * owned(id) + nextFloat(rng);
+    if (config.kind === 'archetype' && def.headliner === 'thrum') v += 0.3;
     return v;
   });
   return argmax(scores);

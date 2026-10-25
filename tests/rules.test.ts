@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createState, GATE_DEPTHS, HAND_SIZE, STAGE_LINE, step, START_CROWD, type EngineState } from '../src/engine';
+import { createState, ENEMIES, GATE_DEPTHS, HAND_SIZE, STAGE_LINE, step, START_CROWD, type EngineState } from '../src/engine';
 import { STARTER_DECK } from '../src/content/cards';
 import { addEnemy, countShots, giveCard, nextBeat, noWaves, ofType, playOnBeat, runTicks, testState, toBeatEdge } from './helpers';
 
@@ -401,7 +401,7 @@ test('tutorial mode: no waves, leaks cost nothing, no hand refills', () => {
   assert.equal(s.hand.length, 0);
   step(s, [{ type: 'spawn', kind: 'shambler', lane: 1, travelBeats: 2 }]);
   const later = runTicks(s, 36 * 4);
-  assert.equal(ofType(later, 'leaked').length, 1);
+  assert.equal(ofType(later, 'leaked').length, ENEMIES.shambler.packSize);
   assert.equal(s.crowd, START_CROWD);
 });
 

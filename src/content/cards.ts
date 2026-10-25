@@ -27,9 +27,9 @@ export const CARDS: readonly CardDef[] = [
     headliner: 'thrum',
     keywords: ['downbeat'],
     unit: { damage: 4, fireEvery: 4 },
-    triggers: [{ when: 'downbeat', link: true, effects: [{ do: 'selfFire', shots: 3 }] }],
+    triggers: [{ when: 'downbeat', link: true, effects: [{ do: 'selfFire', shots: 2 }] }],
     short: 'Burst on beat 1',
-    text: 'Unit. 4 damage, fires every 2 beats. Downbeat: fires 3 extra shots and adds a chain link.',
+    text: 'Unit. 4 damage, fires every 2 beats. Downbeat: fires 2 extra shots and adds a chain link (one per bar, however many Kick Drums you have).',
     flavor: 'Four on the floor, through the floor.',
   },
   {

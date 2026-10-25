@@ -30,7 +30,7 @@ export const GOOD_WINDOW_MS = 120;
 /** Effect multipliers for timing grades, as integer percentages (SPEC §4.2). */
 export const TIGHT_MULT_PCT = 150;
 export const GOOD_MULT_PCT = 120;
-export const OFF_MULT_PCT = 100;
+export const OFF_MULT_PCT = 75;
 
 export const START_BPM = 100;
 export const MIN_BPM = 40;

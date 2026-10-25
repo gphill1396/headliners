@@ -14,7 +14,7 @@ import {
 } from './constants';
 import type { TickCtx } from './context';
 import { nextInt, shuffleInPlace } from './rng';
-import type { EngineState } from './state';
+import { emptyChain, type EngineState } from './state';
 import type { EnemyKind } from './types';
 import { PICK_POOL } from '../content/cards';
 import { ENEMIES } from '../content/enemies';
@@ -57,6 +57,11 @@ export function startWave(state: EngineState, ctx: TickCtx, index: number): void
   shuffleInPlace(state.rng, order);
   const spawns = order.map((kind, i) => ({ beatOffset: Math.floor((i * WAVE_SPAWN_BEATS) / groups), kind }));
 
+  // Each wave is a song: the chain from the last one is banked and a new one starts.
+  if (state.chain.links > 0) {
+    ctx.events.push({ type: 'chainEnd', links: state.chain.links, dropped: false, songEnd: true });
+    state.chain = emptyChain();
+  }
   state.wave = { index, startBeat: state.clock.beat, hpMult, spawns, nextSpawn: 0, kinds };
   setTempo(state.clock, Math.min(WAVE_MAX_BPM, START_BPM + WAVE_TEMPO_STEP * (index - 1)));
   ctx.events.push({ type: 'waveStart', index, kinds });

@@ -19,6 +19,7 @@ import { formatNumber } from './format';
 import { GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay } from './Overlays';
 import { GameRunner, type CountIn } from './runner';
 import { mixFrom, playRiff, scheduleGroove, type MusicStyle } from '../audio/groove';
+import { Conductor } from '../audio/conductor';
 import { Synth } from '../audio/synth';
 import { createTutorialState, freshProgress, TUTORIAL, type Progress, type Target } from './tutorial';
 import {
@@ -134,14 +135,8 @@ export function App() {
   const progressRef = useRef<Progress>(freshProgress());
   const synthRef = useRef<Synth | null>(null);
   const lastEighthScheduled = useRef(-1);
-  const lastCountBeat = useRef(-1);
-  /**
-   * While a card pick is open the engine clock is frozen, so the music runs on
-   * a virtual clock from the downbeat where the pick appeared (beat0, in
-   * performance.now ms). The band plays muffled; after a pick the engine is
-   * held until the next virtual downbeat, so everything kicks back in on 1.
-   */
-  const pickMusic = useRef<{ beat0: number; bpm: number; beat: number; k: number; resumeAt: number | null } | null>(null);
+  /** Keeps the beat going whenever the engine isn't driving the music (title, pause, picks, game over). */
+  const conductorRef = useRef<Conductor>(new Conductor());
   const tutorialTick = useRef<((events: EngineEvent[], s: EngineState) => void) | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -165,6 +160,68 @@ export function App() {
   settingsRef.current = settings;
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
+
+  /** Light the four stage-light pads for a beat position. */
+  const drawPads = useCallback((current: number, phase: number, live: boolean) => {
+    padRefs.current.forEach((pad, i) => {
+      if (!pad) return;
+      pad.style.setProperty('--lit', live && i === current ? (1 - phase).toFixed(3) : '0');
+      const next = (current + 1) % 4;
+      pad.style.setProperty('--warm', live && i === next ? Math.max(0, (phase - 0.75) * 4).toFixed(3) : '0');
+    });
+  }, []);
+
+  /** The engine stops driving the music (pause, card pick, game over); the Conductor carries the beat on from here. */
+  const handToConductor = useCallback(
+    (mode: 'muffled' | 'fade', s: EngineState) => {
+      const now = performance.now();
+      const beatTime = runner.realTimeOfTick(s.tick - s.clock.phase / s.clock.bpm);
+      const synth = settingsRef.current.sound ? synthRef.current : null;
+      conductorRef.current.takeOver(mode, now, beatTime, s.clock.beat, s.clock.bpm, lastEighthScheduled.current + 1, synth);
+    },
+    [runner],
+  );
+
+  /** Create/resume audio (must happen inside a tap on iOS) and start the beat if it isn't going yet. */
+  const ensureAudio = useCallback(() => {
+    if (settingsRef.current.sound) {
+      if (!synthRef.current) synthRef.current = Synth.create();
+      synthRef.current?.resume();
+    }
+    const conductor = conductorRef.current;
+    if (!conductor.running) conductor.startMetronome(performance.now(), runner.state.clock.bpm);
+  }, [runner]);
+
+  // The beat never stops: the metronome starts on the first tap, and this loop keeps the Conductor going
+  // whenever the engine isn't driving the music.
+  useEffect(() => {
+    const first = () => ensureAudio();
+    window.addEventListener('pointerdown', first, { once: true });
+    window.addEventListener('keydown', first, { once: true });
+    let raf = 0;
+    const loop = (now: number) => {
+      const conductor = conductorRef.current;
+      const synth = settingsRef.current.sound ? synthRef.current : null;
+      const style: MusicStyle = settingsRef.current.chillMusic ? 'chill' : 'full';
+      const handoff = conductor.tick(now, synth, style, () => mixFrom(runner.state));
+      if (handoff) {
+        // Back in on the beat: the full band plays the first engine eighth, then the engine carries on.
+        lastEighthScheduled.current = handoff.eighth;
+        if (synth) scheduleGroove(synth, mixFrom(runner.state), handoff.eighth, synth.audioTimeAt(handoff.at), 30 / runner.state.clock.bpm, style);
+      }
+      if (conductor.mode !== 'engine' && conductor.running) {
+        const pos = conductor.position(now);
+        drawPads(pos.beat, pos.phase, true);
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('pointerdown', first);
+      window.removeEventListener('keydown', first);
+    };
+  }, [runner, ensureAudio, drawPads]);
 
   /** Short message in the info strip (grades, rejections). Card text shows there while a card is selected. */
   const flashInfo = useCallback((html: string, tone: string) => {
@@ -212,13 +269,15 @@ export function App() {
   }, []);
 
   const finishRun = useCallback((s: EngineState) => {
+    // The band fades out over two bars, leaving the metronome: the beat never stops.
+    handToConductor('fade', s);
     const result = recordRun(s);
     clearRun();
     setCanResume(false);
     setBests(result.bests);
     setNewBest(result.newBest);
     setView('over');
-  }, []);
+  }, [handToConductor]);
 
   // Wire the runner to rendering, effects and the HUD.
   useEffect(() => {
@@ -305,14 +364,7 @@ export function App() {
             showBanner('Fill!', 'Every unit fires on every eighth note');
             break;
           case 'pickOffered':
-            pickMusic.current = {
-              beat0: runner.realTimeOfTick(s.tick - s.clock.phase / s.clock.bpm),
-              bpm: s.clock.bpm,
-              beat: s.clock.beat,
-              k: 1,
-              resumeAt: null,
-            };
-            sfx?.setMuffle(true);
+            handToConductor('muffled', s);
             break;
           case 'gameOver':
             break;
@@ -337,76 +389,29 @@ export function App() {
       lastFrame.current = now;
       decayFx(fx, dt);
 
-      // Card pick screen: a virtual clock keeps the beat (and the pads) going while the engine waits.
-      const pm = pickMusic.current;
-      let virtual: CountIn | null = null;
-      if (pm) {
-        if (s.phase === 'playing' && pm.resumeAt === null) pickMusic.current = null; // stale (e.g. a restored save)
-        const beatMs = 60_000 / pm.bpm;
-        const elapsed = (now - pm.beat0) / beatMs;
-        virtual = { beat: ((Math.floor(elapsed) % 4) + 4) % 4, phase: ((elapsed % 1) + 1) % 1 };
-      }
-      if (virtual) countIn = virtual;
-      const phase = countIn ? countIn.phase : Math.min(0.999, (s.clock.phase + s.clock.bpm * alpha) / BEAT_UNITS);
+      void countIn;
+      const conductor = conductorRef.current;
+      const phase = Math.min(0.999, (s.clock.phase + s.clock.bpm * alpha) / BEAT_UNITS);
       const style: MusicStyle = settingsRef.current.chillMusic ? 'chill' : 'full';
 
-      // Sound: stick clicks during a count-in, then the drum loop scheduled ~120 ms ahead on the audio clock.
+      // The engine drives the music while a run is playing; the Conductor covers every other moment.
       const synth = settingsRef.current.sound ? synthRef.current : null;
       if (synth) synth.sfx = style === 'chill' ? 0.6 : 1;
-      if (pm && pickMusic.current) {
-        const eighthMs = 30_000 / pm.bpm;
-        for (;;) {
-          const tK = pm.beat0 + pm.k * eighthMs;
-          if (tK - now > 120) break;
-          if (pm.resumeAt !== null && tK >= pm.resumeAt - 1) {
-            // Back on 1: unmuffle and play the downbeat with the full band, then hand back to the engine clock.
-            if (synth) {
-              const at = synth.audioTimeAt(pm.resumeAt);
-              synth.setMuffle(false, at);
-              scheduleGroove(synth, mixFrom(s), 2 * pm.beat, at, 30 / s.clock.bpm, style);
-            }
-            lastEighthScheduled.current = 2 * pm.beat;
-            pickMusic.current = null;
-            break;
-          }
-          if (synth && runner.running && tK > now - 40) {
-            scheduleGroove(synth, { ...mixFrom(s), chain: 0 }, 2 * pm.beat + pm.k, synth.audioTimeAt(tK), eighthMs / 1000, style);
-          }
-          pm.k += 1;
-        }
-      } else if (synth && runner.running) {
-        if (countIn) {
-          if (countIn.beat !== lastCountBeat.current) {
-            lastCountBeat.current = countIn.beat;
-            synth.click(synth.ctx.currentTime, countIn.beat === 0);
-          }
-          lastEighthScheduled.current = Math.floor((s.clock.beat * BEAT_UNITS + s.clock.phase) / (BEAT_UNITS / 2));
-        } else if (s.phase === 'playing') {
-          lastCountBeat.current = -1;
-          const pos = s.clock.beat * BEAT_UNITS + s.clock.phase;
-          const next = Math.floor(pos / (BEAT_UNITS / 2)) + 1;
-          if (next > lastEighthScheduled.current) {
-            const tickAt = s.tick + (next * (BEAT_UNITS / 2) - pos) / s.clock.bpm;
-            const at = runner.realTimeOfTick(tickAt);
-            if (at - now < 120) {
-              lastEighthScheduled.current = next;
-              scheduleGroove(synth, mixFrom(s), next, synth.audioTimeAt(at), 30 / s.clock.bpm, style);
-            }
+      if (synth && conductor.mode === 'engine' && s.phase === 'playing') {
+        const pos = s.clock.beat * BEAT_UNITS + s.clock.phase;
+        const next = Math.floor(pos / (BEAT_UNITS / 2)) + 1;
+        if (next > lastEighthScheduled.current) {
+          const tickAt = s.tick + (next * (BEAT_UNITS / 2) - pos) / s.clock.bpm;
+          const at = runner.realTimeOfTick(tickAt);
+          if (at - now < 120) {
+            lastEighthScheduled.current = next;
+            scheduleGroove(synth, mixFrom(s), next, synth.audioTimeAt(at), 30 / s.clock.bpm, style);
           }
         }
       }
       drawField(ctx, s, s.phase === 'playing' ? alpha : 0, fx, phase, now);
 
-      const current = countIn ? countIn.beat : beatInBar(s.clock.beat);
-      const live = countIn !== null || s.phase === 'playing';
-      padRefs.current.forEach((pad, i) => {
-        if (!pad) return;
-        pad.style.setProperty('--lit', live && i === current ? (1 - phase).toFixed(3) : '0');
-        const next = (current + 1) % 4;
-        pad.style.setProperty('--warm', live && i === next ? Math.max(0, (phase - 0.75) * 4).toFixed(3) : '0');
-      });
-      const chainEl = chainRef.current;
-      if (chainEl) chainEl.classList.toggle('count-in', countIn !== null);
+      if (conductor.mode === 'engine') drawPads(beatInBar(s.clock.beat), phase, s.phase === 'playing');
 
       // Grouped damage numbers: one per lane every 160 ms.
       if (now - lastPopFlush.current > 160) {
@@ -434,6 +439,7 @@ export function App() {
 
     const onHide = () => {
       if (runner.running) {
+        if (runner.state.phase === 'playing' && conductorRef.current.mode === 'engine') handToConductor('muffled', runner.state);
         runner.pause();
         saveRun(runner.state);
         setView((v) => (v === 'playing' ? 'paused' : v));
@@ -448,7 +454,7 @@ export function App() {
       window.removeEventListener('pagehide', onHide);
       runner.pause();
     };
-  }, [runner, flashInfo, pop, showLink, showBanner, finishRun]);
+  }, [runner, flashInfo, pop, showLink, showBanner, finishRun, handToConductor, drawPads]);
 
   // Keep the selected card valid as the hand changes.
   useEffect(() => {
@@ -541,29 +547,33 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  const startPlaying = (countIn: boolean) => {
+  /**
+   * Start or resume play, dropping the engine in on the running beat: it is held
+   * until the Conductor's next beat at the same place in the bar (at least two
+   * beats away), so the band comes back in exactly in time.
+   */
+  const startPlaying = () => {
     lastFrame.current = 0;
-    // Audio must be created/resumed inside a tap (iOS rule); every start goes through here.
-    if (settings.sound) {
-      if (!synthRef.current) synthRef.current = Synth.create();
-      synthRef.current?.resume();
-    }
-    lastEighthScheduled.current = -1;
-    lastCountBeat.current = -1;
-    if (runner.state.phase === 'picking') {
-      // Resuming onto the card pick: start the muffled groove right away.
-      const now = performance.now();
-      pickMusic.current = { beat0: now, bpm: runner.state.clock.bpm, beat: runner.state.clock.beat, k: 1, resumeAt: null };
-      synthRef.current?.setMuffle(true);
-      setView('playing');
+    ensureAudio();
+    const conductor = conductorRef.current;
+    const s = runner.state;
+    setView('playing');
+    if (s.phase === 'picking') {
+      // Back onto a card pick: the muffled band keeps playing until a card is chosen.
+      conductor.setMode('muffled', settingsRef.current.sound ? synthRef.current : null);
       runner.start(false);
       return;
     }
-    setView('playing');
-    runner.start(countIn);
+    const now = performance.now();
+    const at = conductor.nextBeatAt(now, beatInBar(s.clock.beat), 2);
+    conductor.handBackAt(at, s.clock.beat);
+    lastEighthScheduled.current = 2 * s.clock.beat;
+    runner.start(false);
+    runner.holdUntil(at, now);
   };
 
   const pauseGame = () => {
+    if (conductorRef.current.mode === 'engine') handToConductor('muffled', runner.state);
     runner.pause();
     saveRun(runner.state);
     setView('paused');
@@ -573,7 +583,7 @@ export function App() {
     if (savedRun.current) runner.load(savedRun.current);
     savedRun.current = null;
     setHud(sampleHud(runner.state));
-    startPlaying(true);
+    startPlaying();
   };
 
   const startNew = () => {
@@ -587,25 +597,19 @@ export function App() {
     overlayRef.current?.replaceChildren();
     setSelected(null);
     setHud(sampleHud(runner.state));
-    startPlaying(true);
+    startPlaying();
   };
 
   const pick = (index: number | null) => {
     setPickSent(true);
     const now = performance.now();
-    const pm = pickMusic.current;
-    let downbeat: number;
-    if (pm) {
-      // The next downbeat of the still-running groove, at least one beat away so it doesn't lurch.
-      const beatMs = 60_000 / pm.bpm;
-      const barMs = beatMs * 4;
-      downbeat = pm.beat0 + Math.ceil((now + beatMs - pm.beat0) / barMs) * barMs;
-      pm.resumeAt = downbeat;
-    } else {
-      downbeat = now + runner.barMs();
-    }
+    const conductor = conductorRef.current;
+    const beat = runner.state.clock.beat;
+    // Back in on the next beat 1 of the still-running groove, at least one beat away so it doesn't lurch.
+    const at = conductor.nextBeatAt(now, beatInBar(beat), 1);
+    conductor.handBackAt(at, beat);
     runner.send({ type: 'pick', index });
-    runner.holdUntil(downbeat, now);
+    runner.holdUntil(at, now);
   };
 
   // ---------------------------------------------------------------- soundcheck
@@ -652,7 +656,7 @@ export function App() {
     overlayRef.current?.replaceChildren();
     setHud(sampleHud(runner.state));
     goToStep(0);
-    startPlaying(true);
+    startPlaying();
   };
 
   function finishTutorial() {
@@ -868,7 +872,7 @@ export function App() {
         <PauseOverlay
           state={runner.state}
           tutorial={tutStep !== null}
-          onResume={() => startPlaying(true)}
+          onResume={() => startPlaying()}
           onRestart={tutStep !== null ? finishTutorial : startNew}
           settings={settings}
           onToggle={toggleSetting}

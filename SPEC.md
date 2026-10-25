@@ -123,6 +123,7 @@ tests/
 - **Timing grades:** if your commit lands inside a window before the beat, you get a grade.
   - **Tight:** ±60 ms, gives ×1.5 to that card's effects.
   - **Good:** ±120 ms, gives ×1.2.
+  - **Off:** gives ×0.75. Changed from ×1 in the Phase 1b balance pass, so timing is the skill.
 - **Downbeat** cards gain their bonus when they resolve on beat 1 of a bar.
 - The beat is always visible as a pulsing bar in the control zone, marked for beat 1 vs beats 2–4. Haptics fire where the device supports them.
 - **Accessibility setting:** "relaxed timing" doubles the windows. Daily scores record whether it was on.
@@ -351,6 +352,11 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
   - Chain layers: a pad at 4+ links and a lead arpeggio at 8+. Both drop out within a beat when the chain breaks.
 - *Slice addition:* the groove keeps playing, muffled, behind the **card pick**. After a pick the band comes back in on the next beat 1.
 - *Slice addition:* **Chill music** setting: the same band, played sparser.
+- *Slice addition:* **the beat never stops**.
+  - A metronome starts on the first tap at launch.
+  - Pause and card picks keep the band going, muffled.
+  - At game over the band fades out over two bars into the metronome.
+  - Every start and resume drops in on the running beat.
 - *Slice addition:* **off-beat plays drop the chain**, so timing is the skill that keeps chains alive.
 - *Slice addition:* every 3 waves, Encore offers a **card pick** (choose 1 of 3 to add to your deck, or skip), so long runs grow. To be revisited with the simulator in 1b.
 - *Slice simplifications:*
@@ -359,6 +365,17 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
   - No drag-to-play.
   - No long-press: tapping a card shows its text.
   - Evolutions appear as a preview only.
+
+**Phase 1b balance pass (simulator-driven).** Every change was rerun through the depth report before it was kept.
+- **Each wave is a song.** The chain resets when a new wave starts, so a Showstopper means 50 links within one song. (Fixed D8: cap hit in 37% of runs, now 0%.)
+- **Kick Drum:** the downbeat burst drops from 3 shots to 2. Copies of the same card add one chain link per bar between them, not one each. (D5: Kick Drum damage share went from 41% to 27%.)
+- **Off-beat plays land at ×0.75.** (D1 and D2: timing is the skill.)
+- **Shamblers come in pairs** (12 HP each). **Brute leaks cost 4 crowd**, down from 5. (D6: every enemy type matters.)
+- Tried and reverted: Brute armor 2 / 85 HP. Brutes then caused 94% of losses, and random play got relatively stronger.
+- **Results** at 200 runs per bot:
+  - D1 3.4×, D2 4.25×, D5 32.8%, D6 6.0% (minimum), D7 3.0, D8 0% — all pass.
+  - D3 is n/a: only one headliner.
+  - D4 can't be judged with a 12-card pool. Only 3 cards sit outside the starter deck, so any sensible picker takes them. Revisit at full content.
 
 **Phase 1b — Fill out.** Adds the simulator and the D1–D8 report, then tunes the slice against it. Then adds Lyra and Clatter, the other 5 enemy types, The Hush, the full ~40 cards, evolutions, the remaining keywords, audio, discard-cycle and drag-to-play.
 

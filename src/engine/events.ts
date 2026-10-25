@@ -10,7 +10,8 @@ export type EngineEvent =
   | { type: 'tapped'; lane: number; grade: Grade; offsetMilli: number }
   | { type: 'resolved'; id: number; cardId: string; lane: number; grade: Grade; beat: number; isEcho: boolean }
   | { type: 'link'; links: number; multPct: number; cardId: string; label: string; lane: number }
-  | { type: 'chainEnd'; links: number; dropped: boolean }
+    /** `dropped`: an off-beat play broke it. `songEnd`: the wave (song) ended and the chain was banked. */
+  | { type: 'chainEnd'; links: number; dropped: boolean; songEnd?: boolean }
   | { type: 'showstopper'; links: number; damage: number }
   | { type: 'unitPlaced'; unitId: number; cardId: string; lane: number; slot: number; replacedId: number | null }
   | { type: 'gatePlaced'; gateId: number; cardId: string; lane: number; slot: number; replacedId: number | null }

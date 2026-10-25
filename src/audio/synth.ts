@@ -46,6 +46,8 @@ export class Synth {
   readonly ctx: AudioContext;
   private master: GainNode;
   private muffle: BiquadFilterNode;
+  /** Post-mix output. The metronome goes here directly, so band fades and muffling never touch it. */
+  private out: AudioNode;
   /** Game sound effects level (lower in Chill music). */
   sfx = 1;
   private noise: AudioBuffer;
@@ -59,6 +61,7 @@ export class Synth {
     comp.threshold.value = -14;
     comp.ratio.value = 4;
     comp.connect(ctx.destination);
+    this.out = comp;
     this.master = ctx.createGain();
     this.master.gain.value = 0.6;
     // Muffle: the band heard from backstage while a card pick is open.
@@ -214,6 +217,36 @@ export class Synth {
     osc.connect(gain).connect(dest);
     osc.start(t);
     osc.stop(t + 0.28);
+  }
+
+  /** The metronome: a dry wood-block tick, accented on beat 1. Bypasses the band's mute and fades. */
+  metronome(t: number, accent: boolean): void {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(accent ? 1_900 : 1_350, t);
+    gain.gain.setValueAtTime(accent ? 0.16 : 0.09, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+    osc.connect(gain).connect(this.out);
+    osc.start(t);
+    osc.stop(t + 0.05);
+  }
+
+  /** Fade the band out over `seconds` (game over), leaving the metronome. */
+  fadeBand(t: number, seconds: number): void {
+    this.master.gain.cancelScheduledValues(t);
+    this.master.gain.setValueAtTime(this.master.gain.value, t);
+    this.master.gain.linearRampToValueAtTime(0.0001, t + seconds);
+    this.muffle.frequency.cancelScheduledValues(t);
+    this.muffle.frequency.setTargetAtTime(700, t, seconds / 3);
+  }
+
+  /** Bring the band bus back to normal (after a fade, before the band plays again). */
+  resetBand(t: number): void {
+    this.master.gain.cancelScheduledValues(t);
+    this.master.gain.setValueAtTime(0.6, t);
+    this.muffle.frequency.cancelScheduledValues(t);
+    this.muffle.frequency.setValueAtTime(20_000, t);
   }
 
   /** Drumstick click for count-ins. */

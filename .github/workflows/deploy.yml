@@ -35,6 +35,10 @@ jobs:
       - name: Engine tests
         run: npm test
 
+      - name: Depth report (warnings only)
+        run: npm run sim -- --runs 30 --ci
+        continue-on-error: true
+
       - name: Build
         run: npm run build
 

@@ -22,6 +22,7 @@ function SettingsList({ settings, onToggle }: SettingsProps) {
   return (
     <div className="settings">
       <Toggle label="Sound" checked={settings.sound} onChange={() => onToggle('sound')} />
+      <Toggle label="Chill music" checked={settings.chillMusic} onChange={() => onToggle('chillMusic')} />
       <Toggle label="Relaxed timing" checked={settings.relaxedTiming} onChange={() => onToggle('relaxedTiming')} />
       <Toggle label="Calmer flashes" checked={settings.reduceFlash} onChange={() => onToggle('reduceFlash')} />
     </div>

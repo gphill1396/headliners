@@ -11,6 +11,8 @@ const TUTORIAL_KEY = 'headliners.soundcheck.v1';
 
 export interface Settings {
   sound: boolean;
+  /** Sparser arrangement: same band, less going on. */
+  chillMusic: boolean;
   relaxedTiming: boolean;
   scientific: boolean;
   reduceFlash: boolean;
@@ -42,7 +44,7 @@ function write(key: string, value: string): void {
 
 export function loadSettings(): Settings {
   const s = read<Partial<Settings>>(SETTINGS_KEY) ?? {};
-  return { sound: s.sound !== false, relaxedTiming: s.relaxedTiming === true, scientific: s.scientific === true, reduceFlash: s.reduceFlash === true };
+  return { sound: s.sound !== false, chillMusic: s.chillMusic === true, relaxedTiming: s.relaxedTiming === true, scientific: s.scientific === true, reduceFlash: s.reduceFlash === true };
 }
 
 export function saveSettings(settings: Settings): void {

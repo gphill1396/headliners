@@ -18,7 +18,7 @@ import { CardTile } from './CardTile';
 import { formatNumber } from './format';
 import { GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay } from './Overlays';
 import { GameRunner, type CountIn } from './runner';
-import { mixFrom, playRiff, scheduleGroove } from '../audio/groove';
+import { mixFrom, playRiff, scheduleGroove, type MusicStyle } from '../audio/groove';
 import { Synth } from '../audio/synth';
 import { createTutorialState, freshProgress, TUTORIAL, type Progress, type Target } from './tutorial';
 import {
@@ -135,6 +135,13 @@ export function App() {
   const synthRef = useRef<Synth | null>(null);
   const lastEighthScheduled = useRef(-1);
   const lastCountBeat = useRef(-1);
+  /**
+   * While a card pick is open the engine clock is frozen, so the music runs on
+   * a virtual clock from the downbeat where the pick appeared (beat0, in
+   * performance.now ms). The band plays muffled; after a pick the engine is
+   * held until the next virtual downbeat, so everything kicks back in on 1.
+   */
+  const pickMusic = useRef<{ beat0: number; bpm: number; beat: number; k: number; resumeAt: number | null } | null>(null);
   const tutorialTick = useRef<((events: EngineEvent[], s: EngineState) => void) | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -230,7 +237,7 @@ export function App() {
       for (const e of events) {
         if (sfx) {
           if (e.type === 'resolved') {
-            if (getCard(e.cardId).type === 'riff') playRiff(sfx, e.cardId, e.lane, e.beat, s.clock.bpm);
+            if (getCard(e.cardId).type === 'riff') playRiff(sfx, e.cardId, e.lane, e.beat, s.clock.bpm, settingsRef.current.chillMusic ? 0.65 : 1);
             // The band already sounds the play; add a sparkle for Tight and a clunk for Off.
             if (!e.isEcho && e.grade !== 'good') sfx.play(e.grade);
           }
@@ -297,6 +304,16 @@ export function App() {
           case 'fill':
             showBanner('Fill!', 'Every unit fires on every eighth note');
             break;
+          case 'pickOffered':
+            pickMusic.current = {
+              beat0: runner.realTimeOfTick(s.tick - s.clock.phase / s.clock.bpm),
+              bpm: s.clock.bpm,
+              beat: s.clock.beat,
+              k: 1,
+              resumeAt: null,
+            };
+            sfx?.setMuffle(true);
+            break;
           case 'gameOver':
             break;
           default:
@@ -320,11 +337,44 @@ export function App() {
       lastFrame.current = now;
       decayFx(fx, dt);
 
+      // Card pick screen: a virtual clock keeps the beat (and the pads) going while the engine waits.
+      const pm = pickMusic.current;
+      let virtual: CountIn | null = null;
+      if (pm) {
+        if (s.phase === 'playing' && pm.resumeAt === null) pickMusic.current = null; // stale (e.g. a restored save)
+        const beatMs = 60_000 / pm.bpm;
+        const elapsed = (now - pm.beat0) / beatMs;
+        virtual = { beat: ((Math.floor(elapsed) % 4) + 4) % 4, phase: ((elapsed % 1) + 1) % 1 };
+      }
+      if (virtual) countIn = virtual;
       const phase = countIn ? countIn.phase : Math.min(0.999, (s.clock.phase + s.clock.bpm * alpha) / BEAT_UNITS);
+      const style: MusicStyle = settingsRef.current.chillMusic ? 'chill' : 'full';
 
       // Sound: stick clicks during a count-in, then the drum loop scheduled ~120 ms ahead on the audio clock.
       const synth = settingsRef.current.sound ? synthRef.current : null;
-      if (synth && runner.running) {
+      if (synth) synth.sfx = style === 'chill' ? 0.6 : 1;
+      if (pm && pickMusic.current) {
+        const eighthMs = 30_000 / pm.bpm;
+        for (;;) {
+          const tK = pm.beat0 + pm.k * eighthMs;
+          if (tK - now > 120) break;
+          if (pm.resumeAt !== null && tK >= pm.resumeAt - 1) {
+            // Back on 1: unmuffle and play the downbeat with the full band, then hand back to the engine clock.
+            if (synth) {
+              const at = synth.audioTimeAt(pm.resumeAt);
+              synth.setMuffle(false, at);
+              scheduleGroove(synth, mixFrom(s), 2 * pm.beat, at, 30 / s.clock.bpm, style);
+            }
+            lastEighthScheduled.current = 2 * pm.beat;
+            pickMusic.current = null;
+            break;
+          }
+          if (synth && runner.running && tK > now - 40) {
+            scheduleGroove(synth, { ...mixFrom(s), chain: 0 }, 2 * pm.beat + pm.k, synth.audioTimeAt(tK), eighthMs / 1000, style);
+          }
+          pm.k += 1;
+        }
+      } else if (synth && runner.running) {
         if (countIn) {
           if (countIn.beat !== lastCountBeat.current) {
             lastCountBeat.current = countIn.beat;
@@ -340,7 +390,7 @@ export function App() {
             const at = runner.realTimeOfTick(tickAt);
             if (at - now < 120) {
               lastEighthScheduled.current = next;
-              scheduleGroove(synth, mixFrom(s), next, synth.audioTimeAt(at), 30 / s.clock.bpm);
+              scheduleGroove(synth, mixFrom(s), next, synth.audioTimeAt(at), 30 / s.clock.bpm, style);
             }
           }
         }
@@ -500,6 +550,15 @@ export function App() {
     }
     lastEighthScheduled.current = -1;
     lastCountBeat.current = -1;
+    if (runner.state.phase === 'picking') {
+      // Resuming onto the card pick: start the muffled groove right away.
+      const now = performance.now();
+      pickMusic.current = { beat0: now, bpm: runner.state.clock.bpm, beat: runner.state.clock.beat, k: 1, resumeAt: null };
+      synthRef.current?.setMuffle(true);
+      setView('playing');
+      runner.start(false);
+      return;
+    }
     setView('playing');
     runner.start(countIn);
   };
@@ -533,8 +592,20 @@ export function App() {
 
   const pick = (index: number | null) => {
     setPickSent(true);
+    const now = performance.now();
+    const pm = pickMusic.current;
+    let downbeat: number;
+    if (pm) {
+      // The next downbeat of the still-running groove, at least one beat away so it doesn't lurch.
+      const beatMs = 60_000 / pm.bpm;
+      const barMs = beatMs * 4;
+      downbeat = pm.beat0 + Math.ceil((now + beatMs - pm.beat0) / barMs) * barMs;
+      pm.resumeAt = downbeat;
+    } else {
+      downbeat = now + runner.barMs();
+    }
     runner.send({ type: 'pick', index });
-    runner.delay(runner.barMs());
+    runner.holdUntil(downbeat, now);
   };
 
   // ---------------------------------------------------------------- soundcheck

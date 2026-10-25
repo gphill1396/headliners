@@ -128,3 +128,22 @@ test('mixFrom reads the board: units grouped by lane, gates by lane, chain', () 
   assert.equal(mix.lanes[0]!.copy, true);
   assert.equal(mix.chain, s.chain.links);
 });
+
+test('Chill music: same band, sparser — no ghosts, bursts, flams or lead; quarter-note hats', () => {
+  const mix = emptyMix();
+  mix.groups = [
+    { cardId: 'stagehand', lane: 0, count: 1, fireEvery: 2 },
+    { cardId: 'kick-drum', lane: 1, count: 1, fireEvery: 4 },
+  ];
+  mix.lanes[0] = { copy: true, drive: true, fuzz: false };
+  mix.chain = 9;
+  const f = fakeSynth();
+  for (let e = 0; e < 8; e++) scheduleGroove(f.synth, mix, e, e * EIGHTH, EIGHTH, 'chill');
+  const count = (v: string) => f.calls.filter((c) => c.voice === v).length;
+  assert.equal(count('hat'), 4);
+  assert.equal(count('snare'), 2); // backbeat only, no ghosts, no flams
+  assert.equal(count('kick'), 2); // beats 1 and 3, no burst
+  assert.equal(count('lead'), 0);
+  assert.equal(count('pad'), 4); // chain pad stays, softer
+  assert.ok(f.fx.get(0)!.drive < 0.55);
+});

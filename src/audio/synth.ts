@@ -45,6 +45,9 @@ function driveCurve(amount: number) {
 export class Synth {
   readonly ctx: AudioContext;
   private master: GainNode;
+  private muffle: BiquadFilterNode;
+  /** Game sound effects level (lower in Chill music). */
+  sfx = 1;
   private noise: AudioBuffer;
   private lanes: LaneBus[];
   private lastKill = 0;
@@ -58,7 +61,11 @@ export class Synth {
     comp.connect(ctx.destination);
     this.master = ctx.createGain();
     this.master.gain.value = 0.6;
-    this.master.connect(comp);
+    // Muffle: the band heard from backstage while a card pick is open.
+    this.muffle = ctx.createBiquadFilter();
+    this.muffle.type = 'lowpass';
+    this.muffle.frequency.value = 20_000;
+    this.master.connect(this.muffle).connect(comp);
 
     this.noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const data = this.noise.getChannelData(0);
@@ -117,6 +124,14 @@ export class Synth {
     else sample = this.ctx.currentTime - performance.now() / 1000;
     this.offset = this.offset === null || Math.abs(sample - this.offset) > 0.05 ? sample : this.offset * 0.95 + sample * 0.05;
     return Math.max(this.ctx.currentTime, this.offset + perfNowMs / 1000);
+  }
+
+  /** Muffle the whole band (card pick screen) or bring it back, at audio time `t`. */
+  setMuffle(on: boolean, t = this.ctx.currentTime): void {
+    this.muffle.frequency.cancelScheduledValues(t);
+    this.muffle.frequency.setTargetAtTime(on ? 420 : 20_000, t, on ? 0.12 : 0.01);
+    this.master.gain.cancelScheduledValues(t);
+    this.master.gain.setTargetAtTime(on ? 0.45 : 0.6, t, 0.05);
   }
 
   /** Where a lane's instruments go. */
@@ -285,12 +300,12 @@ export class Synth {
   play(grade: 'tight' | 'good' | 'off'): void {
     const t = this.ctx.currentTime;
     if (grade === 'tight') {
-      this.tone(t, 988, 0.09, 'square', 0.1);
-      this.tone(t + 0.04, 1319, 0.09, 'square', 0.08);
+      this.tone(t, 988, 0.09, 'square', 0.1 * this.sfx);
+      this.tone(t + 0.04, 1319, 0.09, 'square', 0.08 * this.sfx);
     } else if (grade === 'good') {
-      this.tone(t, 784, 0.1, 'square', 0.08);
+      this.tone(t, 784, 0.1, 'square', 0.08 * this.sfx);
     } else {
-      this.tone(t, 220, 0.12, 'sawtooth', 0.08);
+      this.tone(t, 220, 0.12, 'sawtooth', 0.08 * this.sfx);
     }
   }
 
@@ -299,30 +314,30 @@ export class Synth {
     const scale = [0, 2, 4, 7, 9];
     const step = Math.min(links - 1, 24);
     const semis = scale[step % 5]! + 12 * Math.floor(step / 5);
-    this.tone(this.ctx.currentTime, 440 * Math.pow(2, semis / 12), 0.12, 'triangle', 0.12);
+    this.tone(this.ctx.currentTime, 440 * Math.pow(2, semis / 12), 0.12, 'triangle', 0.12 * this.sfx);
   }
 
   kill(): void {
     const now = this.ctx.currentTime;
     if (now - this.lastKill < 0.05) return;
     this.lastKill = now;
-    this.tone(now, 1600, 0.03, 'square', 0.04);
+    this.tone(now, 1600, 0.03, 'square', 0.04 * this.sfx);
   }
 
   leak(): void {
     const t = this.ctx.currentTime;
-    this.tone(t, 110, 0.25, 'sawtooth', 0.18);
-    this.tone(t + 0.08, 82, 0.3, 'sawtooth', 0.15);
+    this.tone(t, 110, 0.25, 'sawtooth', 0.18 * this.sfx);
+    this.tone(t + 0.08, 82, 0.3, 'sawtooth', 0.15 * this.sfx);
   }
 
   /** Placement cue: a gate shimmers, a unit thunks. */
   place(kind: 'unit' | 'gate'): void {
     const t = this.ctx.currentTime;
     if (kind === 'gate') {
-      this.tone(t, 660, 0.15, 'triangle', 0.08);
-      this.tone(t + 0.05, 990, 0.15, 'triangle', 0.06);
+      this.tone(t, 660, 0.15, 'triangle', 0.08 * this.sfx);
+      this.tone(t + 0.05, 990, 0.15, 'triangle', 0.06 * this.sfx);
     } else {
-      this.tone(t, 330, 0.08, 'square', 0.06);
+      this.tone(t, 330, 0.08, 'square', 0.06 * this.sfx);
     }
   }
 
@@ -335,7 +350,7 @@ export class Synth {
     osc.frequency.setValueAtTime(1_800, t);
     osc.frequency.exponentialRampToValueAtTime(3_200, t + 0.35);
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.linearRampToValueAtTime(0.08, t + 0.1);
+    gain.gain.linearRampToValueAtTime(0.08 * this.sfx, t + 0.1);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
     osc.connect(gain).connect(this.lane(lane));
     osc.start(t);

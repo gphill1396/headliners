@@ -52,7 +52,15 @@ export function mixFrom(s: EngineState): BoardMix {
 }
 
 /** Schedule everything that plays on one eighth note at audio time `t`. */
-export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: number, eighthSec: number): void {
+export type MusicStyle = 'full' | 'chill';
+
+/**
+ * Schedule everything that plays on one eighth note at audio time `t`.
+ * 'chill' keeps the same band but plays it sparser: no ghost notes, bursts,
+ * flams or lead line, quarter-note hats, softer effects.
+ */
+export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: number, eighthSec: number, style: MusicStyle = 'full'): void {
+  const chill = style === 'chill';
   const beat = Math.floor(eighth / 2);
   const onBeat = eighth % 2 === 0;
   const inBar = ((beat % 4) + 4) % 4;
@@ -61,10 +69,12 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
   const filling = beat < mix.fillUntil;
   const level = (count: number) => Math.min(1.25, 0.75 + 0.25 * (count - 1));
 
-  mix.lanes.forEach((l, lane) => synth.setLaneFx(lane, { drive: l.drive ? 0.55 : 0, fuzz: l.fuzz }, t));
+  mix.lanes.forEach((l, lane) => synth.setLaneFx(lane, { drive: l.drive ? (chill ? 0.25 : 0.55) : 0, fuzz: l.fuzz }, t));
 
   // Time-keeping: an empty stage is just a quarter-note hat and a kick on 1. It fills in as the band grows.
-  if (mix.blast) {
+  if (chill) {
+    if (onBeat) synth.hat(t, false);
+  } else if (mix.blast) {
     synth.hat(t, onBeat);
     synth.hat(t + sixteenth, false);
   } else if (mix.chain >= 8) {
@@ -74,7 +84,7 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
   }
   const hasKick = mix.groups.some((g) => g.cardId === 'kick-drum');
   if (!hasKick && onBeat && inBar === 0) synth.kick(t, 0.7);
-  if (filling) synth.snare(t, onBeat ? 0.8 : 0.55);
+  if (filling && (!chill || onBeat)) synth.snare(t, onBeat ? 0.8 : 0.55);
 
   // The band: each unit plays when it fires.
   for (const g of mix.groups) {
@@ -86,23 +96,24 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
     switch (g.cardId) {
       case 'stagehand': {
         const backbeat = onBeat && (inBar === 1 || inBar === 3);
+        if (chill && !backbeat) break;
         synth.snare(t, backbeat ? v : 0.3 * v, dest);
-        if (copy) synth.snare(t + 0.028, (backbeat ? 0.5 : 0.18) * v, dest); // doubled: a flam
+        if (copy && !chill) synth.snare(t + 0.028, (backbeat ? 0.5 : 0.18) * v, dest); // doubled: a flam
         break;
       }
       case 'kick-drum':
         synth.kick(t, v, dest);
-        if (onBeat && inBar === 0 && !filling) {
+        if (onBeat && inBar === 0 && !filling && !chill) {
           // Its downbeat burst, as a 16th-note pickup.
           synth.kick(t + sixteenth, 0.55 * v, dest);
           synth.kick(t + 2 * sixteenth, 0.65 * v, dest);
         }
-        if (copy) synth.tom(t + sixteenth, 45, 0.5 * v, dest);
+        if (copy && !chill) synth.tom(t + sixteenth, 45, 0.5 * v, dest);
         break;
       case 'bassline': {
         const dur = (filling ? 1 : g.fireEvery) * eighthSec * 0.92;
         synth.bass(t, chord.root, dur, v, dest);
-        if (copy) synth.bass(t, chord.root + 12, dur, 0.5 * v, dest);
+        if (copy && !chill) synth.bass(t, chord.root + 12, dur, 0.5 * v, dest);
         break;
       }
       default:
@@ -111,8 +122,8 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
   }
 
   // Chain layers: a pulsing chord at 4+ links, a lead arpeggio at 8+. They stop within a beat of the chain dropping.
-  if (mix.chain >= 4 && onBeat) synth.pad(t, [...chord.notes], eighthSec * 2.05, inBar === 0 ? 1.2 : 1);
-  if (mix.chain >= 8) {
+  if (mix.chain >= 4 && onBeat) synth.pad(t, [...chord.notes], eighthSec * 2.05, (inBar === 0 ? 1.2 : 1) * (chill ? 0.7 : 1));
+  if (mix.chain >= 8 && !chill) {
     for (let k = 0; k < 2; k++) {
       const idx = (eighth * 2 + k) % 8;
       const note = chord.notes[idx % 4]! + (idx >= 4 ? 12 : 0);
@@ -122,7 +133,7 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
 }
 
 /** A riff card sounds when it resolves, in its lane. */
-export function playRiff(synth: Synth, cardId: string, lane: number, beat: number, bpm: number): void {
+export function playRiff(synth: Synth, cardId: string, lane: number, beat: number, bpm: number, level = 1): void {
   const t = synth.ctx.currentTime;
   const sixteenth = 60 / bpm / 4;
   const chord = chordAt(beat);
@@ -130,24 +141,24 @@ export function playRiff(synth: Synth, cardId: string, lane: number, beat: numbe
   switch (cardId) {
     case 'power-chord': {
       const r = chord.root + 24;
-      synth.stab(t, [r, r + 7, r + 12], 0.45, 1, dest);
+      synth.stab(t, [r, r + 7, r + 12], 0.45, level, dest);
       break;
     }
     case 'snare-roll':
-      for (let i = 0; i < 4; i++) synth.snare(t + i * sixteenth, 0.45 + i * 0.12, dest);
+      for (let i = 0; i < 4; i++) synth.snare(t + i * sixteenth, (0.45 + i * 0.12) * level, dest);
       break;
     case 'paradiddle':
       // R L R R on two toms.
-      [52, 47, 52, 52].forEach((m, i) => synth.tom(t + i * sixteenth, m, 0.8, dest));
+      [52, 47, 52, 52].forEach((m, i) => synth.tom(t + i * sixteenth, m, 0.8 * level, dest));
       break;
     case 'feedback-loop':
       synth.squeal(lane);
       break;
     case 'encore':
       synth.crash(t);
-      synth.stab(t, [...chord.notes], 0.6, 0.8, dest);
+      synth.stab(t, [...chord.notes], 0.6, 0.8 * level, dest);
       break;
     default:
-      synth.stab(t, [chord.root + 24, chord.root + 31], 0.25, 0.7, dest);
+      synth.stab(t, [chord.root + 24, chord.root + 31], 0.25, 0.7 * level, dest);
   }
 }

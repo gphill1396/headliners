@@ -18,6 +18,7 @@ npm run dev        # local dev server
 npm test           # engine tests (node:test via tsx)
 npm run typecheck  # app, tests, and the engine purity check
 npm run build      # production build into dist/
+npm run sim        # depth simulator: bots play the real engine, checks D1–D8 (SPEC §9)
 ```
 
 Pushing to `main` runs typecheck, tests and build, then deploys to GitHub Pages.
@@ -31,6 +32,8 @@ Pushing to `main` runs typecheck, tests and build, then deploys to GitHub Pages.
 | `src/ui/` | React screens and the runner that drives the engine from real time. |
 | `public/` | Web app manifest, service worker, icons. |
 | `src/content/` | Cards, enemies and headliners as data. |
+| `src/audio/` | Synth voices and the adaptive groove (the board is the band). |
+| `sim/` | Depth simulator: bot players, D1–D8 report. Results land in `sim/out/`. |
 | `tests/` | Engine rules tests, including the 10,000-tick determinism check. |
 
 The engine purity rule is enforced twice: `tsconfig.engine.json` compiles `src/engine` with no DOM types, and `tests/engine-purity.test.ts` rejects forbidden APIs and package imports.

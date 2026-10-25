@@ -84,6 +84,18 @@ export class GameRunner {
     return this.origin + tick * TICK_MS;
   }
 
+  /**
+   * Hold the simulation so the current beat lines up with real time `downbeatAt`
+   * (used after a card pick, where the engine sits just past a downbeat).
+   * Taps are ignored until then.
+   */
+  holdUntil(downbeatAt: number, now = performance.now()): void {
+    const c = this.state.clock;
+    this.origin = downbeatAt + (c.phase / c.bpm) * TICK_MS - this.state.tick * TICK_MS;
+    this.countInStart = now;
+    this.countInEnd = downbeatAt;
+  }
+
   barMs(): number {
     return (60_000 / this.state.clock.bpm) * BEATS_PER_BAR;
   }

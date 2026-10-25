@@ -349,6 +349,8 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
   - Gates color their lane: Double Stop doubles the part, Overdrive distorts it, Fuzz filters it.
   - Riffs sound when they land.
   - Chain layers: a pad at 4+ links and a lead arpeggio at 8+. Both drop out within a beat when the chain breaks.
+- *Slice addition:* the groove keeps playing, muffled, behind the **card pick**. After a pick the band comes back in on the next beat 1.
+- *Slice addition:* **Chill music** setting: the same band, played sparser.
 - *Slice addition:* **off-beat plays drop the chain**, so timing is the skill that keeps chains alive.
 - *Slice addition:* every 3 waves, Encore offers a **card pick** (choose 1 of 3 to add to your deck, or skip), so long runs grow. To be revisited with the simulator in 1b.
 - *Slice simplifications:*

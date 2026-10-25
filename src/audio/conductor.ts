@@ -9,7 +9,7 @@ import type { Synth } from './synth';
  * plays the right thing on it:
  *
  * - 'metronome' — title screen and after the band fades at game over.
- * - 'muffled'   — pause and card pick: the band from backstage.
+ * - 'muffled'   — pause and card pick: the band from backstage, with the metronome on top.
  * - 'fade'      — game over: the band fades out over two bars into the metronome.
  * - 'engine'    — a run is playing; the engine's clock drives the music.
  *
@@ -143,7 +143,8 @@ export class Conductor {
         if (this.mode === 'muffled' || this.mode === 'fade') {
           scheduleGroove(synth, { ...mix(), chain: 0, fillUntil: -1 }, eighth, at, eighthMs / 1000, style);
         }
-        if ((this.mode === 'metronome' || this.mode === 'fade') && onBeat) synth.metronome(at, beatInBar === 0);
+        // The metronome is always there when the band isn't fully playing, so the pulse can never disappear.
+        if (onBeat) synth.metronome(at, beatInBar === 0, this.mode === 'muffled' ? 0.7 : 1);
       }
       this.k += 1;
     }

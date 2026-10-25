@@ -132,9 +132,10 @@ export class Synth {
   /** Muffle the whole band (card pick screen) or bring it back, at audio time `t`. */
   setMuffle(on: boolean, t = this.ctx.currentTime): void {
     this.muffle.frequency.cancelScheduledValues(t);
-    this.muffle.frequency.setTargetAtTime(on ? 420 : 20_000, t, on ? 0.12 : 0.01);
+    // Muffled, not gone: ~1.2 kHz keeps snares and hats audible, just softer, like hearing the band from backstage.
+    this.muffle.frequency.setTargetAtTime(on ? 1_200 : 20_000, t, on ? 0.12 : 0.01);
     this.master.gain.cancelScheduledValues(t);
-    this.master.gain.setTargetAtTime(on ? 0.45 : 0.6, t, 0.05);
+    this.master.gain.setTargetAtTime(on ? 0.5 : 0.6, t, 0.05);
   }
 
   /** Where a lane's instruments go. */
@@ -220,12 +221,12 @@ export class Synth {
   }
 
   /** The metronome: a dry wood-block tick, accented on beat 1. Bypasses the band's mute and fades. */
-  metronome(t: number, accent: boolean): void {
+  metronome(t: number, accent: boolean, level = 1): void {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(accent ? 1_900 : 1_350, t);
-    gain.gain.setValueAtTime(accent ? 0.16 : 0.09, t);
+    gain.gain.setValueAtTime((accent ? 0.16 : 0.09) * level, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
     osc.connect(gain).connect(this.out);
     osc.start(t);

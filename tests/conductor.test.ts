@@ -8,10 +8,10 @@ const mix = (): BoardMix => ({ groups: [], lanes: [0, 1, 2].map(() => ({ copy: f
 
 /** A fake synth whose audio clock equals performance time in seconds. */
 function fake() {
-  const calls: { k: string; t: number; accent?: boolean }[] = [];
+  const calls: { k: string; t: number; accent?: boolean; level?: number }[] = [];
   const synth = {
     audioTimeAt: (ms: number) => ms / 1000,
-    metronome: (t: number, accent: boolean) => calls.push({ k: 'metronome', t, accent }),
+    metronome: (t: number, accent: boolean, level = 1) => calls.push({ k: 'metronome', t, accent, level }),
     hat: (t: number) => calls.push({ k: 'hat', t }),
     kick: (t: number) => calls.push({ k: 'kick', t }),
     snare: () => {},
@@ -80,4 +80,14 @@ test('after a long gap (app in background) it skips ahead instead of replaying',
   c.tick(0, synth, 'full', mix);
   c.tick(600_000, synth, 'full', mix); // ten minutes later
   assert.ok(calls.filter((x) => x.k === 'metronome').length < 5);
+});
+
+test('pause/pick (muffled): the metronome keeps ticking under the band, every beat', () => {
+  const { synth, calls } = fake();
+  const c = new Conductor();
+  c.takeOver('muffled', 0, 0, 20, 100, 41, synth);
+  run(c, synth, 0, 3_000);
+  const ticks = calls.filter((x) => x.k === 'metronome').map((x) => Math.round(x.t * 1000));
+  assert.deepEqual(ticks, [600, 1200, 1800, 2400, 3000]);
+  assert.ok(calls.filter((x) => x.k === 'metronome').every((x) => (x.level ?? 1) > 0.5));
 });

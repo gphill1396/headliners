@@ -339,6 +339,19 @@ A headless simulator in `sim/` runs the real engine with bot players. Run it wit
 
 ### Phase 1 — Core loop + Encore
 
+Phase 1 is built in two steps, so the feel can be judged on a phone before content is scaled up.
+
+**Phase 1a — Vertical slice.** One headliner (Thrum) and about 12 cards: 3 units, 3 gates, 5 riffs and 1 amp. 3 enemy types: Shambler, Brute and Swarmlings. Includes chains with the multiplier and Showstopper cap, Echo, Downbeat and Encore, and Encore waves with crowd and game over. Save/resume is in. No sound yet.
+- *Slice addition:* every 3 waves, Encore offers a **card pick** (choose 1 of 3 to add to your deck, or skip), so long runs grow. To be revisited with the simulator in 1b.
+- *Slice simplifications:*
+  - Card text is hand-written for now, not yet generated from effect data.
+  - No discard-cycle.
+  - No drag-to-play.
+  - No long-press: tapping a card shows its text.
+  - Evolutions appear as a preview only.
+
+**Phase 1b — Fill out.** Adds the simulator and the D1–D8 report, then tunes the slice against it. Then adds Lyra and Clatter, the other 5 enemy types, The Hush, the full ~40 cards, evolutions, the remaining keywords, audio, discard-cycle and drag-to-play.
+
 **S1.1 Play a card into a lane**
 *As a player, I want to select a card and tap a lane with my two thumbs, so I can act fast without reaching up.*
 - [ ] Every play input is inside the bottom ~38% of the screen.

@@ -1,31 +1,117 @@
 import { createClock, type ClockState, type Grade } from './clock';
-import { START_BPM } from './constants';
-import { createRng, type RngState } from './rng';
+import { HAND_SIZE, START_BPM, START_CROWD, START_ENERGY } from './constants';
+import { createRng, shuffleInPlace, type RngState } from './rng';
+import type { EnemyKind, GateKind, HeadlinerId } from './types';
+import { STARTER_DECK } from '../content/cards';
 
-export const ENGINE_STATE_VERSION = 1;
+export const ENGINE_STATE_VERSION = 2;
+
+/** A specific copy of a card. `iid` is unique for the run so inputs can name it exactly. */
+export interface CardInstance {
+  iid: number;
+  cardId: string;
+}
 
 /** A committed play waiting for its beat. */
 export interface QueuedPlay {
   id: number;
+  card: CardInstance;
   lane: number;
-  /** Hand slot the card came from; -1 for the Phase 0 sandbox (no cards yet). */
-  slot: number;
   grade: Grade;
   offsetMilli: number;
   resolveBeat: number;
+  /** True for the repeat queued by Echo. Echoes don't echo again. */
+  isEcho: boolean;
 }
 
-/**
- * Phase 0 placeholder for enemies: markers that march down a lane.
- * Phase 1 replaces this with real enemies, traits and waves (SPEC §4.8–4.9).
- */
-export interface Marker {
+export interface Unit {
+  id: number;
+  card: CardInstance;
+  cardId: string;
+  lane: number;
+  slot: number;
+  /** Damage per shot, including the timing grade it was played with. */
+  damage: number;
+  fireEvery: number;
+  pierce: number;
+  splash: boolean;
+  placedBeat: number;
+}
+
+export interface Gate {
+  id: number;
+  card: CardInstance;
+  cardId: string;
+  lane: number;
+  slot: number;
+  depth: number;
+  kind: GateKind;
+  amount: number;
+  durability: number;
+  maxDurability: number;
+  placedBeat: number;
+}
+
+export interface Amp {
+  id: number;
+  card: CardInstance;
+  cardId: string;
+  placedBeat: number;
+}
+
+export interface Enemy {
+  id: number;
+  kind: EnemyKind;
+  lane: number;
+  depth: number;
+  speed: number;
+  hp: number;
+  maxHp: number;
+  armor: number;
+  crowdDamage: number;
+  /** Reached the stage (removed without counting as a kill). */
+  leaked: boolean;
+}
+
+export interface Projectile {
   id: number;
   lane: number;
-  /** 0 = top of the field, FIELD_DEPTH = stage edge. */
+  /** Horizontal position within the lane, 0–999, for drawing only. */
+  x: number;
   depth: number;
-  /** Depth units per tick. */
-  speed: number;
+  damage: number;
+  pierceLeft: number;
+  splash: boolean;
+  /** Bitmask of gate slots this shot has already passed. */
+  gatesPassed: number;
+  /** Card that fired it, for the damage breakdown. */
+  sourceCardId: string;
+}
+
+export interface ChainState {
+  links: number;
+  multPct: number;
+  /** Beat of the most recent link; -1 when no chain is running. */
+  lastLinkBeat: number;
+  tightStart: boolean;
+}
+
+export interface WaveState {
+  index: number;
+  startBeat: number;
+  /** Enemy health multiplier for this wave. */
+  hpMult: number;
+  spawns: { beatOffset: number; kind: EnemyKind }[];
+  nextSpawn: number;
+  kinds: EnemyKind[];
+}
+
+export interface HeadlinerState {
+  id: HeadlinerId;
+  readyBeat: number;
+  activeUntilBeat: number;
+  /** Bar index when the Tight-energy passive last paid out. */
+  lastTightBonusBar: number;
 }
 
 export interface EngineSettings {
@@ -36,13 +122,20 @@ export interface EngineStats {
   tight: number;
   good: number;
   off: number;
-  cleared: number;
-  missed: number;
+  kills: number;
+  leaks: number;
+  cardsPlayed: number;
+  bestChain: number;
+  showstoppers: number;
+  /** Total damage dealt per card id. */
+  damageBySource: Record<string, number>;
 }
 
+export type Phase = 'playing' | 'picking' | 'over';
+
 /**
- * Entire game state. Must stay plain JSON-safe data (numbers, strings,
- * booleans, arrays, objects) so it snapshots, hashes and restores exactly.
+ * Entire game state. Must stay plain JSON-safe data so it snapshots, hashes
+ * and restores exactly (SPEC §2, §7).
  */
 export interface EngineState {
   version: number;
@@ -50,10 +143,29 @@ export interface EngineState {
   tick: number;
   rng: RngState;
   clock: ClockState;
+  /** Index of the last eighth note processed (beat * 2 + half). */
+  eighth: number;
   settings: EngineSettings;
   nextId: number;
+  phase: Phase;
+  energy: number;
+  crowd: number;
+  maxCrowd: number;
+  score: number;
+  draw: CardInstance[];
+  hand: CardInstance[];
+  discard: CardInstance[];
   queue: QueuedPlay[];
-  markers: Marker[];
+  units: Unit[];
+  gates: Gate[];
+  amps: Amp[];
+  enemies: Enemy[];
+  projectiles: Projectile[];
+  chain: ChainState;
+  wave: WaveState;
+  /** Card ids on offer while phase === 'picking'. */
+  pick: string[];
+  headliner: HeadlinerState;
   stats: EngineStats;
 }
 
@@ -61,19 +173,57 @@ export interface CreateOptions {
   seed: string;
   bpm?: number;
   relaxedTiming?: boolean;
+  deck?: readonly string[];
+}
+
+export function emptyChain(): ChainState {
+  return { links: 0, multPct: 100, lastLinkBeat: -1, tightStart: false };
 }
 
 export function createState(opts: CreateOptions): EngineState {
+  const rng = createRng(opts.seed);
+  let nextId = 1;
+  const deck = (opts.deck ?? STARTER_DECK).map((cardId) => ({ iid: nextId++, cardId }));
+  shuffleInPlace(rng, deck);
+  const hand = deck.splice(0, HAND_SIZE);
   return {
     version: ENGINE_STATE_VERSION,
     seed: opts.seed,
     tick: 0,
-    rng: createRng(opts.seed),
+    rng,
     clock: createClock(opts.bpm ?? START_BPM),
+    eighth: 0,
     settings: { relaxedTiming: opts.relaxedTiming ?? false },
-    nextId: 1,
+    nextId,
+    phase: 'playing',
+    energy: START_ENERGY,
+    crowd: START_CROWD,
+    maxCrowd: START_CROWD,
+    score: 0,
+    draw: deck,
+    hand,
+    discard: [],
     queue: [],
-    markers: [],
-    stats: { tight: 0, good: 0, off: 0, cleared: 0, missed: 0 },
+    units: [],
+    gates: [],
+    amps: [],
+    enemies: [],
+    projectiles: [],
+    chain: emptyChain(),
+    // Wave 0 is a short count-in; wave 1 starts on beat 4.
+    wave: { index: 0, startBeat: 0, hpMult: 1, spawns: [], nextSpawn: 0, kinds: [] },
+    pick: [],
+    headliner: { id: 'thrum', readyBeat: 0, activeUntilBeat: -1, lastTightBonusBar: -1 },
+    stats: {
+      tight: 0,
+      good: 0,
+      off: 0,
+      kills: 0,
+      leaks: 0,
+      cardsPlayed: 0,
+      bestChain: 0,
+      showstoppers: 0,
+      damageBySource: {},
+    },
   };
 }

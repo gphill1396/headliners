@@ -1,7 +1,14 @@
-import { advanceClock, beatInBar, gradeInput, isDownbeat, setTempo, type Grade } from './clock';
-import { BEAT_UNITS, FIELD_DEPTH, LANES, SUBTICK } from './constants';
-import { chance, nextInt } from './rng';
+import { advanceClock, beatInBar, gradeInput, isDownbeat, setTempo } from './clock';
+import { moveEnemies, moveProjectiles, sweepDead } from './combat';
+import { BEAT_UNITS, BEATS_PER_BAR, LANES, MAX_ENERGY, SUBTICK } from './constants';
+import { createCtx, flushDamage, type TickCtx } from './context';
+import { addCardToDeck, refillHand } from './deck';
+import { checkChainEnd, checkGameOver, fireUnitsOnEighth, resolvePlay, runDownbeatTriggers } from './effects';
+import type { EngineEvent } from './events';
 import type { EngineState } from './state';
+import { onBeatWaves, startWave } from './waves';
+import { getCard } from '../content/cards';
+import { HEADLINERS } from '../content/headliners';
 
 /**
  * Player inputs for one tick. `permille` is when, within the tick, the input
@@ -9,81 +16,89 @@ import type { EngineState } from './state';
  * the simulator set it directly.
  */
 export type Input =
-  | { type: 'commit'; lane: number; slot: number; permille: number }
+  /** Play the hand card with instance id `iid` into `lane`. */
+  | { type: 'commit'; iid: number; lane: number; permille: number }
+  /** Use the headliner's active ability. */
+  | { type: 'activate'; permille: number }
+  /** Choose a card pick option by index, or null to skip. */
+  | { type: 'pick'; index: number | null }
   | { type: 'setRelaxedTiming'; value: boolean }
   | { type: 'setTempo'; bpm: number };
 
-/** What happened this tick, for rendering, audio and haptics. Never fed back into the engine. */
-export type EngineEvent =
-  | { type: 'beat'; beat: number; beatInBar: number; downbeat: boolean }
-  | { type: 'graded'; id: number; lane: number; grade: Grade; offsetMilli: number; resolveBeat: number }
-  | { type: 'resolved'; id: number; lane: number; grade: Grade; beat: number; clearedMarkerId: number | null }
-  | { type: 'markerSpawned'; id: number; lane: number }
-  | { type: 'markerReachedStage'; id: number; lane: number };
+export type { EngineEvent } from './events';
 
 /**
  * Advance the game by exactly one tick.
  *
- * Mutates `state` in place (cheap at 60 Hz with hundreds of entities) and
- * returns the events that happened. Same state + same inputs → same result.
+ * Mutates `state` in place and returns what happened. Same state + same
+ * inputs → same result, on every device.
  */
 export function step(state: EngineState, inputs: readonly Input[] = []): EngineEvent[] {
-  const events: EngineEvent[] = [];
+  const ctx = createCtx();
+  if (state.phase === 'over') {
+    state.tick += 1;
+    return ctx.events;
+  }
 
-  // 1. Inputs, in the order they happened within the tick (stable for ties).
   const ordered = inputs
     .map((input, index) => ({ input, index }))
     .sort((x, y) => permilleOf(x.input) - permilleOf(y.input) || x.index - y.index);
-  for (const { input } of ordered) applyInput(state, input, events);
+  for (const { input } of ordered) applyInput(state, ctx, input);
 
-  // 2. Clock.
-  const beatLanded = advanceClock(state.clock);
-  if (beatLanded) {
-    const beat = state.clock.beat;
-    events.push({ type: 'beat', beat, beatInBar: beatInBar(beat), downbeat: isDownbeat(beat) });
-    onBeat(state, events);
+  // While a card pick is on screen, the music stops: no clock, no movement.
+  if (state.phase !== 'playing') {
+    state.tick += 1;
+    return ctx.events;
   }
 
-  // 3. Resolve plays whose beat has arrived (includes late-but-Good plays).
-  resolveDuePlays(state, events);
-
-  // 4. Field (Phase 0 placeholder).
-  advanceMarkers(state, events);
-
+  const prevEighth = state.eighth;
+  if (advanceClock(state.clock)) onBeat(state, ctx);
+  if (state.phase === 'playing') {
+    const eighth = state.clock.beat * 2 + (state.clock.phase * 2 >= BEAT_UNITS ? 1 : 0);
+    if (eighth !== prevEighth) {
+      state.eighth = eighth;
+      fireUnitsOnEighth(state, eighth);
+    }
+    resolveDuePlays(state, ctx);
+    moveEnemies(state, ctx);
+    checkGameOver(state, ctx);
+    moveProjectiles(state, ctx);
+    sweepDead(state, ctx);
+  }
+  flushDamage(ctx);
   state.tick += 1;
-  return events;
+  return ctx.events;
 }
 
 function permilleOf(input: Input): number {
-  return input.type === 'commit' ? input.permille : 0;
+  return input.type === 'commit' || input.type === 'activate' ? input.permille : 0;
 }
 
-function applyInput(state: EngineState, input: Input, events: EngineEvent[]): void {
+function onBeat(state: EngineState, ctx: TickCtx): void {
+  const beat = state.clock.beat;
+  const downbeat = isDownbeat(beat);
+  ctx.events.push({ type: 'beat', beat, beatInBar: beatInBar(beat), downbeat });
+
+  state.energy = Math.min(MAX_ENERGY, state.energy + 1);
+  if (downbeat) refillHand(state, ctx.events);
+
+  checkChainEnd(state, ctx);
+  resolveDuePlays(state, ctx);
+  if (downbeat) runDownbeatTriggers(state, ctx);
+  if (state.phase === 'playing') onBeatWaves(state, ctx);
+}
+
+function applyInput(state: EngineState, ctx: TickCtx, input: Input): void {
   switch (input.type) {
-    case 'commit': {
-      if (!Number.isInteger(input.lane) || input.lane < 0 || input.lane >= LANES) return;
-      const permille = clampPermille(input.permille);
-      const timing = gradeInput(state.clock, permille, state.settings.relaxedTiming);
-      const id = state.nextId++;
-      state.queue.push({
-        id,
-        lane: input.lane,
-        slot: input.slot,
-        grade: timing.grade,
-        offsetMilli: timing.offsetMilli,
-        resolveBeat: timing.resolveBeat,
-      });
-      state.stats[timing.grade] += 1;
-      events.push({
-        type: 'graded',
-        id,
-        lane: input.lane,
-        grade: timing.grade,
-        offsetMilli: timing.offsetMilli,
-        resolveBeat: timing.resolveBeat,
-      });
+    case 'commit':
+      commit(state, ctx, input);
       return;
-    }
+    case 'activate':
+      activate(state, ctx);
+      return;
+    case 'pick':
+      pick(state, ctx, input.index);
+      return;
     case 'setRelaxedTiming':
       state.settings.relaxedTiming = input.value;
       return;
@@ -93,62 +108,101 @@ function applyInput(state: EngineState, input: Input, events: EngineEvent[]): vo
   }
 }
 
+function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: number; permille: number }): void {
+  if (state.phase !== 'playing') {
+    ctx.events.push({ type: 'rejected', iid: input.iid, reason: 'not-playing' });
+    return;
+  }
+  const handIndex = state.hand.findIndex((c) => c.iid === input.iid);
+  if (handIndex === -1) {
+    ctx.events.push({ type: 'rejected', iid: input.iid, reason: 'not-in-hand' });
+    return;
+  }
+  if (!Number.isInteger(input.lane) || input.lane < 0 || input.lane >= LANES) {
+    ctx.events.push({ type: 'rejected', iid: input.iid, reason: 'lane' });
+    return;
+  }
+  const card = state.hand[handIndex]!;
+  const def = getCard(card.cardId);
+  if (state.energy < def.cost) {
+    ctx.events.push({ type: 'rejected', iid: input.iid, reason: 'energy' });
+    return;
+  }
+
+  state.energy -= def.cost;
+  state.hand.splice(handIndex, 1);
+  const timing = gradeInput(state.clock, clampPermille(input.permille), state.settings.relaxedTiming);
+  state.stats[timing.grade] += 1;
+  const id = state.nextId++;
+  state.queue.push({
+    id,
+    card,
+    lane: input.lane,
+    grade: timing.grade,
+    offsetMilli: timing.offsetMilli,
+    resolveBeat: timing.resolveBeat,
+    isEcho: false,
+  });
+  ctx.events.push({
+    type: 'graded',
+    id,
+    iid: card.iid,
+    cardId: card.cardId,
+    lane: input.lane,
+    grade: timing.grade,
+    offsetMilli: timing.offsetMilli,
+    resolveBeat: timing.resolveBeat,
+  });
+
+  // Thrum passive: a Tight hit refunds 1 energy, once per bar.
+  if (timing.grade === 'tight' && state.headliner.id === 'thrum') {
+    const bar = Math.floor(timing.resolveBeat / BEATS_PER_BAR);
+    if (state.headliner.lastTightBonusBar !== bar && state.energy < MAX_ENERGY) {
+      state.headliner.lastTightBonusBar = bar;
+      state.energy += 1;
+      ctx.events.push({ type: 'energy', amount: 1, reason: 'tight' });
+    }
+  }
+}
+
+function activate(state: EngineState, ctx: TickCtx): void {
+  const def = HEADLINERS[state.headliner.id];
+  if (!def || state.phase !== 'playing') return;
+  const beat = state.clock.beat;
+  if (beat < state.headliner.readyBeat) {
+    ctx.events.push({ type: 'rejected', iid: -1, reason: 'cooldown' });
+    return;
+  }
+  state.headliner.activeUntilBeat = beat + def.active.durationBeats;
+  state.headliner.readyBeat = beat + def.active.cooldownBeats;
+  ctx.events.push({ type: 'fill', untilBeat: state.headliner.activeUntilBeat });
+}
+
+function pick(state: EngineState, ctx: TickCtx, index: number | null): void {
+  if (state.phase !== 'picking') return;
+  const cardId = index === null ? null : (state.pick[index] ?? null);
+  if (cardId) addCardToDeck(state, cardId);
+  ctx.events.push({ type: 'picked', cardId });
+  state.pick = [];
+  state.phase = 'playing';
+  startWave(state, ctx, state.wave.index + 1);
+}
+
 function clampPermille(p: number): number {
   if (!Number.isFinite(p)) return 0;
   return Math.min(SUBTICK - 1, Math.max(0, Math.floor(p)));
 }
 
-function resolveDuePlays(state: EngineState, events: EngineEvent[]): void {
+/** Resolve every queued play whose beat has arrived (including late-but-Good plays). */
+function resolveDuePlays(state: EngineState, ctx: TickCtx): void {
   if (state.queue.length === 0) return;
   const beat = state.clock.beat;
-  const remaining = [];
-  for (const play of state.queue) {
-    if (play.resolveBeat > beat) {
-      remaining.push(play);
-      continue;
-    }
-    // Phase 0 sandbox effect: a resolved play clears the marker closest to the stage in its lane.
-    let target = -1;
-    for (let i = 0; i < state.markers.length; i++) {
-      const m = state.markers[i]!;
-      if (m.lane !== play.lane) continue;
-      if (target === -1 || m.depth > state.markers[target]!.depth) target = i;
-    }
-    let clearedMarkerId: number | null = null;
-    if (target !== -1) {
-      clearedMarkerId = state.markers[target]!.id;
-      state.markers.splice(target, 1);
-      state.stats.cleared += 1;
-    }
-    events.push({ type: 'resolved', id: play.id, lane: play.lane, grade: play.grade, beat, clearedMarkerId });
+  const due = state.queue.filter((p) => p.resolveBeat <= beat);
+  if (due.length === 0) return;
+  state.queue = state.queue.filter((p) => p.resolveBeat > beat);
+  due.sort((a, b) => a.resolveBeat - b.resolveBeat || a.id - b.id);
+  for (const play of due) {
+    if (state.phase === 'over') return;
+    resolvePlay(state, ctx, play);
   }
-  state.queue = remaining;
-}
-
-/** Phase 0 placeholder spawns: every beat, maybe drop a marker in a random lane. */
-function onBeat(state: EngineState, events: EngineEvent[]): void {
-  // Always on the downbeat, 50% on other beats.
-  if (!isDownbeat(state.clock.beat) && !chance(state.rng, 1, 2)) return;
-  const lane = nextInt(state.rng, 0, LANES);
-  const id = state.nextId++;
-  // Travel time of 7–9 beats at the current tempo.
-  const ticksToStage = Math.floor((BEAT_UNITS * nextInt(state.rng, 7, 10)) / state.clock.bpm);
-  const speed = Math.max(1, Math.floor(FIELD_DEPTH / ticksToStage));
-  state.markers.push({ id, lane, depth: 0, speed });
-  events.push({ type: 'markerSpawned', id, lane });
-}
-
-function advanceMarkers(state: EngineState, events: EngineEvent[]): void {
-  if (state.markers.length === 0) return;
-  const kept = [];
-  for (const m of state.markers) {
-    m.depth += m.speed;
-    if (m.depth >= FIELD_DEPTH) {
-      state.stats.missed += 1;
-      events.push({ type: 'markerReachedStage', id: m.id, lane: m.lane });
-    } else {
-      kept.push(m);
-    }
-  }
-  state.markers = kept;
 }

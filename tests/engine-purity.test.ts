@@ -13,6 +13,8 @@ const ENGINE_DIRS = ['src/engine', 'src/content'];
 
 const FORBIDDEN: [RegExp, string][] = [
   [/Math\.random\s*\(/, 'Math.random — use src/engine/rng'],
+  [/Math\.(pow|exp|expm1|log|log2|log10|log1p|sin|cos|tan|atan2|sqrt|cbrt|hypot)\s*\(/, 'Math functions whose results can differ across JS engines — use + - * / or integer math'],
+  [/\*\*/, 'exponent operator — same cross-engine rounding issue as Math.pow'],
   [/\bDate\b/, 'Date — engine time is ticks'],
   [/\bperformance\s*\./, 'performance timers — engine time is ticks'],
   [/\b(setTimeout|setInterval|requestAnimationFrame)\s*\(/, 'timers — the runner drives the engine'],

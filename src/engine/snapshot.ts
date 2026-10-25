@@ -54,7 +54,11 @@ export function fromSnapshot(snapshot: string): EngineState {
   if (parsed.version > ENGINE_STATE_VERSION) {
     throw new Error(`fromSnapshot: snapshot v${parsed.version} is newer than engine v${ENGINE_STATE_VERSION}`);
   }
-  // Migrations go here: if (parsed.version === 1) { ...; parsed.version = 2; }
+  if (parsed.version < 2) {
+    // v1 was the Phase 0 rhythm sandbox; its state has nothing a real run can use.
+    throw new Error(`fromSnapshot: v${parsed.version} saves are from the Phase 0 sandbox and can't be resumed`);
+  }
+  // Future migrations go here: if (parsed.version === 2) { ...; parsed.version = 3; }
   return parsed as EngineState;
 }
 

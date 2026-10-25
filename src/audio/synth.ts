@@ -268,7 +268,98 @@ export class Synth {
     src.stop(t + 1.5);
   }
 
+  // ---------------------------------------------------------------- Clatter's junkyard
+
+  /** Cowbell: two detuned squares through a band-pass (the classic drum-machine recipe). */
+  cowbell(t: number, level = 1, dest: AudioNode = this.master): void {
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 800;
+    bp.Q.value = 2.5;
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.22 * level, t);
+    gain.gain.exponentialRampToValueAtTime(0.06 * level, t + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+    bp.connect(gain).connect(dest);
+    for (const f of [540, 800]) {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = f;
+      osc.connect(bp);
+      osc.start(t);
+      osc.stop(t + 0.34);
+    }
+  }
+
+  /** Clank: a struck bit of scrap metal. Inharmonic partials plus a noisy hit. */
+  clank(t: number, level = 1, dest: AudioNode = this.master, pitch = 1): void {
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.16 * level, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    gain.connect(dest);
+    for (const ratio of [1, 2.76, 5.4]) {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = 420 * pitch * ratio;
+      osc.connect(gain);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    }
+    const src = this.noiseSource();
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 3_200 * pitch;
+    bp.Q.value = 4;
+    const ng = this.ctx.createGain();
+    ng.gain.setValueAtTime(0.35 * level, t);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    src.connect(bp).connect(ng).connect(dest);
+    src.start(t, (t * 1.7) % 0.8);
+    src.stop(t + 0.07);
+  }
+
+  /** Shaker: soft high noise with a little swell at the front. */
+  shaker(t: number, level = 1, dest: AudioNode = this.master): void {
+    const src = this.noiseSource();
+    const hp = this.ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 5_500;
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.12 * level, t + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+    src.connect(hp).connect(gain).connect(dest);
+    src.start(t, (t * 2.3) % 0.8);
+    src.stop(t + 0.11);
+  }
+
   // ---------------------------------------------------------------- pitched band
+
+  /** Electric piano (Lyra): a sine body plus a bright "tine" that fades fast. */
+  keys(t: number, midi: number, dur: number, level = 1, dest: AudioNode = this.master): void {
+    const f = midiToHz(midi);
+    const body = this.ctx.createGain();
+    body.gain.setValueAtTime(0.0001, t);
+    body.gain.linearRampToValueAtTime(0.14 * level, t + 0.006);
+    body.gain.exponentialRampToValueAtTime(0.001, t + Math.max(0.25, dur));
+    body.connect(dest);
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = f;
+    osc.connect(body);
+    osc.start(t);
+    osc.stop(t + Math.max(0.25, dur) + 0.02);
+    const tine = this.ctx.createGain();
+    tine.gain.setValueAtTime(0.06 * level, t);
+    tine.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    tine.connect(dest);
+    const bell = this.ctx.createOscillator();
+    bell.type = 'triangle';
+    bell.frequency.value = f * 4;
+    bell.connect(tine);
+    bell.start(t);
+    bell.stop(t + 0.14);
+  }
 
   /** Bass note: saw through a closing low-pass, a little pluck. */
   bass(t: number, midi: number, dur: number, level = 1, dest: AudioNode = this.master): void {

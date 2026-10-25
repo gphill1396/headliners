@@ -3,7 +3,7 @@ import { moveEnemies, moveProjectiles, sweepDead } from './combat';
 import { BEAT_UNITS, BEATS_PER_BAR, LANES, MAX_ENERGY, POCKET_MAX, SUBTICK } from './constants';
 import { createCtx, flushDamage, type TickCtx } from './context';
 import { addCardToDeck, refillHand } from './deck';
-import { checkChainEnd, checkGameOver, fireUnitsOnEighth, resolvePlay, runDownbeatTriggers } from './effects';
+import { checkChainEnd, checkGameOver, createToken, expireTokens, fireUnitsOnEighth, resolvePlay, runDownbeatTriggers } from './effects';
 import type { EngineEvent } from './events';
 import type { EngineState } from './state';
 import type { EnemyKind } from './types';
@@ -89,6 +89,7 @@ function onBeat(state: EngineState, ctx: TickCtx): void {
   state.energy = Math.min(MAX_ENERGY, state.energy + 1);
   // The tutorial script hands out exactly the cards each step needs.
   if (downbeat && state.mode === 'encore') refillHand(state, ctx.events);
+  expireTokens(state, ctx);
 
   checkChainEnd(state, ctx);
   resolveDuePlays(state, ctx);
@@ -186,13 +187,19 @@ function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: nu
   });
   updatePocket(state, ctx, timing.grade, timing.offsetMilli);
 
-  // Thrum passive: a Tight hit refunds 1 energy, once per bar.
-  if (timing.grade === 'tight' && state.headliner.id === 'thrum') {
+  // Passives that reward a Tight hit, once per bar.
+  // Thrum: refund 1 energy. Clatter: call a Roadie to that lane.
+  if (timing.grade === 'tight' && state.headliner.id !== 'lyra') {
     const bar = Math.floor(timing.resolveBeat / BEATS_PER_BAR);
-    if (state.headliner.lastTightBonusBar !== bar && state.energy < MAX_ENERGY) {
-      state.headliner.lastTightBonusBar = bar;
-      state.energy += 1;
-      ctx.events.push({ type: 'energy', amount: 1, reason: 'tight' });
+    if (state.headliner.lastTightBonusBar !== bar) {
+      if (state.headliner.id === 'thrum' && state.energy < MAX_ENERGY) {
+        state.headliner.lastTightBonusBar = bar;
+        state.energy += 1;
+        ctx.events.push({ type: 'energy', amount: 1, reason: 'tight' });
+      } else if (state.headliner.id === 'clatter') {
+        state.headliner.lastTightBonusBar = bar;
+        createToken(state, ctx, 'roadie', input.lane);
+      }
     }
   }
 }
@@ -223,7 +230,9 @@ function activate(state: EngineState, ctx: TickCtx): void {
   }
   state.headliner.activeUntilBeat = beat + def.active.durationBeats;
   state.headliner.readyBeat = beat + def.active.cooldownBeats;
-  ctx.events.push({ type: 'fill', untilBeat: state.headliner.activeUntilBeat });
+  // Clatter's All Hands: a Roadie in every lane, right now.
+  if (state.headliner.id === 'clatter') for (let lane = 0; lane < LANES; lane++) createToken(state, ctx, 'roadie', lane);
+  ctx.events.push({ type: 'fill', untilBeat: state.headliner.activeUntilBeat, headliner: state.headliner.id });
 }
 
 function pick(state: EngineState, ctx: TickCtx, index: number | null): void {

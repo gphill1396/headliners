@@ -120,9 +120,22 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
     case 'volley':
       for (const u of state.units) {
         if (effect.scope === 'lane' && u.lane !== src.lane) continue;
+        if (effect.tokensOnly && !u.token) continue;
         fireUnit(state, u, effect.shots, src.multPct);
       }
       return;
+    case 'roadie':
+      for (let i = 0; i < effect.count; i++) createToken(state, ctx, 'roadie', src.lane);
+      return;
+    case 'repairGates': {
+      const amount = Math.round(scale(effect.amount));
+      for (const g of state.gates) {
+        if (effect.scope === 'lane' && g.lane !== src.lane) continue;
+        g.durability = Math.min(g.maxDurability, g.durability + amount);
+        ctx.events.push({ type: 'gatesRepaired', lane: g.lane, amount });
+      }
+      return;
+    }
     case 'selfFire':
       if (src.unit) fireUnit(state, src.unit, effect.shots, src.multPct);
       return;
@@ -175,6 +188,58 @@ export function runDownbeatTriggers(state: EngineState, ctx: TickCtx): void {
     if (state.phase === 'over') return;
     runTriggers(state, ctx, u.cardId, 'downbeat', u, u.lane, linked);
   }
+  for (const a of [...state.amps]) {
+    if (state.phase === 'over') return;
+    runTriggers(state, ctx, a.cardId, 'downbeat', null, 1, linked);
+  }
+}
+
+/**
+ * Put a token unit (e.g. a Roadie) on stage. Uses a free slot; if the lane is
+ * full it replaces the oldest token there, and never pushes out a real card.
+ */
+export function createToken(state: EngineState, ctx: TickCtx, cardId: string, lane: number): void {
+  const def = getCard(cardId);
+  const stats = def.unit!;
+  const inLane = state.units.filter((u) => u.lane === lane);
+  let slot = -1;
+  for (let s = 0; s < UNIT_SLOTS; s++) if (!inLane.some((u) => u.slot === s)) { slot = s; break; }
+  let replacedId: number | null = null;
+  if (slot === -1) {
+    const tokens = inLane.filter((u) => u.token);
+    if (tokens.length === 0) return;
+    const oldest = tokens.reduce((a, b) => (b.placedBeat < a.placedBeat || (b.placedBeat === a.placedBeat && b.id < a.id) ? b : a));
+    slot = oldest.slot;
+    replacedId = oldest.id;
+    state.units.splice(state.units.indexOf(oldest), 1);
+  }
+  const unit: Unit = {
+    id: state.nextId++,
+    card: { iid: -1, cardId },
+    cardId,
+    lane,
+    slot,
+    damage: stats.damage,
+    fireEvery: stats.fireEvery,
+    pierce: stats.pierce ?? 0,
+    splash: stats.splash ?? false,
+    placedBeat: state.clock.beat,
+    expiresBeat: state.clock.beat + (stats.lifespanBeats ?? 8),
+    token: true,
+  };
+  state.units.push(unit);
+  ctx.events.push({ type: 'unitPlaced', unitId: unit.id, cardId, lane, slot, replacedId });
+}
+
+/** Tokens whose time is up leave the stage. Call once per beat. */
+export function expireTokens(state: EngineState, ctx: TickCtx): void {
+  const beat = state.clock.beat;
+  if (!state.units.some((u) => u.token && u.expiresBeat !== undefined && u.expiresBeat <= beat)) return;
+  state.units = state.units.filter((u) => {
+    const gone = u.token === true && u.expiresBeat !== undefined && u.expiresBeat <= beat;
+    if (gone) ctx.events.push({ type: 'unitExpired', unitId: u.id, cardId: u.cardId, lane: u.lane, slot: u.slot });
+    return !gone;
+  });
 }
 
 export function checkGameOver(state: EngineState, ctx: TickCtx): void {
@@ -243,7 +308,7 @@ function placeUnit(state: EngineState, ctx: TickCtx, play: QueuedPlay, gradePct:
     slot = oldest.slot;
     replacedId = oldest.id;
     state.units.splice(state.units.indexOf(oldest), 1);
-    state.discard.push(oldest.card);
+    if (!oldest.token) state.discard.push(oldest.card);
   }
   const unit: Unit = {
     id: state.nextId++,
@@ -256,6 +321,7 @@ function placeUnit(state: EngineState, ctx: TickCtx, play: QueuedPlay, gradePct:
     pierce: stats.pierce ?? 0,
     splash: stats.splash ?? false,
     placedBeat: state.clock.beat,
+    expiresBeat: -1,
   };
   state.units.push(unit);
   ctx.events.push({ type: 'unitPlaced', unitId: unit.id, cardId: def.id, lane: play.lane, slot, replacedId });
@@ -294,7 +360,8 @@ function placeGate(state: EngineState, ctx: TickCtx, play: QueuedPlay, gradePct:
 
 /** Units fire on the eighth-note grid. Thrum's Fill makes every unit fire on every eighth. */
 export function fireUnitsOnEighth(state: EngineState, eighth: number): void {
-  const fill = state.clock.beat < state.headliner.activeUntilBeat;
+  // Thrum's Fill: every unit fires on every eighth.
+  const fill = state.headliner.id === 'thrum' && state.clock.beat < state.headliner.activeUntilBeat;
   const mult = boostPct(state);
   for (const u of state.units) {
     if (fill || eighth % u.fireEvery === 0) fireUnit(state, u, 1, mult);

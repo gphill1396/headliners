@@ -66,6 +66,7 @@ button:disabled {
 .secondary-btn,
 .icon-btn,
 .fill-btn,
+.hl-chip,
 .card,
 .card-slot {
   box-shadow:
@@ -442,7 +443,7 @@ button:disabled {
   right: 6px;
   width: 8px;
   height: 8px;
-  background: var(--thrum);
+  background: var(--hl, var(--thrum));
 }
 
 .card-name {
@@ -568,11 +569,11 @@ button:disabled {
 }
 
 .fill-btn {
-  --frame: #7a3a1d;
+  --frame: var(--hl-dark, #7a3a1d);
   min-width: 64px;
   height: 34px;
   padding: 0 8px;
-  background: var(--thrum);
+  background: var(--hl, var(--thrum));
   color: var(--night);
   font-weight: 700;
   font-size: 15px;
@@ -697,7 +698,8 @@ button:disabled {
 }
 
 .headliner {
-  border-left: 4px solid var(--thrum);
+  --hl: var(--thrum);
+  border-left: 4px solid var(--hl);
   padding: 2px 0 2px 12px;
   margin-bottom: 14px;
   font-size: 15px;
@@ -709,7 +711,42 @@ button:disabled {
 
 .headliner-name {
   font-weight: 700;
-  color: var(--thrum);
+  color: var(--hl);
+}
+
+/* Per-headliner accent, used by the title card, picker chips, signature marks and the ability button. */
+.hl-thrum {
+  --hl: var(--thrum);
+  --hl-dark: #7a3a1d;
+}
+.hl-lyra {
+  --hl: var(--lyra);
+  --hl-dark: #1f6b64;
+}
+.hl-clatter {
+  --hl: var(--clatter);
+  --hl-dark: #7a6a1f;
+}
+
+.hl-picker {
+  display: flex;
+  gap: 10px;
+}
+
+.hl-chip {
+  --frame: var(--line);
+  flex: 1;
+  min-height: 48px;
+  font-size: 17px;
+  font-weight: 700;
+  background: var(--raised);
+  color: var(--lilac);
+}
+
+.hl-chip.on {
+  --frame: var(--hl-dark);
+  background: var(--hl);
+  color: var(--night);
 }
 
 .overlay-controls {

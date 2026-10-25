@@ -1,4 +1,4 @@
-import type { CardDef } from '../engine/types';
+import type { CardDef, HeadlinerId } from '../engine/types';
 
 /**
  * Phase 1a card pool (SPEC §6): 3 units, 3 gates, 5 riffs, 1 amp.
@@ -176,6 +176,132 @@ export const CARDS: readonly CardDef[] = [
     text: 'Amp. Whenever the chain grows, every unit fires a shot.',
     flavor: 'Tempo: yes.',
   },
+
+  // ---- Lyra, the serpent bard: gates and multipliers ----
+  {
+    id: 'arpeggiator',
+    name: 'Arpeggiator',
+    type: 'unit',
+    cost: 2,
+    rarity: 'starter',
+    headliner: 'lyra',
+    keywords: [],
+    unit: { damage: 2, fireEvery: 1 },
+    short: 'Tiny shots, every 8th',
+    text: 'Unit. 2 damage, fires every eighth note. Every one of those shots goes through your gates.',
+    flavor: 'Up, down, up, down, forever.',
+  },
+  {
+    id: 'harmonizer',
+    name: 'Harmonizer',
+    type: 'gate',
+    cost: 3,
+    rarity: 'starter',
+    headliner: 'lyra',
+    keywords: [],
+    gate: { kind: 'copy', amount: 3, durability: 24 },
+    short: 'Shots become 3',
+    text: 'Gate. Each shot through it becomes 3. Lasts 24 shots.',
+    flavor: 'Root, third, fifth. Lethal in all three.',
+  },
+  {
+    id: 'sustain-pedal',
+    name: 'Sustain Pedal',
+    type: 'riff',
+    cost: 1,
+    rarity: 'starter',
+    headliner: 'lyra',
+    keywords: ['echo'],
+    onPlay: [{ do: 'gainEnergy', amount: 1 }, { do: 'repairGates', scope: 'lane', amount: 10 }],
+    echo: true,
+    short: '+1 energy + fix, twice',
+    text: 'Riff. Gain 1 energy and gates in this lane regain 10 durability. Echo: happens again next beat.',
+    flavor: 'Let it ring.',
+  },
+  {
+    id: 'resonance',
+    name: 'Resonance',
+    type: 'amp',
+    cost: 3,
+    rarity: 'rare',
+    headliner: 'lyra',
+    keywords: [],
+    triggers: [{ when: 'chainGrow', link: false, effects: [{ do: 'repairGates', scope: 'all', amount: 3 }] }],
+    short: 'Chains repair gates',
+    text: 'Amp. Whenever the chain grows, every gate regains 3 durability.',
+    flavor: 'The room starts singing back.',
+  },
+
+  // ---- Clatter, the kobold road crew: swarm and tokens ----
+  {
+    id: 'load-in',
+    name: 'Load-In',
+    type: 'riff',
+    cost: 0,
+    rarity: 'starter',
+    headliner: 'clatter',
+    keywords: ['roadie', 'echo'],
+    onPlay: [{ do: 'roadie', count: 1 }],
+    echo: true,
+    short: 'Roadie here, twice',
+    text: 'Riff. Put a Roadie on stage in this lane. Echo: happens again next beat. Roadies are small units that leave after 8 beats.',
+    flavor: 'Lift with your legs. Or your tail.',
+  },
+  {
+    id: 'crew-chief',
+    name: 'Crew Chief',
+    type: 'unit',
+    cost: 2,
+    rarity: 'starter',
+    headliner: 'clatter',
+    keywords: ['downbeat', 'roadie'],
+    unit: { damage: 3, fireEvery: 2 },
+    triggers: [{ when: 'downbeat', link: true, effects: [{ do: 'roadie', count: 1 }] }],
+    short: 'Roadie every bar',
+    text: 'Unit. 3 damage, fires every beat. Downbeat: puts a Roadie on stage in its lane and adds a chain link.',
+    flavor: 'Has a clipboard. Has a whistle. Has opinions.',
+  },
+  {
+    id: 'toolbox',
+    name: 'Toolbox',
+    type: 'gate',
+    cost: 2,
+    rarity: 'starter',
+    headliner: 'clatter',
+    keywords: ['shred'],
+    gate: { kind: 'shred', amount: 1, durability: 40 },
+    short: 'Shots ignore armor',
+    text: 'Gate. Shots through it ignore armor. Lasts 40 shots.',
+    flavor: 'Mostly wrenches. Some regrets.',
+  },
+  {
+    id: 'mosh-pit',
+    name: 'Mosh Pit',
+    type: 'amp',
+    cost: 3,
+    rarity: 'rare',
+    headliner: 'clatter',
+    keywords: ['downbeat'],
+    triggers: [{ when: 'downbeat', link: true, effects: [{ do: 'volley', scope: 'all', shots: 2, tokensOnly: true }] }],
+    short: 'Roadies burst on 1',
+    text: 'Amp. On beat 1, every Roadie fires 2 extra shots, and the chain gains a link.',
+    flavor: 'Everyone in. Nobody out.',
+  },
+
+  // ---- Tokens (made by other cards; never drawn or offered) ----
+  {
+    id: 'roadie',
+    name: 'Roadie',
+    type: 'unit',
+    cost: 0,
+    rarity: 'token',
+    headliner: 'clatter',
+    keywords: [],
+    unit: { damage: 3, fireEvery: 2, lifespanBeats: 8 },
+    short: 'Leaves after 8 beats',
+    text: 'Token unit. 3 damage, fires every beat, leaves after 8 beats.',
+    flavor: 'Union break in 8.',
+  },
 ];
 
 const BY_ID = new Map(CARDS.map((c) => [c.id, c]));
@@ -186,21 +312,59 @@ export function getCard(id: string): CardDef {
   return card;
 }
 
-/** Encore starter deck: 12 cards. */
-export const STARTER_DECK: readonly string[] = [
-  'stagehand',
-  'stagehand',
-  'kick-drum',
-  'kick-drum',
-  'bassline',
-  'double-stop',
-  'double-stop',
-  'distortion',
-  'power-chord',
-  'snare-roll',
-  'paradiddle',
-  'feedback-loop',
-];
+/** Each headliner's 12-card Encore starter deck: a shared core plus their signature cards. */
+export const STARTER_DECKS: Record<HeadlinerId, readonly string[]> = {
+  thrum: [
+    'stagehand',
+    'stagehand',
+    'kick-drum',
+    'kick-drum',
+    'bassline',
+    'double-stop',
+    'double-stop',
+    'distortion',
+    'power-chord',
+    'snare-roll',
+    'paradiddle',
+    'feedback-loop',
+  ],
+  lyra: [
+    'stagehand',
+    'stagehand',
+    'arpeggiator',
+    'arpeggiator',
+    'bassline',
+    'double-stop',
+    'harmonizer',
+    'distortion',
+    'sustain-pedal',
+    'sustain-pedal',
+    'power-chord',
+    'feedback-loop',
+  ],
+  clatter: [
+    'stagehand',
+    'stagehand',
+    'crew-chief',
+    'crew-chief',
+    'bassline',
+    'load-in',
+    'load-in',
+    'toolbox',
+    'double-stop',
+    'distortion',
+    'power-chord',
+    'feedback-loop',
+  ],
+};
 
-/** Cards that can show up in Encore card picks. */
-export const PICK_POOL: readonly string[] = CARDS.map((c) => c.id);
+/** Thrum's deck, the default. */
+export const STARTER_DECK: readonly string[] = STARTER_DECKS.thrum;
+
+/** Cards a headliner can be offered in Encore card picks: neutral cards plus their own signature cards. */
+export function pickPool(headliner: HeadlinerId): string[] {
+  return CARDS.filter((c) => c.rarity !== 'token' && (!c.headliner || c.headliner === headliner)).map((c) => c.id);
+}
+
+/** Thrum's pool (kept for older callers). */
+export const PICK_POOL: readonly string[] = pickPool('thrum');

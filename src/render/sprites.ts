@@ -40,6 +40,18 @@ export const SPRITES = {
     rows: ['.eeeee.', 'eccccce', 'ec#c#ce', 'eccccce', 'eccccce', '.eeeee.', '.e...e.'],
     colors: { e: '#f0773e', c: '#f6ecd6', '#': '#7a5c3e' },
   },
+  arpeggiator: {
+    rows: ['..ll...', '.lol...', '.lll.k.', '..ll.k.', '.lll.k.', 'kkkkkkk', 'k#k#k#k'],
+    colors: { l: '#4fd1c5', o: '#211934', k: '#f6ecd6', '#': '#211934' },
+  },
+  'crew-chief': {
+    rows: ['.yyy...', 'yoyoy..', '.yyy.ww', 'ggggg.w', '.ggg.ww', '.g.g...', '.g.g...'],
+    colors: { y: '#e8d36a', o: '#211934', g: '#7a5c3e', w: '#f6ecd6' },
+  },
+  roadie: {
+    rows: ['.yy.', 'yoyo', '.yy.', 'gggg', '.gg.', 'g..g'],
+    colors: { y: '#e8d36a', o: '#211934', g: '#a69cc0' },
+  },
   bassline: {
     rows: ['....t', '...t.', '..t..', '.ttt.', 'tttt.', 'tt#t.', '.tt..'],
     colors: { t: '#4fd1c5', '#': '#211934' },

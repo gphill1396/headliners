@@ -8,11 +8,12 @@
 
 export type CardType = 'unit' | 'gate' | 'riff' | 'amp';
 
-export type Keyword = 'pierce' | 'splash' | 'echo' | 'downbeat' | 'encore' | 'feedback' | 'antiAir';
+export type Keyword = 'pierce' | 'splash' | 'echo' | 'downbeat' | 'encore' | 'feedback' | 'antiAir' | 'roadie' | 'shred';
 
 export type HeadlinerId = 'thrum' | 'lyra' | 'clatter';
 
-export type Rarity = 'starter' | 'common' | 'rare';
+/** 'token': created by other cards (e.g. Roadies), never drawn or offered. */
+export type Rarity = 'starter' | 'common' | 'rare' | 'token';
 
 export type Scope = 'lane' | 'all';
 
@@ -24,8 +25,12 @@ export type Effect =
   | { do: 'damageLane'; amount: number }
   /** Hit every enemy on the field. */
   | { do: 'damageAll'; amount: number }
-  /** Every unit in the lane (or everywhere) fires extra shots right now. */
-  | { do: 'volley'; scope: Scope; shots: number }
+  /** Every unit in the lane (or everywhere) fires extra shots right now. `tokensOnly`: just Roadies and other tokens. */
+  | { do: 'volley'; scope: Scope; shots: number; tokensOnly?: boolean }
+  /** Put Roadie tokens on stage in this lane (Clatter). */
+  | { do: 'roadie'; count: number }
+  /** Restore durability to gates in the lane or everywhere (Lyra). */
+  | { do: 'repairGates'; scope: Scope; amount: number }
   /** The unit that owns this trigger fires extra shots. */
   | { do: 'selfFire'; shots: number }
   | { do: 'gainEnergy'; amount: number }
@@ -55,6 +60,8 @@ export interface UnitStats {
   pierce?: number;
   splash?: boolean;
   antiAir?: boolean;
+  /** Tokens leave the stage after this many beats. */
+  lifespanBeats?: number;
 }
 
 export type GateKind =
@@ -65,7 +72,9 @@ export type GateKind =
   /** Projectiles gain Splash. */
   | 'splash'
   /** +amount Pierce. */
-  | 'pierce';
+  | 'pierce'
+  /** Shots ignore armor. */
+  | 'shred';
 
 export interface GateStats {
   kind: GateKind;
@@ -119,5 +128,9 @@ export interface HeadlinerDef {
   title: string;
   passive: string;
   active: { name: string; text: string; cooldownBeats: number; durationBeats: number };
+  /** The band's sound, shown on the select screen. */
+  sound: string;
+  /** One line on how this headliner plays. */
+  style: string;
   evolutions: [{ name: string; text: string }, { name: string; text: string }];
 }

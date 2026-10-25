@@ -185,6 +185,8 @@ tests/
   - Levels up from XP earned in runs. At set levels it **evolves along a branch: choose A or B**. Evolutions are permanent per headliner in Collection, but chosen fresh in each Tour run.
 - **Swapping** a headliner in Collection changes which signature cards your decks can include.
 
+**Phase 1b: one headliner per run.** With only three headliners, a team of 3 would always be the same three, so for now you pick one on the title screen (it's remembered). It sets your starter deck, passive, ability and the band's instruments. Teams of 3 come back once there are more than three headliners (Phase 2). *(Deviation from S1.5, flagged to Grant.)*
+
 **Phase 1 headliners:**
 
 **Thrum — the drum drake (rhythm / on-beat)**
@@ -193,12 +195,19 @@ tests/
 - Evolution B, **Polyrhythm**: alternating lanes on consecutive beats doubles Echo.
 
 **Lyra — the serpent bard (gates / multipliers, number go up)**
-- Passive: Gates have +1 durability.
+- Passive: every gate a shot passes through adds +1 damage. *(Balance pass: was "gates last longer", which barely mattered.)*
+- Active, **Swell** (cooldown 16 beats): for 2 beats every gate works twice as hard — one more copy, double damage, one more pierce.
+- Signature cards: Arpeggiator (unit, fires every eighth), Harmonizer (gate, ×3), Sustain Pedal (riff: +1 energy and repair gates, Echo), Resonance (amp: chain links repair every gate).
+- Band: keys — electric piano arpeggios, a low chord tone on beat 1, a shimmer during Swell.
 - Evolution A, **Crescendo**: gates gain +5% multiplier for every 10 projectiles that pass through them.
 - Evolution B, **Harmony**: two gates in the same lane combine their effects.
 
 **Clatter — the kobold road crew (swarm / tokens)**
-- Passive: Roadie tokens have +1 damage.
+- Passive: a Tight hit calls a Roadie to that lane (once per bar). *(Balance pass: was "+1 Roadie damage". The new one rewards timing, like Thrum's.)*
+- Active, **All Hands** (cooldown 16 beats): a Roadie in every lane.
+- **Roadies** are token units: 3 damage, fire every beat, leave after 8 beats. They take a free slot, or replace the oldest Roadie, never a real card. They blink in their last 2 beats and never enter the deck.
+- Signature cards: Load-In (free riff: a Roadie here, Echo), Crew Chief (unit: a Roadie and a link every beat 1), Toolbox (gate: shots ignore armor), Mosh Pit (amp: every Roadie bursts on beat 1).
+- Band: junkyard percussion — cowbell, clanks pitched per lane, a shaker keeping time.
 - Evolution A, **Load Out**: when a token dies, it creates a Riff card in your hand.
 - Evolution B, **Mosh Pit**: tokens gain Splash once you have 6 or more.
 
@@ -383,6 +392,21 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
   - D3 is n/a: only one headliner.
   - D4 can't be judged with a 12-card pool. Only 3 cards sit outside the starter deck, so any sensible picker takes them. Revisit at full content.
 
+**Phase 1b progress — Lyra and Clatter** (done):
+- Headliner pick on the title screen; each headliner has its own 12-card starter deck, and card picks offer neutral cards plus only that headliner's signature cards.
+- The ability button, banner and colors follow the headliner.
+- New effect parts: `roadie` (token units with a lifespan), `repairGates`, `volley` with `tokensOnly`; amps can trigger on beat 1; new gate kind **Shred** (shots ignore armor).
+- The simulator has one archetype bot per headliner; random and greedy bots rotate headliners. D1 is checked for every headliner (the weakest must clear 3×), and D3 is now measured.
+- Balance pass for the new headliners, each rerun through the report:
+  - First cut: Lyra 12 and Clatter 12 median waves vs Thrum 15 (D1 2.4×). Both were short on energy compared with Thrum's Tight-hit refund.
+  - **Sustain Pedal** gains +1 energy (repair 15 → 10). Lyra 12 → 16.
+  - **Load-In** becomes free and puts 1 Roadie down with Echo (was cost 1 for 2 Roadies). **Crew Chief** costs 2 (was 3).
+  - **Toolbox** becomes the Shred gate (was Pierce 1): Clatter lost 100% of runs to Brutes, whose armor 3 cancels Roadie shots.
+  - Tried and reverted: "Roadies ignore armor" as Clatter's passive. It made Clatter strong even for the random bot, so skill mattered less (D1 fell to 2.0×). Two Toolboxes in the starter deck: no change.
+- **Results** at 200 runs per bot: median wave Thrum 15, Lyra 16, Clatter 15, random 5.
+  - D1 3.00× (Thrum and Clatter; Lyra 3.2×), D2 4.9×, D3 1.07×, D5 26.9%, D6 5.1% (Swarmlings), D7 3.0, D8 0% — all pass. D1 and D6 sit right on the line.
+  - D4 still can't be judged (each headliner's pick pool is about 15 cards).
+
 **Phase 1b — Fill out.** Adds the simulator and the D1–D8 report, then tunes the slice against it. Then adds Lyra and Clatter, the other 5 enemy types, The Hush, the full ~40 cards, evolutions, the remaining keywords, audio, discard-cycle and drag-to-play.
 
 **S1.1 Play a card into a lane**
@@ -414,7 +438,7 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
 
 **S1.5 Headliners**
 *As a player, I want to pick 3 headliners that change how I play, so each run feels different.*
-- [ ] There's a select screen with all 3 headliners, showing their passive, active ability and signature cards.
+- [ ] There's a select screen with all 3 headliners, showing their passive, active ability and signature cards. *(Phase 1b: pick one per run on the title screen; see §4.7.)*
 - [ ] Active abilities are in the control zone and show their cooldown in beats.
 - [ ] Phase 1 shows the evolution branches as a preview. They're fully playable in Encore after a set number of waves.
 

@@ -1,4 +1,4 @@
-import { fromSnapshot, toSnapshot, type EngineState } from '../engine';
+import { fromSnapshot, HEADLINERS, toSnapshot, type EngineState, type HeadlinerId } from '../engine';
 
 /**
  * On-device storage (SPEC §7). Run state is kept separate from settings and
@@ -8,6 +8,7 @@ const RUN_KEY = 'headliners.run.v2';
 const SETTINGS_KEY = 'headliners.settings.v1';
 const BESTS_KEY = 'headliners.bests.v1';
 const TUTORIAL_KEY = 'headliners.soundcheck.v1';
+const HEADLINER_KEY = 'headliners.headliner.v1';
 
 export interface Settings {
   sound: boolean;
@@ -109,4 +110,14 @@ export function clearRun(): void {
   } catch {
     /* ignore */
   }
+}
+
+/** The headliner picked last time, so the title screen remembers your main. */
+export function loadHeadliner(): HeadlinerId {
+  const id = read<string>(HEADLINER_KEY);
+  return id && id in HEADLINERS ? (id as HeadlinerId) : 'thrum';
+}
+
+export function saveHeadliner(id: HeadlinerId): void {
+  write(HEADLINER_KEY, JSON.stringify(id));
 }

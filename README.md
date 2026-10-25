@@ -6,7 +6,7 @@ A portrait card-combo horde game for killing time on a phone. The full design is
 
 ## Status
 
-Phase 1a (vertical slice) is in. You play Thrum, the drum drake, with 12 cards (units, gates, riffs and an amp) against Shamblers, Brutes and Swarmlings in endless Encore waves. It has chains, Echo, Downbeat and Encore, card picks every 3 waves, and save/resume. Next is Phase 1b: the depth simulator, then the full content set.
+Phase 1b is under way. Pick a headliner on the title screen — Thrum the drum drake (rhythm), Lyra the serpent bard (gates and multipliers) or Clatter the kobold road crew (Roadie swarms) — each with their own starter deck, ability and band sound. Play against Shamblers, Brutes and Swarmlings in endless Encore waves, with chains, Echo, Downbeat, card picks every 3 waves, an adaptive soundtrack and save/resume. `npm run sim` plays thousands of bot runs and checks the depth thresholds. Next: the other enemy types, The Hush, the full card set and evolutions.
 
 **How to play:** tap a card, then tap a lane on the beat. The wide amber light is beat one. Off-beat plays break your chain.
 

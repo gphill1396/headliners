@@ -2,7 +2,7 @@ import { createClock, type ClockState, type Grade } from './clock';
 import { HAND_SIZE, START_BPM, START_CROWD, START_ENERGY } from './constants';
 import { createRng, shuffleInPlace, type RngState } from './rng';
 import type { EnemyKind, GateKind, HeadlinerId } from './types';
-import { STARTER_DECK } from '../content/cards';
+import { STARTER_DECKS } from '../content/cards';
 
 export const ENGINE_STATE_VERSION = 4;
 
@@ -40,6 +40,10 @@ export interface Unit {
   pierce: number;
   splash: boolean;
   placedBeat: number;
+  /** Tokens (Roadies) leave on this beat; -1 for normal units. Missing in pre-1b saves = never. */
+  expiresBeat?: number;
+  /** Created by another card, not drawn from the deck: never returns to the discard pile. */
+  token?: boolean;
 }
 
 export interface Gate {
@@ -86,6 +90,8 @@ export interface Projectile {
   damage: number;
   pierceLeft: number;
   splash: boolean;
+  /** Ignores armor (passed through a Toolbox). Missing in older saves = false. */
+  shred?: boolean;
   /** Bitmask of gate slots this shot has already passed. */
   gatesPassed: number;
   /** Card that fired it, for the damage breakdown. */
@@ -194,6 +200,7 @@ export interface CreateOptions {
   relaxedTiming?: boolean;
   deck?: readonly string[];
   mode?: Mode;
+  headliner?: HeadlinerId;
 }
 
 export function emptyChain(): ChainState {
@@ -203,7 +210,8 @@ export function emptyChain(): ChainState {
 export function createState(opts: CreateOptions): EngineState {
   const rng = createRng(opts.seed);
   let nextId = 1;
-  const deck = (opts.deck ?? STARTER_DECK).map((cardId) => ({ iid: nextId++, cardId }));
+  const headliner = opts.headliner ?? 'thrum';
+  const deck = (opts.deck ?? STARTER_DECKS[headliner]).map((cardId) => ({ iid: nextId++, cardId }));
   shuffleInPlace(rng, deck);
   const hand = deck.splice(0, HAND_SIZE);
   return {
@@ -235,7 +243,7 @@ export function createState(opts: CreateOptions): EngineState {
     // Wave 0 is a short count-in; wave 1 starts on beat 4.
     wave: { index: 0, startBeat: 0, hpMult: 1, spawns: [], nextSpawn: 0, kinds: [] },
     pick: [],
-    headliner: { id: 'thrum', readyBeat: 0, activeUntilBeat: -1, lastTightBonusBar: -1 },
+    headliner: { id: headliner, readyBeat: 0, activeUntilBeat: -1, lastTightBonusBar: -1 },
     stats: {
       tight: 0,
       good: 0,

@@ -1,8 +1,9 @@
-import { createRng, createState, step, type EnemyKind, type EngineState } from '../src/engine';
+import { createRng, createState, step, type EnemyKind, type EngineState, type HeadlinerId } from '../src/engine';
 import { createBot, type BotConfig } from './bots';
 
 export interface RunResult {
   bot: string;
+  headliner: HeadlinerId;
   seed: string;
   wave: number;
   score: number;
@@ -19,11 +20,18 @@ export interface RunResult {
   choices: number[];
 }
 
+const ROTATION: HeadlinerId[] = ['thrum', 'lyra', 'clatter'];
+const seedIndex = (seed: string): number => {
+  const m = /(\d+)$/.exec(seed);
+  return m ? Number(m[1]) : 0;
+};
+
 /** 30 minutes of play: far beyond a normal run, so only a degenerate strategy hits it. */
 export const DEFAULT_MAX_TICKS = 60 * 60 * 30;
 
 export function runOne(config: BotConfig, seed: string, maxTicks = DEFAULT_MAX_TICKS): RunResult {
-  const s: EngineState = createState({ seed });
+  const headliner = config.headliner === 'rotate' ? ROTATION[seedIndex(seed) % ROTATION.length]! : config.headliner;
+  const s: EngineState = createState({ seed, headliner });
   const bot = createBot(config, createRng(`bot:${config.name}:${seed}`));
   const crowdLost: Partial<Record<EnemyKind, number>> = {};
   const picks: string[] = [];
@@ -40,6 +48,7 @@ export function runOne(config: BotConfig, seed: string, maxTicks = DEFAULT_MAX_T
   }
   return {
     bot: config.name,
+    headliner,
     seed,
     wave: s.wave.index,
     score: s.score,

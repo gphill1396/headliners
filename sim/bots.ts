@@ -9,6 +9,7 @@ import {
   type CardDef,
   type CardInstance,
   type EngineState,
+  type HeadlinerId,
   type Input,
   type RngState,
 } from '../src/engine';
@@ -23,6 +24,8 @@ import {
 export interface BotConfig {
   name: string;
   kind: 'random' | 'greedy' | 'archetype';
+  /** Who the bot plays as. Random rotates through every headliner by seed. */
+  headliner: HeadlinerId | 'rotate';
   /** 0–1: how often the bot lands its play right on the beat. */
   timingSkill: number;
 }
@@ -132,7 +135,7 @@ function choosePlay(config: BotConfig, s: EngineState, rng: RngState): Choice | 
     for (let lane = 0; lane < 3; lane++) {
       let value = estimateValue(def, lane, s, threat);
       if (config.kind === 'archetype') {
-        if (def.headliner === 'thrum') value *= 1.15;
+        if (def.headliner && def.headliner === s.headliner.id) value *= 1.15;
         // Keep a running chain alive, but only when it's about to drop and only with cheap cards.
         const aboutToDrop = s.chain.links > 0 && s.chain.lastLinkBeat < s.clock.beat;
         if (aboutToDrop && def.cost <= 1) value += 2 + Math.min(8, s.chain.links * 0.4);
@@ -153,12 +156,14 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
   const enemiesInLane = s.enemies.filter((e) => e.lane === lane && e.depth >= 0);
   const threatHere = threat[lane]!;
   const armored = enemiesInLane.some((e) => e.armor > 0);
+  const lyraBonus = s.headliner.id === 'lyra' ? unitsInLane.length * 2 : 0; // +1 damage per gate pass
   const swarm = enemiesInLane.filter((e) => e.kind === 'swarmling').length;
   switch (def.type) {
     case 'unit': {
       const u = def.unit!;
       const full = unitsInLane.length >= UNIT_SLOTS;
-      const dps = (u.damage * 2) / u.fireEvery + (def.id === 'kick-drum' ? 1.5 : 0);
+      const roadieMaker = def.id === 'crew-chief' ? roadieValue(s, lane) * 0.5 : 0;
+      const dps = (u.damage * 2) / u.fireEvery + (def.id === 'kick-drum' ? 1.5 : 0) + roadieMaker;
       return (dps * 3 + threatHere * 0.05) * (full ? 0.3 : 1) * (armored && u.damage <= 4 ? 0.6 : 1);
     }
     case 'gate': {
@@ -167,9 +172,10 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
       const existing = s.gates.filter((x) => x.lane === lane);
       const dupe = existing.some((x) => x.kind === g.kind) ? 0.5 : 1;
       const full = existing.length >= 2 ? 0.5 : 1;
-      if (g.kind === 'copy') return laneDps * 2.2 * dupe * full;
-      if (g.kind === 'damage') return (unitsInLane.length * 2 * g.amount + (armored ? 12 : 0)) * dupe * full;
+      if (g.kind === 'copy') return (laneDps * 2.2 * (g.amount - 1) + lyraBonus) * dupe * full;
+      if (g.kind === 'damage') return (unitsInLane.length * 2 * g.amount + lyraBonus + (armored ? 12 : 0)) * dupe * full;
       if (g.kind === 'splash') return (swarm * 3 + laneDps) * dupe * full;
+      if (g.kind === 'shred') return (armored ? laneDps * 3 + 10 : laneDps * 0.5) * dupe * full;
       return laneDps * dupe * full;
     }
     case 'riff': {
@@ -184,20 +190,54 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
           return s.energy < 4 ? 8 : 3;
         case 'encore':
           return s.chain.links >= 2 ? 10 + s.enemies.length * 2 : 4;
+        case 'load-in': {
+          const free = Math.max(0, UNIT_SLOTS - unitsInLane.length);
+          return Math.min(2, free) * roadieValue(s, lane) + (enemiesInLane.length > 0 ? 2 : 0);
+        }
+        case 'sustain-pedal': {
+          const worn = s.gates.filter((g) => g.lane === lane).reduce((sum, g) => sum + (g.maxDurability - g.durability), 0);
+          return (s.energy < 4 ? 8 : 3) + Math.min(worn, 20) * 0.3;
+        }
         default:
           return 3;
       }
     }
-    case 'amp':
-      return s.amps.length < 2 ? 6 + s.units.length * 2 : 1;
+    case 'amp': {
+      if (s.amps.length >= 2) return 1;
+      if (def.id === 'mosh-pit') return 4 + s.units.filter((u) => u.token).length * 4;
+      if (def.id === 'resonance') return 4 + s.gates.length * 3;
+      return 6 + s.units.length * 2;
+    }
   }
 }
 
+/** How much a fresh Roadie in this lane is worth: its damage over its short stay. */
+function roadieValue(s: EngineState, lane: number): number {
+  const gates = s.gates.filter((g) => g.lane === lane);
+  let dmg = 3 + gates.filter((g) => g.kind === 'damage').reduce((sum, g) => sum + g.amount, 0);
+  const copies = gates.filter((g) => g.kind === 'copy').reduce((m, g) => m * g.amount, 1);
+  const shred = gates.some((g) => g.kind === 'shred');
+  const enemies = s.enemies.filter((e) => e.lane === lane && e.depth >= 0);
+  const armor = shred ? 0 : enemies.reduce((m, e) => Math.max(m, e.armor), 0);
+  dmg = Math.max(0.5, dmg - armor) * copies;
+  const busy = enemies.length > 0 ? 1 : 0.4;
+  return dmg * 2 * busy;
+}
+
+/** When to use the headliner's ability (Fill, Swell or All Hands). */
 function wantsFill(config: BotConfig, s: EngineState, rng: RngState): boolean {
-  if (s.clock.beat < s.headliner.readyBeat || s.units.length === 0) return false;
-  if (config.kind === 'random') return nextFloat(rng) < 0.05;
+  if (s.clock.beat < s.headliner.readyBeat) return false;
+  if (config.kind === 'random') return s.units.length > 0 && nextFloat(rng) < 0.05;
   const threat = laneThreat(s);
-  return Math.max(...threat) > 40 * s.wave.hpMult;
+  const pressed = Math.max(...threat) > 40 * s.wave.hpMult;
+  switch (s.headliner.id) {
+    case 'lyra':
+      return pressed && s.gates.length > 0 && s.units.length > 0;
+    case 'clatter':
+      return pressed || threat.filter((t) => t > 0).length >= 2;
+    default:
+      return pressed && s.units.length > 0;
+  }
 }
 
 function choosePick(config: BotConfig, s: EngineState, rng: RngState): number | null {
@@ -210,7 +250,7 @@ function choosePick(config: BotConfig, s: EngineState, rng: RngState): number | 
   const scores = s.pick.map((id) => {
     const def = getCard(id);
     let v = (base[def.type] ?? 1.5) - 0.6 * owned(id) + nextFloat(rng);
-    if (config.kind === 'archetype' && def.headliner === 'thrum') v += 0.3;
+    if (config.kind === 'archetype' && def.headliner === s.headliner.id) v += 0.3;
     return v;
   });
   return argmax(scores);

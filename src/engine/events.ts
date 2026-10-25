@@ -1,5 +1,5 @@
 import type { Grade } from './clock';
-import type { EnemyKind } from './types';
+import type { EnemyKind, HeadlinerId } from './types';
 
 /** What happened during a tick, for rendering, audio and haptics. Never fed back into the engine. */
 export type EngineEvent =
@@ -18,6 +18,9 @@ export type EngineEvent =
   | { type: 'unitPlaced'; unitId: number; cardId: string; lane: number; slot: number; replacedId: number | null }
   | { type: 'gatePlaced'; gateId: number; cardId: string; lane: number; slot: number; replacedId: number | null }
   | { type: 'gateBroken'; gateId: number; lane: number; slot: number }
+  /** A token (Roadie) left the stage. */
+  | { type: 'unitExpired'; unitId: number; cardId: string; lane: number; slot: number }
+  | { type: 'gatesRepaired'; lane: number; amount: number }
   | { type: 'damage'; lane: number; depth: number; amount: number }
   | { type: 'killed'; enemyId: number; kind: EnemyKind; lane: number; depth: number }
   | { type: 'leaked'; enemyId: number; kind: EnemyKind; lane: number; crowdDamage: number }
@@ -26,7 +29,8 @@ export type EngineEvent =
   | { type: 'waveStart'; index: number; kinds: EnemyKind[] }
   | { type: 'pickOffered'; options: string[] }
   | { type: 'picked'; cardId: string | null }
-  | { type: 'fill'; untilBeat: number }
+  /** A headliner's active ability went off. (Named 'fill' after Thrum's, the first one.) */
+  | { type: 'fill'; untilBeat: number; headliner: HeadlinerId }
   | { type: 'gameOver'; wave: number; score: number };
 
 export type RejectReason = 'not-in-hand' | 'energy' | 'lane' | 'not-playing' | 'cooldown';

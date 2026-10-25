@@ -1,4 +1,4 @@
-import type { EngineState } from '../engine';
+import type { EngineState, HeadlinerId } from '../engine';
 import type { Synth } from './synth';
 
 /**
@@ -26,8 +26,12 @@ export interface BoardMix {
   lanes: { copy: boolean; drive: boolean; fuzz: boolean }[];
   blast: boolean;
   chain: number;
-  /** Beat until which Fill is active. */
+  /** Beat until which Fill (Thrum) is active. */
   fillUntil: number;
+  /** Whose band this is: sets the time-keeping voices. Defaults to Thrum. */
+  headliner?: HeadlinerId;
+  /** Beat until which Swell (Lyra) is active. */
+  swellUntil?: number;
 }
 
 export function mixFrom(s: EngineState): BoardMix {
@@ -47,7 +51,9 @@ export function mixFrom(s: EngineState): BoardMix {
     lanes,
     blast: s.amps.some((a) => a.cardId === 'blast-beat'),
     chain: s.chain.links,
-    fillUntil: s.headliner.activeUntilBeat,
+    fillUntil: s.headliner.id === 'thrum' ? s.headliner.activeUntilBeat : -1,
+    headliner: s.headliner.id,
+    swellUntil: s.headliner.id === 'lyra' ? s.headliner.activeUntilBeat : -1,
   };
 }
 
@@ -72,15 +78,24 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
   mix.lanes.forEach((l, lane) => synth.setLaneFx(lane, { drive: l.drive ? (chill ? 0.25 : 0.55) : 0, fuzz: l.fuzz }, t));
 
   // Time-keeping: an empty stage is just a quarter-note hat and a kick on 1. It fills in as the band grows.
+  // Clatter's crew keeps time on a shaker instead of a hi-hat.
+  const shaker = mix.headliner === 'clatter';
+  const tick = (at: number, accent: boolean, open = false) => (shaker ? synth.shaker(at, accent ? 1 : 0.7) : synth.hat(at, accent, open));
   if (chill) {
-    if (onBeat) synth.hat(t, false);
+    if (onBeat) tick(t, false);
   } else if (mix.blast) {
-    synth.hat(t, onBeat);
-    synth.hat(t + sixteenth, false);
+    tick(t, onBeat);
+    tick(t + sixteenth, false);
   } else if (mix.chain >= 8) {
-    synth.hat(t, onBeat, !onBeat);
+    tick(t, onBeat, !onBeat);
   } else if (mix.groups.length > 0 || onBeat) {
-    synth.hat(t, onBeat);
+    tick(t, onBeat);
+  }
+  // Lyra's band keeps a soft low chord tone on 1 under everything.
+  if (mix.headliner === 'lyra' && onBeat && inBar === 0) synth.keys(t, chord.root + 24, eighthSec * 3, chill ? 0.5 : 0.7);
+  // Swell: the keys shimmer up the chord on every sixteenth.
+  if (mix.swellUntil !== undefined && beat < mix.swellUntil) {
+    for (let k = 0; k < 2; k++) synth.keys(t + k * sixteenth, chord.notes[(eighth * 2 + k) % 4]! + 24, sixteenth * 2, 0.45);
   }
   const hasKick = mix.groups.some((g) => g.cardId === 'kick-drum');
   if (!hasKick && onBeat && inBar === 0) synth.kick(t, 0.7);
@@ -114,6 +129,26 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
         const dur = (filling ? 1 : g.fireEvery) * eighthSec * 0.92;
         synth.bass(t, chord.root, dur, v, dest);
         if (copy && !chill) synth.bass(t, chord.root + 12, dur, 0.5 * v, dest);
+        break;
+      }
+      case 'arpeggiator': {
+        // Up the chord an eighth at a time; a copy gate adds the next chord tone as a harmony.
+        if (chill && !onBeat) break;
+        const i = ((eighth % 4) + 4) % 4;
+        synth.keys(t, chord.notes[i]! + 12, eighthSec * 1.6, 0.8 * v, dest);
+        if (copy && !chill) synth.keys(t, chord.notes[(i + 1) % 4]! + 12, eighthSec * 1.6, 0.4 * v, dest);
+        break;
+      }
+      case 'crew-chief':
+        if (chill && inBar % 2 === 1) break;
+        synth.cowbell(t, (inBar === 0 && onBeat ? 1 : 0.7) * v, dest);
+        if (copy && !chill) synth.cowbell(t + sixteenth, 0.35 * v, dest);
+        break;
+      case 'roadie': {
+        // A pile of Roadies is a pile of scrap: each lane's crew clanks at its own pitch.
+        if (chill && !(onBeat && inBar % 2 === 1)) break;
+        synth.clank(t, 0.8 * v, dest, [0.85, 1, 1.2][g.lane] ?? 1);
+        if (copy && !chill) synth.shaker(t + sixteenth, 0.6 * v, dest);
         break;
       }
       default:
@@ -157,6 +192,16 @@ export function playRiff(synth: Synth, cardId: string, lane: number, beat: numbe
     case 'encore':
       synth.crash(t);
       synth.stab(t, [...chord.notes], 0.6, 0.8 * level, dest);
+      break;
+    case 'sustain-pedal':
+      // A held chord on the keys.
+      chord.notes.forEach((m, i) => synth.keys(t + i * 0.012, m, 1.2, 0.55 * level, dest));
+      break;
+    case 'load-in':
+      // Clank, clank, cowbell: gear hitting the stage.
+      synth.clank(t, 0.8 * level, dest, 0.9);
+      synth.clank(t + sixteenth, 0.7 * level, dest, 1.1);
+      synth.cowbell(t + 2 * sixteenth, 0.6 * level, dest);
       break;
     default:
       synth.stab(t, [chord.root + 24, chord.root + 31], 0.25, 0.7 * level, dest);

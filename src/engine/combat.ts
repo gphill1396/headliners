@@ -12,6 +12,7 @@ import type { EngineState, Enemy, Gate, Projectile, Unit } from './state';
 /** Enemies are hit at their leading (stage-side) edge. */
 const HIT_OFFSET = 2_000;
 const SLOT_X = [200, 500, 800];
+const LYRA_GATE_BONUS = 1;
 
 /** Spawn `shots` projectiles from a unit. `multPct` scales damage (chain multiplier). */
 export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct: number): void {
@@ -33,9 +34,9 @@ export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct:
 }
 
 /** Deal damage to one enemy, after armor. Returns damage actually dealt (overkill not counted). */
-export function damageEnemy(state: EngineState, ctx: TickCtx, enemy: Enemy, amount: number, sourceCardId: string): number {
+export function damageEnemy(state: EngineState, ctx: TickCtx, enemy: Enemy, amount: number, sourceCardId: string, ignoreArmor = false): number {
   if (enemy.hp <= 0) return 0;
-  const raw = amount - enemy.armor;
+  const raw = ignoreArmor ? amount : amount - enemy.armor;
   if (raw <= 0) return 0;
   const dealt = raw < enemy.hp ? raw : enemy.hp;
   enemy.hp -= dealt;
@@ -119,7 +120,7 @@ export function moveProjectiles(state: EngineState, ctx: TickCtx): void {
       }
       const e = item.enemy!;
       if (e.hp <= 0) continue;
-      damageEnemy(state, ctx, e, p.damage, p.sourceCardId);
+      damageEnemy(state, ctx, e, p.damage, p.sourceCardId, p.shred === true);
       if (p.splash) splash(state, ctx, e, p.damage, p.sourceCardId);
       if (p.pierceLeft > 0) {
         p.pierceLeft -= 1;
@@ -149,12 +150,17 @@ function idOf(item: PathItem): number {
 function applyGate(state: EngineState, p: Projectile, g: Gate): void {
   p.gatesPassed |= 1 << g.slot;
   g.durability -= 1;
+  // Lyra's passive: every gate a shot passes through adds 1 damage.
+  if (state.headliner.id === 'lyra') p.damage += LYRA_GATE_BONUS;
+  // Lyra's Swell: for a couple of beats every gate works twice as hard.
+  const swell = state.headliner.id === 'lyra' && state.clock.beat < state.headliner.activeUntilBeat;
   switch (g.kind) {
     case 'copy': {
-      const extra = g.amount - 1;
+      const amount = g.amount + (swell ? 1 : 0);
+      const extra = amount - 1;
       if (state.projectiles.length + extra > MAX_PROJECTILES) {
         // At the cap, fold the copies into this shot: same total damage, bounded cost.
-        p.damage *= g.amount;
+        p.damage *= amount;
         break;
       }
       for (let c = 1; c <= extra; c++) {
@@ -168,13 +174,16 @@ function applyGate(state: EngineState, p: Projectile, g: Gate): void {
       break;
     }
     case 'damage':
-      p.damage += g.amount;
+      p.damage += g.amount * (swell ? 2 : 1);
       break;
     case 'splash':
       p.splash = true;
       break;
     case 'pierce':
-      p.pierceLeft += g.amount;
+      p.pierceLeft += g.amount + (swell ? 1 : 0);
+      break;
+    case 'shred':
+      p.shred = true;
       break;
   }
 }

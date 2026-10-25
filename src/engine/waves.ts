@@ -16,7 +16,7 @@ import type { TickCtx } from './context';
 import { nextInt, shuffleInPlace } from './rng';
 import { emptyChain, type EngineState } from './state';
 import type { EnemyKind } from './types';
-import { PICK_POOL } from '../content/cards';
+import { pickPool } from '../content/cards';
 import { ENEMIES } from '../content/enemies';
 
 const ALL_KINDS: EnemyKind[] = ['shambler', 'brute', 'swarmling'];
@@ -99,7 +99,7 @@ export function spawnGroup(state: EngineState, kind: EnemyKind, lane = nextInt(s
 }
 
 function offerPick(state: EngineState, ctx: TickCtx): void {
-  const pool = shuffleInPlace(state.rng, [...PICK_POOL]);
+  const pool = shuffleInPlace(state.rng, pickPool(state.headliner.id));
   state.pick = pool.slice(0, PICK_OPTIONS);
   state.phase = 'picking';
   ctx.events.push({ type: 'pickOffered', options: [...state.pick] });

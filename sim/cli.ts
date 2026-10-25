@@ -5,7 +5,7 @@ import { evaluate, formatReport } from './report';
 import { runOne, type RunResult } from './run';
 
 /**
- * npm run sim -- [--runs 100] [--mode encore] [--ci]
+ * npm run sim -- [--runs 100] [--mode encore] [--bots random,thrum] [--ci]
  *
  * Plays the real engine with bot players and checks the depth thresholds
  * (SPEC §9). In --ci mode, failures print as GitHub warnings and never fail
@@ -25,12 +25,20 @@ if (mode !== 'encore') {
 }
 
 const BOTS: BotConfig[] = [
-  { name: 'random', kind: 'random', timingSkill: 0 },
-  { name: 'greedy', kind: 'greedy', timingSkill: 0.6 },
-  { name: 'thrum', kind: 'archetype', timingSkill: 0.7 },
-  { name: 'thrum-sharp', kind: 'archetype', timingSkill: 0.9 },
-  { name: 'thrum-sloppy', kind: 'archetype', timingSkill: 0.2 },
+  { name: 'random', kind: 'random', headliner: 'rotate', timingSkill: 0 },
+  { name: 'greedy', kind: 'greedy', headliner: 'rotate', timingSkill: 0.6 },
+  { name: 'thrum', kind: 'archetype', headliner: 'thrum', timingSkill: 0.7 },
+  { name: 'lyra', kind: 'archetype', headliner: 'lyra', timingSkill: 0.7 },
+  { name: 'clatter', kind: 'archetype', headliner: 'clatter', timingSkill: 0.7 },
+  { name: 'thrum-sharp', kind: 'archetype', headliner: 'thrum', timingSkill: 0.9 },
+  { name: 'thrum-sloppy', kind: 'archetype', headliner: 'thrum', timingSkill: 0.2 },
 ];
+
+const only = arg('bots', '');
+if (only) {
+  const keep = new Set(only.split(','));
+  BOTS.splice(0, BOTS.length, ...BOTS.filter((b) => keep.has(b.name)));
+}
 
 const started = Date.now();
 const byBot: Record<string, RunResult[]> = {};

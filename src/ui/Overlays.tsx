@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCard, HEADLINERS, type EngineState } from '../engine';
+import { getCard, HEADLINERS, type EngineState, type HeadlinerId } from '../engine';
 import { CardTile } from './CardTile';
 import { formatNumber } from './format';
 import type { Bests, Settings } from './storage';
@@ -37,6 +37,8 @@ export function TitleOverlay({
   onTutorial,
   onResume,
   onNew,
+  headliner,
+  onHeadliner,
   ...settings
 }: SettingsProps & {
   bests: Bests;
@@ -45,8 +47,12 @@ export function TitleOverlay({
   onTutorial: () => void;
   onResume: () => void;
   onNew: () => void;
+  headliner: HeadlinerId;
+  onHeadliner: (id: HeadlinerId) => void;
 }) {
-  const thrum = HEADLINERS.thrum!;
+  const h = HEADLINERS[headliner];
+  // A new run is played as the chosen headliner; a saved run keeps whoever it started with.
+  const choosing = !canResume && tutorialDone;
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Headliners">
       <div className="overlay-top">
@@ -56,17 +62,16 @@ export function TitleOverlay({
             ? 'Tap a card, then tap a lane on the beat. Units shoot up their lane, gates multiply the shots, and plays on back-to-back beats chain together.'
             : 'A card game played to the beat. Hold back the horde and keep your crowd. New here? The soundcheck teaches it in about two minutes.'}
         </p>
-        <div className="headliner">
+        <div className={`headliner hl-${headliner}`}>
           <p className="headliner-name">
-            {thrum.name}, {thrum.title}
+            {h.name}, {h.title}
           </p>
-          <p>{thrum.passive}</p>
+          <p className="muted">{h.style}</p>
+          <p>{h.passive}</p>
           <p>
-            <strong>{thrum.active.name}:</strong> {thrum.active.text}
+            <strong>{h.active.name}:</strong> {h.active.text}
           </p>
-          <p className="muted">
-            Evolves later into {thrum.evolutions[0].name} or {thrum.evolutions[1].name}.
-          </p>
+          <p className="muted">Sound: {h.sound}</p>
         </div>
         {bests.runs > 0 && (
           <p className="muted">
@@ -76,18 +81,33 @@ export function TitleOverlay({
       </div>
       <div className="overlay-controls">
         <SettingsList {...settings} />
+        {(choosing || canResume) && (
+          <div className="hl-picker" role="radiogroup" aria-label="Headliner for a new run">
+            {(Object.keys(HEADLINERS) as HeadlinerId[]).map((id) => (
+              <button
+                key={id}
+                role="radio"
+                aria-checked={id === headliner}
+                className={`hl-chip hl-${id}${id === headliner ? ' on' : ''}`}
+                onClick={() => onHeadliner(id)}
+              >
+                {HEADLINERS[id].name}
+              </button>
+            ))}
+          </div>
+        )}
         {canResume ? (
           <>
             <button className="primary-btn" onClick={onResume}>
               Resume run
             </button>
             <button className="secondary-btn" onClick={onNew}>
-              Start a new run
+              New run as {h.name}
             </button>
           </>
         ) : tutorialDone ? (
           <button className="primary-btn" onClick={onNew}>
-            Start
+            Start as {h.name}
           </button>
         ) : (
           <>

@@ -73,35 +73,47 @@ export interface Report {
 }
 
 /**
- * Evaluate D1–D8. `byBot` holds runs for: random, greedy, thrum (main
- * archetype), thrum-sharp (timing 0.9) and thrum-sloppy (timing 0.2).
+ * Evaluate D1–D8. `byBot` holds runs for: random, greedy, one archetype bot
+ * per headliner (thrum, lyra, clatter), thrum-sharp (timing 0.9) and
+ * thrum-sloppy (timing 0.2).
  */
 export function evaluate(byBot: Record<string, RunResult[]>, runsPerBot: number): Report {
   const T = THRESHOLDS;
   const random = byBot['random'] ?? [];
   const thrum = byBot['thrum'] ?? [];
+  const archetypes = (['thrum', 'lyra', 'clatter'] as const).filter((h) => (byBot[h] ?? []).length > 0);
   const sharp = byBot['thrum-sharp'] ?? [];
   const sloppy = byBot['thrum-sloppy'] ?? [];
-  const skilled = [...(byBot['greedy'] ?? []), ...thrum, ...sharp, ...sloppy];
+  const skilled = [...(byBot['greedy'] ?? []), ...archetypes.flatMap((h) => byBot[h]!), ...sharp, ...sloppy];
   const checks: Check[] = [];
 
-  // D1 — skill matters.
-  const d1 = median(thrum.map((r) => r.wave)) / Math.max(1, median(random.map((r) => r.wave)));
-  checks.push({ id: 'D1', name: 'Skill matters (archetype vs random, median wave)', pass: d1 >= T.D1_skillVsRandom, value: `${d1.toFixed(2)}×`, target: `≥ ${T.D1_skillVsRandom}×` });
+  // D1 — skill matters. Checked for every headliner; the weakest one has to clear the bar.
+  const randomWave = Math.max(1, median(random.map((r) => r.wave)));
+  const d1s = archetypes.map((h) => ({ h, x: median(byBot[h]!.map((r) => r.wave)) / randomWave })).sort((a, b) => a.x - b.x);
+  const d1 = d1s[0]?.x ?? 0;
+  checks.push({ id: 'D1', name: 'Skill matters (each archetype vs random, median wave)', pass: d1 >= T.D1_skillVsRandom, value: `${d1.toFixed(2)}× (${d1s[0]?.h ?? '-'})`, target: `≥ ${T.D1_skillVsRandom}×`, note: d1s.map((d) => `${d.h} ${d.x.toFixed(2)}×`).join(', ') });
 
   // D2 — timing matters.
   const d2 = median(sharp.map((r) => r.score)) / Math.max(1, median(sloppy.map((r) => r.score)));
   checks.push({ id: 'D2', name: 'Timing matters (timing 0.9 vs 0.2, median score)', pass: d2 >= T.D2_timing, value: `${d2.toFixed(2)}×`, target: `≥ ${T.D2_timing}×` });
 
-  // D3 — no solved headliner. Only Thrum exists in Phase 1a.
-  checks.push({ id: 'D3', name: 'No solved headliner', pass: null, value: 'n/a', target: `≤ ${T.D3_headlinerSpread}×`, note: 'Only one headliner (Thrum) until Lyra and Clatter land.' });
+  // D3 — no solved headliner: best and worst headliner's median wave within 1.4×.
+  if (archetypes.length < 2) {
+    checks.push({ id: 'D3', name: 'No solved headliner', pass: null, value: 'n/a', target: `≤ ${T.D3_headlinerSpread}×`, note: 'Needs at least two headliner bots.' });
+  } else {
+    const waves = archetypes.map((h) => ({ h, w: median(byBot[h]!.map((r) => r.wave)) })).sort((a, b) => b.w - a.w);
+    const best = waves[0]!;
+    const worst = waves[waves.length - 1]!;
+    const d3 = best.w / Math.max(1, worst.w);
+    checks.push({ id: 'D3', name: 'No solved headliner (best vs worst median wave)', pass: d3 <= T.D3_headlinerSpread, value: `${d3.toFixed(2)}× (${best.h} ${best.w} / ${worst.h} ${worst.w})`, target: `≤ ${T.D3_headlinerSpread}×` });
+  }
 
   // D4 — no must-pick card. The starter deck is fixed, so this measures card picks in top runs.
   const top = topQuarter(skilled);
   const pickRates: Record<string, number> = {};
   for (const c of CARDS) pickRates[c.id] = top.filter((r) => r.picks.includes(c.id)).length / Math.max(1, top.length);
   const [topPick, topPickRate] = Object.entries(pickRates).sort((a, b) => b[1] - a[1])[0] ?? ['-', 0];
-  checks.push({ id: 'D4', name: 'No must-pick card (top-25% runs)', pass: topPickRate <= T.D4_mustPick, value: `${topPick} in ${pct(topPickRate)}`, target: `≤ ${pct(T.D4_mustPick)}`, note: 'Not meaningful yet: with a 12-card pool only 3 cards are outside the starter deck, so any sensible picker takes them. Revisit with the full card set.' });
+  checks.push({ id: 'D4', name: 'No must-pick card (top-25% runs)', pass: topPickRate <= T.D4_mustPick, value: `${topPick} in ${pct(topPickRate)}`, target: `≤ ${pct(T.D4_mustPick)}`, note: 'Not meaningful yet: each headliner\'s pick pool is about 15 cards, most already in the starter deck. Revisit with the full card set.' });
 
   // D5 — no single damage source (top runs stand in for "winning", since Encore is endless).
   const damageShare: Record<string, number> = {};

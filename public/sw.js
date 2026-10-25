@@ -4,7 +4,7 @@
  * - Built assets (hashed file names): cache first, they never change.
  * - Google Fonts: serve cached, refresh in the background.
  */
-const CACHE = 'headliners-v8';
+const CACHE = 'headliners-v9';
 const CORE = ['./', './manifest.webmanifest', './icons/icon-192.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {

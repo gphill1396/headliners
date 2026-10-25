@@ -4,6 +4,7 @@ import {
   beatInBar,
   createState,
   getCard,
+  HEADLINERS,
   isBigChain,
   LANES,
   MAX_ENERGY,
@@ -11,6 +12,7 @@ import {
   type EngineEvent,
   type EngineState,
   type Grade,
+  type HeadlinerId,
 } from '../engine';
 import { addBurst, createFx, decayFx, depthToFraction, drawField, fitCanvas, GATE_COLORS } from '../render/field';
 import { PALETTE } from '../render/palette';
@@ -27,9 +29,11 @@ import {
   markTutorialDone,
   tutorialDone as loadTutorialDone,
   loadBests,
+  loadHeadliner,
   loadRun,
   loadSettings,
   recordRun,
+  saveHeadliner,
   saveRun,
   saveSettings,
   type Bests,
@@ -44,8 +48,15 @@ const REJECT_TEXT = {
   'not-in-hand': 'That card already left your hand.',
   lane: 'Pick a lane.',
   'not-playing': 'Wait for the next wave.',
-  cooldown: 'Fill is still cooling down.',
+  cooldown: 'Your ability is still cooling down.',
 } as const;
+/** Short banner lines and in-use button labels for each headliner's ability. */
+const ACTIVE_BANNER: Record<HeadlinerId, string> = {
+  thrum: 'Every unit fires on every eighth note',
+  lyra: 'Every gate works twice as hard',
+  clatter: 'A Roadie in every lane',
+};
+const ACTIVE_ON: Record<HeadlinerId, string> = { thrum: 'Filling', lyra: 'Swelling', clatter: 'All in' };
 const KIND_NAMES = { shambler: 'Shamblers', brute: 'Brutes', swarmling: 'Swarmlings' } as const;
 
 type View = 'title' | 'playing' | 'paused' | 'over';
@@ -60,6 +71,7 @@ interface Hud {
   chain: number;
   mult: number;
   pocket: number;
+  headliner: HeadlinerId;
   fillIn: number;
   filling: boolean;
   phase: EngineState['phase'];
@@ -80,6 +92,7 @@ function sampleHud(s: EngineState): Hud {
     chain: s.chain.links,
     mult: s.chain.links > 0 ? s.chain.multPct : 100,
     pocket: s.pocket.depth,
+    headliner: s.headliner.id,
     fillIn: Math.max(0, s.headliner.readyBeat - s.clock.beat),
     filling,
     phase: s.phase,
@@ -90,9 +103,9 @@ function sampleHud(s: EngineState): Hud {
   };
 }
 
-function newRun(settings: Settings): EngineState {
+function newRun(settings: Settings, headliner: HeadlinerId): EngineState {
   // The UI picks the seed; the engine never reads the clock itself.
-  return createState({ seed: `run-${new Date().toISOString()}`, relaxedTiming: settings.relaxedTiming });
+  return createState({ seed: `run-${new Date().toISOString()}`, relaxedTiming: settings.relaxedTiming, headliner });
 }
 
 function gateLabel(kind: Hud['gates'][number]['kind'], amount: number): string {
@@ -105,6 +118,8 @@ function gateLabel(kind: Hud['gates'][number]['kind'], amount: number): string {
       return 'Splash';
     case 'pierce':
       return `Pierce +${amount}`;
+    case 'shred':
+      return 'Shred';
   }
 }
 
@@ -116,7 +131,7 @@ export function App() {
   const [canResume, setCanResume] = useState(savedRun.current !== null);
 
   const runnerRef = useRef<GameRunner | null>(null);
-  if (!runnerRef.current) runnerRef.current = new GameRunner(newRun(settings));
+  if (!runnerRef.current) runnerRef.current = new GameRunner(newRun(settings, loadHeadliner()));
   const runner = runnerRef.current;
   // Dev builds only: lets automated play-throughs read the beat clock. Stripped from production.
   if (import.meta.env.DEV) {
@@ -130,6 +145,7 @@ export function App() {
   const [selected, setSelected] = useState<number | null>(null);
   const [pickSent, setPickSent] = useState(false);
   const [tutorialDone, setTutorialDone] = useState(loadTutorialDone);
+  const [headliner, setHeadliner] = useState<HeadlinerId>(loadHeadliner);
   const [tutStep, setTutStep] = useState<number | null>(null);
   const [nudge, setNudge] = useState<string | null>(null);
   const [practiceHits, setPracticeHits] = useState(0);
@@ -363,9 +379,11 @@ export function App() {
           case 'energy':
             if (e.reason === 'tight') pop('+1 energy', 1, 80_000, 'pop-energy');
             break;
-          case 'fill':
-            showBanner('Fill!', 'Every unit fires on every eighth note');
+          case 'fill': {
+            const active = HEADLINERS[e.headliner].active;
+            showBanner(`${active.name}!`, ACTIVE_BANNER[e.headliner]);
             break;
+          }
           case 'pocket':
             if (e.depth === 10 && e.delta > 0) pop('Deep in the pocket', 1, 30_000, 'pop-pocket');
             else if (e.depth === 5 && e.delta > 0) pop('In the pocket', 1, 30_000, 'pop-pocket');
@@ -600,7 +618,7 @@ export function App() {
     clearRun();
     savedRun.current = null;
     setCanResume(false);
-    runner.load(newRun(settings));
+    runner.load(newRun(settings, headliner));
     fxRef.current = createFx();
     overlayRef.current?.replaceChildren();
     setSelected(null);
@@ -689,6 +707,7 @@ export function App() {
   const selectedCardId = hud.hand.find((c) => c.iid === selected)?.cardId ?? null;
   const targets = new Set<Target>(coachStep ? coachStep.targets(selectedCardId) : []);
   const coached = (t: Target) => (targets.has(t) ? ' coach' : '');
+  const activeName = HEADLINERS[hud.headliner].active.name;
   const coachedCardIid = (() => {
     for (const t of targets) {
       if (!t.startsWith('card:')) continue;
@@ -850,14 +869,14 @@ export function App() {
             </span>
           </div>
           <button
-            className={`fill-btn${hud.filling ? ' active' : ''}${coached('fill')}`}
+            className={`fill-btn hl-${hud.headliner}${hud.filling ? ' active' : ''}${coached('fill')}`}
             disabled={hud.fillIn > 0 || view !== 'playing'}
             onPointerDown={(e) => {
               e.preventDefault();
               activate(e.timeStamp);
             }}
           >
-            {hud.filling ? 'Filling' : hud.fillIn > 0 ? `Fill ${hud.fillIn}` : 'Fill'}
+            {hud.filling ? ACTIVE_ON[hud.headliner] : hud.fillIn > 0 ? `${activeName} ${hud.fillIn}` : activeName}
           </button>
         </div>
 
@@ -888,6 +907,11 @@ export function App() {
           onTutorial={startTutorial}
           onResume={resumeSaved}
           onNew={startNew}
+          headliner={headliner}
+          onHeadliner={(id) => {
+            setHeadliner(id);
+            saveHeadliner(id);
+          }}
           settings={settings}
           onToggle={toggleSetting}
         />

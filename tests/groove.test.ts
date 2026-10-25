@@ -20,6 +20,10 @@ function fakeSynth(): { synth: Synth; calls: Call[]; fx: Map<number, { drive: nu
     bass: (t: number, note: number, _d: number, level = 1, dest = 'master') => calls.push({ voice: 'bass', t, note, level, dest }),
     pad: (t: number) => calls.push({ voice: 'pad', t }),
     lead: (t: number, note: number) => calls.push({ voice: 'lead', t, note }),
+    keys: (t: number, note: number, _d: number, level = 1, dest = 'master') => calls.push({ voice: 'keys', t, note, level, dest }),
+    cowbell: (t: number, level = 1, dest = 'master') => calls.push({ voice: 'cowbell', t, level, dest }),
+    clank: (t: number, level = 1, dest = 'master') => calls.push({ voice: 'clank', t, level, dest }),
+    shaker: (t: number, level = 1, dest = 'master') => calls.push({ voice: 'shaker', t, level, dest }),
   };
   return { synth: fake as unknown as Synth, calls, fx };
 }
@@ -146,4 +150,36 @@ test('Chill music: same band, sparser — no ghosts, bursts, flams or lead; quar
   assert.equal(count('lead'), 0);
   assert.equal(count('pad'), 4); // chain pad stays, softer
   assert.ok(f.fx.get(0)!.drive < 0.55);
+});
+
+test("each headliner's units have their own instrument family", () => {
+  const lyra = emptyMix();
+  lyra.headliner = 'lyra';
+  lyra.groups = [{ cardId: 'arpeggiator', lane: 2, count: 1, fireEvery: 1 }];
+  const l = bar(lyra);
+  // 8 arpeggio notes plus the low chord tone on 1.
+  assert.equal(l.count('keys', (c) => c.dest === 'lane2'), 8);
+  assert.equal(l.count('keys'), 9);
+
+  const clatter = emptyMix();
+  clatter.headliner = 'clatter';
+  clatter.groups = [
+    { cardId: 'crew-chief', lane: 0, count: 1, fireEvery: 2 },
+    { cardId: 'roadie', lane: 1, count: 2, fireEvery: 2 },
+  ];
+  const c = bar(clatter);
+  assert.equal(c.count('cowbell'), 4);
+  assert.equal(c.count('clank'), 4);
+  // Clatter keeps time on a shaker, not a hi-hat.
+  assert.equal(c.count('hat'), 0);
+  assert.ok(c.count('shaker') >= 4);
+});
+
+test('only Thrum\'s Fill makes the band fire on every eighth', () => {
+  const s = testState('fill-lyra');
+  s.headliner.id = 'lyra';
+  s.headliner.activeUntilBeat = s.clock.beat + 2;
+  const mix = mixFrom(s);
+  assert.equal(mix.fillUntil, -1);
+  assert.equal(mix.swellUntil, s.clock.beat + 2);
 });

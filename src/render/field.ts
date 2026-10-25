@@ -13,6 +13,7 @@ export const GATE_COLORS: Record<GateKind, string> = {
   damage: PALETTE.thrum,
   splash: PALETTE.clatter,
   pierce: PALETTE.cream,
+  shred: '#a69cc0',
 };
 
 interface Burst {
@@ -103,14 +104,17 @@ export function drawField(
     }
   }
 
-  // Gates: a bar across the lane plus a durability strip.
+  // Gates: a bar across the lane plus a durability strip. Lyra's Swell makes them pulse wide.
+  const active = state.clock.beat < state.headliner.activeUntilBeat;
+  const swelling = active && state.headliner.id === 'lyra';
   for (const g of state.gates) {
     const x = g.lane * LANE_PX + 4;
     const y = yOf(g.depth);
     const width = LANE_PX - 8;
     ctx.fillStyle = GATE_COLORS[g.kind];
-    ctx.globalAlpha = 0.25;
-    ctx.fillRect(x, y - 4, width, 8);
+    ctx.globalAlpha = swelling ? 0.35 + (1 - beatPhase) * 0.4 : 0.25;
+    const glow = swelling ? 8 : 4;
+    ctx.fillRect(x, y - glow, width, glow * 2);
     ctx.globalAlpha = 1;
     ctx.fillRect(x, y - 1, width, 2);
     ctx.fillStyle = PALETTE.night;
@@ -170,8 +174,10 @@ export function drawField(
   }
 
   // Units stand on the stage lip.
-  const filling = state.clock.beat < state.headliner.activeUntilBeat;
+  const filling = active && state.headliner.id === 'thrum';
   for (const u of state.units) {
+    // Tokens blink through their last two beats so you can see them about to leave.
+    if (u.token && u.expiresBeat !== undefined && u.expiresBeat - state.clock.beat <= 2 && Math.floor(beatPhase * 4) % 2 === 1) continue;
     const sprite: Sprite = (SPRITES as Record<string, Sprite>)[u.cardId] ?? SPRITES.stagehand;
     const { w: sw, h: sh } = spriteSize(sprite);
     const cx = u.lane * LANE_PX + 8 + u.slot * 16;

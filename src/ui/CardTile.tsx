@@ -1,4 +1,4 @@
-import type { CardDef } from '../engine';
+import { HEADLINERS, type CardDef } from '../engine';
 import { GATE_COLORS } from '../render/field';
 import { PALETTE } from '../render/palette';
 
@@ -51,7 +51,7 @@ export function CardTile({ def, selected = false, affordable = true, large = fal
       aria-label={`${def.name}, costs ${def.cost}. ${def.text}`}
     >
       <span className="card-cost">{def.cost}</span>
-      {def.headliner && <span className="card-sig" title="Thrum signature card" />}
+      {def.headliner && <span className={`card-sig hl-${def.headliner}`} title={`${HEADLINERS[def.headliner].name} signature card`} />}
       <span className="card-name">{def.name}</span>
       {large ? <span className="card-text">{def.text}</span> : <span className="card-short">{def.short}</span>}
       {large && <span className="card-type">{TYPE_LABEL[def.type]}</span>}

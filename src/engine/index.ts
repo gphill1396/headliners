@@ -1,0 +1,15 @@
+/**
+ * Headliners engine — pure, deterministic game rules (SPEC §2).
+ *
+ * Rules for everything under src/engine/:
+ * - No DOM, React or Node APIs (tsconfig.engine.json compiles it with the ES library only).
+ * - No Math.random, Date or performance timers (tests/engine-purity.test.ts checks).
+ * - All randomness through ./rng, all time in ticks through ./clock.
+ * - State is plain JSON-safe data.
+ */
+export * from './constants';
+export * from './rng';
+export * from './clock';
+export * from './state';
+export * from './step';
+export * from './snapshot';

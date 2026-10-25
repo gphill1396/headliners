@@ -1,0 +1,21 @@
+{
+  // Purity gate for the engine: ES library only, no DOM, no Node, no React.
+  // If engine code touches window/document/performance/etc., this fails to compile.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": [],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src/engine/**/*.ts", "src/content/**/*.ts"]
+}

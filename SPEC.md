@@ -500,6 +500,10 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
 
 ## 12. Open questions
 
+- **Speaker placement** (Grant's idea): placeable speakers that aim a lane's attacks.
+  - For example, angle a lane's shots into a neighboring lane, or fan them across two lanes.
+  - This is the natural answer to Shieldbearers ("attacks from side lanes"), and the speaker's position could also pan that lane's sound.
+  - Candidate for Phase 1b, alongside the Shieldbearer.
 - Should the field get a lane-swap mechanic (moving units sideways) in Phase 2?
 - Should the Daily Setlist have a light leaderboard (paste-based, no backend)?
 - How do Heat modifiers interact with the daily seed?

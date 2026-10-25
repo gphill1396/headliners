@@ -50,6 +50,8 @@ export const PROJECTILE_SPEED = 2_800;
 export const MAX_PROJECTILES = 1_200;
 /** Splash reaches enemies within this depth of the hit, for half damage. */
 export const SPLASH_RADIUS = 7_000;
+/** Flyers swoop down past this depth, where any shot can hit them. */
+export const SWOOP_DEPTH = 76_000;
 export const SPLASH_PCT = 50;
 
 export const START_ENERGY = 3;
@@ -90,7 +92,7 @@ export const BIG_CHAIN = 8;
 export const WAVE_BEATS = 24;
 export const WAVE_SPAWN_BEATS = 16;
 /** Enemy health multiplier per wave, applied by repeated multiplication (no Math.pow in the engine). */
-export const WAVE_HP_GROWTH = 1.1;
+export const WAVE_HP_GROWTH = 1.08;
 export const WAVE_TEMPO_STEP = 2;
 export const WAVE_MAX_BPM = 150;
 /** Card pick every N waves (Phase 1a addition, SPEC §10). */

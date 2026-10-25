@@ -3,6 +3,7 @@ import {
   BEAT_UNITS,
   beatInBar,
   createState,
+  ENEMIES,
   getCard,
   HEADLINERS,
   isBigChain,
@@ -57,7 +58,7 @@ const ACTIVE_BANNER: Record<HeadlinerId, string> = {
   clatter: 'A Roadie in every lane',
 };
 const ACTIVE_ON: Record<HeadlinerId, string> = { thrum: 'Filling', lyra: 'Swelling', clatter: 'All in' };
-const KIND_NAMES = { shambler: 'Shamblers', brute: 'Brutes', swarmling: 'Swarmlings' } as const;
+
 
 type View = 'title' | 'playing' | 'paused' | 'over';
 
@@ -78,7 +79,7 @@ interface Hud {
   mode: EngineState['mode'];
   hand: { iid: number; cardId: string }[];
   queuedLanes: number[];
-  gates: { id: number; lane: number; depth: number; kind: keyof typeof GATE_COLORS; amount: number }[];
+  gates: { id: number; lane: number; depth: number; kind: keyof typeof GATE_COLORS; amount: number; hexed: boolean }[];
 }
 
 function sampleHud(s: EngineState): Hud {
@@ -99,7 +100,7 @@ function sampleHud(s: EngineState): Hud {
     mode: s.mode,
     hand: s.hand.map((c) => ({ iid: c.iid, cardId: c.cardId })),
     queuedLanes: [0, 1, 2].map((l) => s.queue.filter((q) => q.lane === l && !q.isEcho).length),
-    gates: s.gates.map((g) => ({ id: g.id, lane: g.lane, depth: g.depth, kind: g.kind, amount: g.amount })),
+    gates: s.gates.map((g) => ({ id: g.id, lane: g.lane, depth: g.depth, kind: g.kind, amount: g.amount, hexed: g.hexed === true })),
   };
 }
 
@@ -108,8 +109,10 @@ function newRun(settings: Settings, headliner: HeadlinerId): EngineState {
   return createState({ seed: `run-${new Date().toISOString()}`, relaxedTiming: settings.relaxedTiming, headliner });
 }
 
-function gateLabel(kind: Hud['gates'][number]['kind'], amount: number): string {
+function gateLabel(kind: Hud['gates'][number]['kind'], amount: number, lane: number): string {
   switch (kind) {
+    case 'aim':
+      return lane === 0 ? 'Speaker →' : lane === LANES - 1 ? '← Speaker' : '← Speaker →';
     case 'copy':
       return `×${amount}`;
     case 'damage':
@@ -119,7 +122,7 @@ function gateLabel(kind: Hud['gates'][number]['kind'], amount: number): string {
     case 'pierce':
       return `Pierce +${amount}`;
     case 'shred':
-      return 'Shred';
+      return 'Toolbox';
   }
 }
 
@@ -277,13 +280,16 @@ export function App() {
     el.classList.add('show');
   }, []);
 
-  const showBanner = useCallback((title: string, sub: string) => {
+  const showBanner = useCallback((title: string, sub: string, tip?: string) => {
     const el = bannerRef.current;
     if (!el) return;
-    el.innerHTML = `<strong>${title}</strong><span>${sub}</span>`;
-    el.classList.remove('show');
+    // Text comes from our own content files, never from the player.
+    el.innerHTML = `<strong>${title}</strong><span>${sub}</span>${tip ? `<em>${tip}</em>` : ''}`;
+    el.classList.remove('show', 'long');
     void el.offsetWidth;
+    // A new enemy's tip stays up long enough to read.
     el.classList.add('show');
+    if (tip) el.classList.add('long');
   }, []);
 
   const finishRun = useCallback((s: EngineState) => {
@@ -373,9 +379,24 @@ export function App() {
           case 'gateBroken':
             pop('Gate broke', e.lane, 60_000, 'pop-note');
             break;
-          case 'waveStart':
-            showBanner(`Wave ${e.index}`, e.kinds.map((k) => KIND_NAMES[k]).join(' and '));
+          case 'gateSmashed':
+            fx.laneMiss[e.lane] = Math.max(fx.laneMiss[e.lane] ?? 0, 0.5);
+            pop('Smash', e.lane, e.slot === 0 ? 70_000 : 48_000, 'pop-leak');
             break;
+          case 'blocked':
+            pop(e.broke ? 'Shield broke' : 'Blocked', e.lane, e.depth + 4_000, 'pop-note');
+            break;
+          case 'split':
+            pop('Split!', e.lane, e.depth, 'pop-note');
+            break;
+          case 'waveStart': {
+            const names = e.kinds.map((k) => ENEMIES[k].name);
+            const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0] ?? '';
+            const fresh = e.debut?.find((k) => k !== 'shambler');
+            if (fresh) showBanner(`Wave ${e.index}`, `New: ${ENEMIES[fresh].name}`, ENEMIES[fresh].tip);
+            else showBanner(`Wave ${e.index}`, list);
+            break;
+          }
           case 'energy':
             if (e.reason === 'tight') pop('+1 energy', 1, 80_000, 'pop-energy');
             break;
@@ -760,10 +781,10 @@ export function App() {
               style={{
                 left: `${((g.lane + 0.5) / LANES) * 100}%`,
                 top: `${depthToFraction(g.depth) * 100}%`,
-                color: GATE_COLORS[g.kind],
+                color: g.hexed ? '#c06bd6' : GATE_COLORS[g.kind],
               }}
             >
-              {gateLabel(g.kind, g.amount)}
+              {g.hexed ? 'Hexed' : gateLabel(g.kind, g.amount, g.lane)}
             </span>
           ))}
         </div>

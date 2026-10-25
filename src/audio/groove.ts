@@ -23,7 +23,7 @@ export function chordAt(beat: number) {
 export interface BoardMix {
   /** One entry per unit type per lane; `count` units of it. */
   groups: { cardId: string; lane: number; count: number; fireEvery: number }[];
-  lanes: { copy: boolean; drive: boolean; fuzz: boolean }[];
+  lanes: { copy: boolean; drive: boolean; fuzz: boolean; aim?: -1 | 0 | 1 | null }[];
   blast: boolean;
   chain: number;
   /** Beat until which Fill (Thrum) is active. */
@@ -44,7 +44,8 @@ export function mixFrom(s: EngineState): BoardMix {
   }
   const lanes = [0, 1, 2].map((lane) => {
     const kinds = s.gates.filter((g) => g.lane === lane).map((g) => g.kind);
-    return { copy: kinds.includes('copy'), drive: kinds.includes('damage'), fuzz: kinds.includes('splash') };
+    const aim: -1 | 0 | 1 | null = !kinds.includes('aim') ? null : lane === 0 ? 1 : lane === 2 ? -1 : 0;
+    return { copy: kinds.includes('copy'), drive: kinds.includes('damage'), fuzz: kinds.includes('splash'), aim };
   });
   return {
     groups: [...groups.values()].sort((a, b) => a.lane - b.lane || a.cardId.localeCompare(b.cardId)),
@@ -75,7 +76,7 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
   const filling = beat < mix.fillUntil;
   const level = (count: number) => Math.min(1.25, 0.75 + 0.25 * (count - 1));
 
-  mix.lanes.forEach((l, lane) => synth.setLaneFx(lane, { drive: l.drive ? (chill ? 0.25 : 0.55) : 0, fuzz: l.fuzz }, t));
+  mix.lanes.forEach((l, lane) => synth.setLaneFx(lane, { drive: l.drive ? (chill ? 0.25 : 0.55) : 0, fuzz: l.fuzz, aim: l.aim ?? null }, t));
 
   // Time-keeping: an empty stage is just a quarter-note hat and a kick on 1. It fills in as the band grows.
   // Clatter's crew keeps time on a shaker instead of a hi-hat.
@@ -151,6 +152,17 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
         if (copy && !chill) synth.shaker(t + sixteenth, 0.6 * v, dest);
         break;
       }
+      case 'pyro':
+        // A sizzle and a pop, like a firework going up.
+        if (chill && !onBeat) break;
+        synth.hat(t, false, true, dest);
+        synth.tom(t, 60, 0.45 * v, dest);
+        break;
+      case 'spotlight':
+        // A bright chord tone picked out on the beat.
+        if (chill && inBar % 2 === 1) break;
+        synth.stab(t, [chord.notes[2]! + 12], eighthSec * 0.8, 0.8 * v, dest);
+        break;
       default:
         synth.tom(t, 48, 0.7 * v, dest);
     }

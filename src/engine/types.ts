@@ -8,7 +8,7 @@
 
 export type CardType = 'unit' | 'gate' | 'riff' | 'amp';
 
-export type Keyword = 'pierce' | 'splash' | 'echo' | 'downbeat' | 'encore' | 'feedback' | 'antiAir' | 'roadie' | 'shred';
+export type Keyword = 'pierce' | 'splash' | 'echo' | 'downbeat' | 'encore' | 'feedback' | 'antiAir' | 'roadie' | 'shred' | 'priority' | 'speaker';
 
 export type HeadlinerId = 'thrum' | 'lyra' | 'clatter';
 
@@ -60,6 +60,8 @@ export interface UnitStats {
   pierce?: number;
   splash?: boolean;
   antiAir?: boolean;
+  /** Priority: shots fly past other enemies to hit priority targets (Breakers, Hexers) first. */
+  priority?: boolean;
   /** Tokens leave the stage after this many beats. */
   lifespanBeats?: number;
 }
@@ -73,8 +75,10 @@ export type GateKind =
   | 'splash'
   /** +amount Pierce. */
   | 'pierce'
-  /** Shots ignore armor. */
-  | 'shred';
+  /** Shots ignore armor and pry past shields. */
+  | 'shred'
+  /** A speaker: shots turn into the next lane over (from the middle, alternating left and right). */
+  | 'aim';
 
 export interface GateStats {
   kind: GateKind;
@@ -106,12 +110,14 @@ export interface CardDef {
   flavor: string;
 }
 
-export type EnemyKind = 'shambler' | 'brute' | 'swarmling';
+export type EnemyKind = 'shambler' | 'brute' | 'swarmling' | 'bat' | 'splitter' | 'shieldbearer' | 'hexer' | 'breaker';
 
 export interface EnemyDef {
   kind: EnemyKind;
   name: string;
   trait: string;
+  /** One short line for the banner when it first shows up. */
+  tip: string;
   hp: number;
   /** Damage removed from every hit (min 0). */
   armor: number;
@@ -120,6 +126,20 @@ export interface EnemyDef {
   crowdDamage: number;
   /** How many spawn together. */
   packSize: number;
+  /** Flying: only Anti-Air shots (and riffs) can hit it. */
+  flying?: boolean;
+  /** Splits into `count` smaller copies when it dies, each with `hpPct`% of its max health, unless overkill reaches `overkillPct`% of max health. */
+  splits?: { count: number; hpPct: number; overkillPct: number };
+  /** Blocks shots fired straight up its lane until it has blocked this many. Pierce shots and shots from the side get through. */
+  shieldHits?: number;
+  /** Cards that answer this enemy. A card pick before it shows up offers one if your deck has none. */
+  answers?: string[];
+  /** Disables every gate ahead of it in its lane within this distance. */
+  hexRange?: number;
+  /** Stops at each gate in its lane and smashes this much durability off it every beat. */
+  smashPerBeat?: number;
+  /** Priority targets for units with the Priority keyword. */
+  priority?: boolean;
 }
 
 export interface HeadlinerDef {

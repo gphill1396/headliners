@@ -44,6 +44,30 @@ export const CARDS: readonly CardDef[] = [
     text: 'Unit. 9 damage, fires every 2 beats. Pierce 1.',
     flavor: 'Felt more than heard.',
   },
+  {
+    id: 'pyro',
+    name: 'Pyro',
+    type: 'unit',
+    cost: 2,
+    rarity: 'common',
+    keywords: ['antiAir'],
+    unit: { damage: 3, fireEvery: 2, antiAir: true },
+    short: 'Hits flyers',
+    text: 'Unit. 3 damage, fires every beat. Anti-Air: its shots hit Bats and other flyers.',
+    flavor: 'Fire goes up. Bats come down.',
+  },
+  {
+    id: 'spotlight',
+    name: 'Spotlight',
+    type: 'unit',
+    cost: 3,
+    rarity: 'common',
+    keywords: ['priority'],
+    unit: { damage: 6, fireEvery: 2, priority: true },
+    short: 'Shoots Breakers first',
+    text: 'Unit. 6 damage, fires every beat. Priority: its shots fly past other enemies to hit Breakers and Hexers first.',
+    flavor: 'There you are.',
+  },
 
   // ---- Gates ----
   {
@@ -81,6 +105,18 @@ export const CARDS: readonly CardDef[] = [
     short: 'Shots splash',
     text: 'Gate. Shots through it gain Splash (half damage to nearby enemies). Lasts 30 shots.',
     flavor: 'Sounds like a swarm. Fixes swarms.',
+  },
+  {
+    id: 'side-fill',
+    name: 'Side Fill',
+    type: 'gate',
+    cost: 2,
+    rarity: 'common',
+    keywords: ['speaker'],
+    gate: { kind: 'aim', amount: 1, durability: 36 },
+    short: 'Aims shots next door',
+    text: 'Gate (speaker). Shots through it turn into the next lane over; from the middle lane they alternate left and right. Shots from the side get past Shieldbearers.',
+    flavor: 'Point it at the problem.',
   },
 
   // ---- Riffs ----
@@ -270,8 +306,8 @@ export const CARDS: readonly CardDef[] = [
     headliner: 'clatter',
     keywords: ['shred'],
     gate: { kind: 'shred', amount: 1, durability: 40 },
-    short: 'Shots ignore armor',
-    text: 'Gate. Shots through it ignore armor. Lasts 40 shots.',
+    short: 'Ignore armor & shields',
+    text: 'Gate. Shots through it ignore armor and pry past Shieldbearers\' shields. Lasts 40 shots.',
     flavor: 'Mostly wrenches. Some regrets.',
   },
   {

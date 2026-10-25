@@ -1,5 +1,5 @@
 import { accuracyPct, advanceClock, beatInBar, chainStepPct, gradeInput, inPocket, isDownbeat, setTempo, type Grade } from './clock';
-import { moveEnemies, moveProjectiles, sweepDead } from './combat';
+import { moveEnemies, moveProjectiles, smashGates, sweepDead } from './combat';
 import { BEAT_UNITS, BEATS_PER_BAR, LANES, MAX_ENERGY, POCKET_MAX, SUBTICK } from './constants';
 import { createCtx, flushDamage, type TickCtx } from './context';
 import { addCardToDeck, refillHand } from './deck';
@@ -90,6 +90,7 @@ function onBeat(state: EngineState, ctx: TickCtx): void {
   // The tutorial script hands out exactly the cards each step needs.
   if (downbeat && state.mode === 'encore') refillHand(state, ctx.events);
   expireTokens(state, ctx);
+  smashGates(state, ctx);
 
   checkChainEnd(state, ctx);
   resolveDuePlays(state, ctx);

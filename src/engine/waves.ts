@@ -19,7 +19,18 @@ import type { EnemyKind } from './types';
 import { pickPool } from '../content/cards';
 import { ENEMIES } from '../content/enemies';
 
-const ALL_KINDS: EnemyKind[] = ['shambler', 'brute', 'swarmling'];
+/** The wave each enemy first shows up in. One new enemy per wave through wave 8, so each gets introduced on its own. */
+export const DEBUT_WAVE: Record<EnemyKind, number> = {
+  shambler: 1,
+  swarmling: 2,
+  brute: 3,
+  bat: 4,
+  splitter: 5,
+  hexer: 6,
+  shieldbearer: 7,
+  breaker: 8,
+};
+const ALL_KINDS = Object.keys(DEBUT_WAVE) as EnemyKind[];
 /** Two bars to get a first card down before wave 1. */
 const FIRST_WAVE_BEAT = 8;
 
@@ -37,12 +48,28 @@ export function onBeatWaves(state: EngineState, ctx: TickCtx): void {
   spawnDue(state);
 }
 
-/** Kinds for a wave: from wave 3 on, always at least 2 different traits (SPEC §4.9). */
+/**
+ * Kinds for a wave (SPEC §4.9): from wave 3 on, always at least 2 different traits.
+ * Shamblers are the horde and walk in every wave (Swarmlings join them from wave 9).
+ * Waves 3–8 each debut one new enemy, alongside one special you've met from wave 4.
+ * From wave 9, 2 random specials join the horde (3 from wave 15).
+ */
 export function waveKinds(state: EngineState, index: number): EnemyKind[] {
   if (index === 1) return ['shambler'];
   if (index === 2) return ['shambler', 'swarmling'];
-  if (index >= 6) return [...ALL_KINDS];
-  return shuffleInPlace(state.rng, [...ALL_KINDS]).slice(0, 2).sort();
+  const debut = ALL_KINDS.filter((k) => DEBUT_WAVE[k] === index);
+  const known = ALL_KINDS.filter((k) => DEBUT_WAVE[k] < index);
+  // The horde: Shamblers walk in every wave (and Swarmlings from wave 9), with specials mixed in.
+  const horde: EnemyKind[] = index >= 9 ? ['shambler', 'swarmling'] : ['shambler'];
+  const specials = known.filter((k) => !horde.includes(k));
+  const count = index <= 3 ? 0 : index <= 8 ? 1 : index < 15 ? 2 : 3;
+  const others = shuffleInPlace(state.rng, specials).slice(0, count);
+  return [...horde, ...debut, ...others].sort((a, b) => DEBUT_WAVE[a] - DEBUT_WAVE[b]);
+}
+
+/** Enemy kinds appearing for the first time in this wave. */
+export function debutKinds(index: number): EnemyKind[] {
+  return ALL_KINDS.filter((k) => DEBUT_WAVE[k] === index);
 }
 
 export function startWave(state: EngineState, ctx: TickCtx, index: number): void {
@@ -64,7 +91,8 @@ export function startWave(state: EngineState, ctx: TickCtx, index: number): void
   }
   state.wave = { index, startBeat: state.clock.beat, hpMult, spawns, nextSpawn: 0, kinds };
   setTempo(state.clock, Math.min(WAVE_MAX_BPM, START_BPM + WAVE_TEMPO_STEP * (index - 1)));
-  ctx.events.push({ type: 'waveStart', index, kinds });
+  const debut = debutKinds(index);
+  ctx.events.push({ type: 'waveStart', index, kinds, ...(debut.length > 0 ? { debut } : {}) });
 }
 
 function spawnDue(state: EngineState): void {
@@ -94,12 +122,30 @@ export function spawnGroup(state: EngineState, kind: EnemyKind, lane = nextInt(s
       armor: def.armor,
       crowdDamage: def.crowdDamage,
       leaked: false,
+      // Shields get a little sturdier as the show goes on.
+      ...(def.shieldHits ? { shieldLeft: def.shieldHits + Math.floor(state.wave.index / 2) } : {}),
     });
   }
 }
 
+/**
+ * Offer a card pick. If an enemy is coming in the next few waves and nothing in
+ * your deck answers it, one of the options is an answer (the game teaches what
+ * each enemy needs, and a run is never stuck without one).
+ */
 function offerPick(state: EngineState, ctx: TickCtx): void {
   const pool = shuffleInPlace(state.rng, pickPool(state.headliner.id));
+  const owned = new Set([...state.hand, ...state.draw, ...state.discard, ...state.units.map((u) => u.card), ...state.gates.map((g) => g.card), ...state.amps.map((a) => a.card)].map((c) => c.cardId));
+  const upcoming = ALL_KINDS.filter((k) => DEBUT_WAVE[k] > state.wave.index && DEBUT_WAVE[k] <= state.wave.index + PICK_EVERY_WAVES)
+    .concat(ALL_KINDS.filter((k) => DEBUT_WAVE[k] <= state.wave.index));
+  for (const kind of upcoming) {
+    const answers = (ENEMIES[kind].answers ?? []).filter((id) => pool.includes(id));
+    if (answers.length === 0 || answers.some((id) => owned.has(id))) continue;
+    const answer = answers[nextInt(state.rng, 0, answers.length)]!;
+    pool.splice(pool.indexOf(answer), 1);
+    pool.splice(nextInt(state.rng, 0, PICK_OPTIONS), 0, answer);
+    break;
+  }
   state.pick = pool.slice(0, PICK_OPTIONS);
   state.phase = 'picking';
   ctx.events.push({ type: 'pickOffered', options: [...state.pick] });

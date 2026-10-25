@@ -44,6 +44,10 @@ export interface Unit {
   expiresBeat?: number;
   /** Created by another card, not drawn from the deck: never returns to the discard pile. */
   token?: boolean;
+  /** Shots can hit flying enemies. */
+  antiAir?: boolean;
+  /** Shots go for priority targets first. */
+  priority?: boolean;
 }
 
 export interface Gate {
@@ -58,6 +62,8 @@ export interface Gate {
   durability: number;
   maxDurability: number;
   placedBeat: number;
+  /** Disabled by a Hexer this tick: shots pass through unchanged. */
+  hexed?: boolean;
 }
 
 export interface Amp {
@@ -79,6 +85,14 @@ export interface Enemy {
   crowdDamage: number;
   /** Reached the stage (removed without counting as a kill). */
   leaked: boolean;
+  /** A piece of a Splitter: doesn't split again. */
+  child?: boolean;
+  /** Damage beyond its remaining health on the killing hit. */
+  overkill?: number;
+  /** Last beat a Shieldbearer reported a block (throttles the 'blocked' event). */
+  lastBlockBeat?: number;
+  /** Shots a Shieldbearer's shield can still block. */
+  shieldLeft?: number;
 }
 
 export interface Projectile {
@@ -92,6 +106,12 @@ export interface Projectile {
   splash: boolean;
   /** Ignores armor (passed through a Toolbox). Missing in older saves = false. */
   shred?: boolean;
+  /** Can hit flying enemies. */
+  antiAir?: boolean;
+  /** Flies past other enemies to hit priority targets. */
+  priority?: boolean;
+  /** Came in from the side through a speaker: gets past Shieldbearers. */
+  side?: boolean;
   /** Bitmask of gate slots this shot has already passed. */
   gatesPassed: number;
   /** Card that fired it, for the damage breakdown. */

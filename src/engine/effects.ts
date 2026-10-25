@@ -320,6 +320,8 @@ function placeUnit(state: EngineState, ctx: TickCtx, play: QueuedPlay, gradePct:
     fireEvery: stats.fireEvery,
     pierce: stats.pierce ?? 0,
     splash: stats.splash ?? false,
+    ...(stats.antiAir ? { antiAir: true } : {}),
+    ...(stats.priority ? { priority: true } : {}),
     placedBeat: state.clock.beat,
     expiresBeat: -1,
   };

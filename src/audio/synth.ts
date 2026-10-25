@@ -16,12 +16,15 @@ export interface LaneFx {
   drive: number;
   /** Fuzz gate: resonant low-pass on the lane. */
   fuzz: boolean;
+  /** Side Fill speaker: where the lane's sound points. -1 left, 1 right, 0 both ways (middle lane), null none. */
+  aim?: -1 | 0 | 1 | null;
 }
 
 interface LaneBus {
   input: GainNode;
   shaper: WaveShaperNode;
   filter: BiquadFilterNode;
+  panner: StereoPannerNode;
   driveAmount: number;
 }
 
@@ -89,7 +92,7 @@ export class Synth {
       const panner = ctx.createStereoPanner();
       panner.pan.value = pan;
       input.connect(shaper).connect(filter).connect(panner).connect(this.master);
-      return { input, shaper, filter, driveAmount: 0 };
+      return { input, shaper, filter, panner, driveAmount: 0 };
     });
   }
 
@@ -153,6 +156,10 @@ export class Synth {
     }
     bus.filter.frequency.setTargetAtTime(fx.fuzz ? 1_400 : 18_000, t, 0.05);
     bus.filter.Q.setTargetAtTime(fx.fuzz ? 9 : 0.7, t, 0.05);
+    // A speaker swings the lane's sound toward the lane it's aimed at.
+    const home = LANE_PAN[lane] ?? 0;
+    const pan = fx.aim === undefined || fx.aim === null ? home : fx.aim === 0 ? home : home + fx.aim * 0.45;
+    bus.panner.pan.setTargetAtTime(Math.max(-1, Math.min(1, pan)), t, 0.08);
   }
 
   // ---------------------------------------------------------------- drums

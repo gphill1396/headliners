@@ -26,7 +26,14 @@ export type EngineEvent =
   | { type: 'leaked'; enemyId: number; kind: EnemyKind; lane: number; crowdDamage: number }
   | { type: 'energy'; amount: number; reason: 'tight' | 'card' }
   | { type: 'drew'; count: number }
-  | { type: 'waveStart'; index: number; kinds: EnemyKind[] }
+  /** `debut`: enemy kinds appearing for the first time this run. */
+  | { type: 'waveStart'; index: number; kinds: EnemyKind[]; debut?: EnemyKind[] }
+  /** A Splitter burst into pieces. */
+  | { type: 'split'; lane: number; depth: number; count: number }
+  /** A Breaker hit a gate. */
+  | { type: 'gateSmashed'; gateId: number; lane: number; slot: number; amount: number }
+  /** A Shieldbearer blocked a shot. At most one per Shieldbearer per beat, for the pop. */
+  | { type: 'blocked'; enemyId: number; lane: number; depth: number; broke: boolean }
   | { type: 'pickOffered'; options: string[] }
   | { type: 'picked'; cardId: string | null }
   /** A headliner's active ability went off. (Named 'fill' after Thrum's, the first one.) */

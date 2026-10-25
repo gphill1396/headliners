@@ -285,6 +285,19 @@ button:disabled {
   animation: banner 1600ms steps(12, end) forwards;
 }
 
+.banner em {
+  max-width: 300px;
+  padding: 0 16px;
+  font-size: 15px;
+  font-style: normal;
+  text-align: center;
+  color: var(--amber);
+}
+
+.banner.show.long {
+  animation-duration: 3600ms;
+}
+
 @keyframes banner {
   0% {
     opacity: 0;

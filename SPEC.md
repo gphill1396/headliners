@@ -166,6 +166,8 @@ tests/
 | **Roadie** | Creates a small token unit |
 | **Feedback** | Strong effect, but deals damage to your own crowd or a gate |
 | **Anti-Air** | Can hit Flying enemies |
+| **Priority** | Shots fly past other enemies to hit Breakers and Hexers first *(added in Phase 1b)* |
+| **Speaker** | A gate that turns shots into the next lane over; side shots get past shields *(Grant's speaker placement, Phase 1b)* |
 
 ### 4.6 Chains (the combo engine)
 
@@ -220,11 +222,13 @@ Each enemy type exists to demand a different answer.
 | Shambler | Basic | — |
 | Brute | Armored: −N damage on every hit | Big individual hits, not many tiny ones |
 | Swarmlings | Arrive in packs of 12, low HP | Splash, Pierce |
-| Bat | Flying | Anti-Air |
-| Splitter | Splits into 3 when it dies | Splash or overkill |
-| Shieldbearer | Blocks frontal hits in its lane | Pierce, attacks from side lanes |
-| Hexer | Aura: disables the nearest gate | Burst it down fast |
-| Breaker | Targets and destroys gates | Units with priority targeting |
+| Bat | Flying: shots pass under them until they swoop down near the stage | Anti-Air (Pyro), riffs |
+| Splitter | Splits into 3 (30% health each) when it dies, unless one hit overkills it by half its health | Splash or overkill |
+| Shieldbearer | Its shield blocks straight shots (and protects whoever is behind it) until it has blocked 8 + wave/2 shots | Pierce, Toolbox, attacks from side lanes (Side Fill speaker) |
+| Hexer | Aura: switches off every gate ahead of it in its lane | Burst it down fast, Priority (Spotlight) |
+| Breaker | Stops at each gate in its lane and smashes 10 durability a beat | Units with priority targeting (Spotlight) |
+
+*As built in Phase 1b:* each enemy debuts on its own wave with a banner that explains it (Swarmlings 2, Brute 3, Bats 4, Splitter 5, Hexer 6, Shieldbearer 7, Breaker 8). Shamblers are the horde and walk in every wave; Swarmlings join them from wave 9. If an enemy is coming in the next 3 waves (or is already here) and your deck has nothing that answers it, the card pick offers an answer.
 
 **Phase 1 boss: The Hush** (every 10th wave in Encore)
 - Phase 1: shields the other enemies.
@@ -403,9 +407,24 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
   - **Load-In** becomes free and puts 1 Roadie down with Echo (was cost 1 for 2 Roadies). **Crew Chief** costs 2 (was 3).
   - **Toolbox** becomes the Shred gate (was Pierce 1): Clatter lost 100% of runs to Brutes, whose armor 3 cancels Roadie shots.
   - Tried and reverted: "Roadies ignore armor" as Clatter's passive. It made Clatter strong even for the random bot, so skill mattered less (D1 fell to 2.0×). Two Toolboxes in the starter deck: no change.
-- **Results** at 200 runs per bot: median wave Thrum 15, Lyra 16, Clatter 15, random 5.
+- **Results** at 200 runs per bot (before the new enemies): median wave Thrum 15, Lyra 16, Clatter 15, random 5.
   - D1 3.00× (Thrum and Clatter; Lyra 3.2×), D2 4.9×, D3 1.07×, D5 26.9%, D6 5.1% (Swarmlings), D7 3.0, D8 0% — all pass. D1 and D6 sit right on the line.
   - D4 still can't be judged (each headliner's pick pool is about 15 cards).
+
+**Phase 1b progress — the other 5 enemies and speaker placement** (done):
+- Bats, Splitter, Shieldbearer, Hexer and Breaker, each with a unit test, a sprite, a debut banner and on-field cues (Blocked / Shield broke / Split! / Smash, hexed gates shown crossed out).
+- New neutral cards that answer them: **Pyro** (unit, Anti-Air), **Spotlight** (unit, Priority) and **Side Fill** (a speaker gate). A Side Fill also swings its lane's sound toward where it points. **Toolbox** now also pries past shields.
+- **Bot fix that changes earlier numbers:** the simulator's bots were playing Feedback Loop about 26 times a run, so most runs ended with the bots spending their own crowd. They now only play it when it saves more crowd than it costs. Earlier D1–D8 results were measured with that flaw.
+- Balance pass, each step rerun through the report:
+  - First cut: D1 2.2×, Bats 41% and Shieldbearers 34% of losses, Shamblers, Swarmlings and Hexers ~1%.
+  - Shields break after 8 + wave/2 blocks. Bats can be hit by anything once they swoop down near the stage (pack of 3, not 4).
+  - Card picks offer an answer to an enemy you can't yet handle.
+  - Shamblers walk in every wave; Swarmlings join them from wave 9; waves 4–8 add one special you've met to the new one.
+  - Enemy health grows ×1.08 per wave (was ×1.1).
+  - Hexers switch off every gate ahead of them in their lane (50 health, 4 crowd). Breakers have 60 health and cost 4 crowd.
+- **Results** at 200 runs per bot: median wave Thrum 21, Lyra 18, Clatter 18, random 6.
+  - D1 3.00× (Lyra and Clatter; Thrum 3.5×), D2 8.5×, D3 1.17×, D5 23.8%, D6 7.1% (Hexer is the lowest; Brute is the highest at 25%), D7 3.0, D8 0% — all pass. D1 sits right on the line.
+  - D4 fails as expected: Pyro is in every top deck because it's the only Anti-Air card. The full card set needs a second answer for each enemy.
 
 **Phase 1b — Fill out.** Adds the simulator and the D1–D8 report, then tunes the slice against it. Then adds Lyra and Clatter, the other 5 enemy types, The Hush, the full ~40 cards, evolutions, the remaining keywords, audio, discard-cycle and drag-to-play.
 
@@ -444,8 +463,8 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
 
 **S1.6 Enemies demand answers**
 *As a player, I want enemies that need specific tools, so I have to think about my build.*
-- [ ] All 8 enemy types are implemented with their traits, each with a unit test.
-- [ ] From wave 3 onward, every wave mixes at least 2 traits.
+- [x] All 8 enemy types are implemented with their traits, each with a unit test. *(The Hush is separate.)*
+- [x] From wave 3 onward, every wave mixes at least 2 traits.
 - [ ] Long-press an enemy to see its trait.
 - [ ] The Hush boss arrives every 10th wave, with 3 phases.
 
@@ -524,10 +543,7 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
 
 ## 12. Open questions
 
-- **Speaker placement** (Grant's idea): placeable speakers that aim a lane's attacks.
-  - For example, angle a lane's shots into a neighboring lane, or fan them across two lanes.
-  - This is the natural answer to Shieldbearers ("attacks from side lanes"), and the speaker's position could also pan that lane's sound.
-  - Candidate for Phase 1b, alongside the Shieldbearer.
+- **Speaker placement** (Grant's idea) — first version built in Phase 1b as the Side Fill gate. Open: more speaker cards (fan a shot across two lanes, a speaker on a unit slot), and whether speakers should be their own card type.
 - Should the field get a lane-swap mechanic (moving units sideways) in Phase 2?
 - Should the Daily Setlist have a light leaderboard (paste-based, no backend)?
 - How do Heat modifiers interact with the daily seed?

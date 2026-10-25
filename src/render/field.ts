@@ -1,4 +1,4 @@
-import { LANES, PROJECTILE_SPEED, STAGE_LINE, type EngineState, type GateKind } from '../engine';
+import { LANES, PROJECTILE_SPEED, STAGE_LINE, SWOOP_DEPTH, type EngineState, type GateKind } from '../engine';
 import { PALETTE } from './palette';
 import { drawSprite, SPRITES, spriteSize, type Sprite } from './sprites';
 
@@ -14,7 +14,9 @@ export const GATE_COLORS: Record<GateKind, string> = {
   splash: PALETTE.clatter,
   pierce: PALETTE.cream,
   shred: '#a69cc0',
+  aim: '#8fd3ff',
 };
+const HEX_COLOR = '#c06bd6';
 
 interface Burst {
   x: number;
@@ -111,6 +113,15 @@ export function drawField(
     const x = g.lane * LANE_PX + 4;
     const y = yOf(g.depth);
     const width = LANE_PX - 8;
+    if (g.hexed) {
+      // Switched off by a Hexer: a dim, crossed-out bar.
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = HEX_COLOR;
+      ctx.fillRect(x, y - 1, width, 2);
+      ctx.globalAlpha = 1;
+      for (let k = 0; k < width; k += 6) ctx.fillRect(x + k, y - 2 + (k % 12 === 0 ? 0 : 3), 2, 1);
+      continue;
+    }
     ctx.fillStyle = GATE_COLORS[g.kind];
     ctx.globalAlpha = swelling ? 0.35 + (1 - beatPhase) * 0.4 : 0.25;
     const glow = swelling ? 8 : 4;
@@ -126,12 +137,21 @@ export function drawField(
   // Enemies.
   for (const e of state.enemies) {
     if (e.depth < -1_000) continue;
-    const sprite: Sprite = SPRITES[e.kind];
+    const sprite: Sprite = e.kind === 'shieldbearer' && !e.shieldLeft ? SPRITES['shieldbearer-bare'] : SPRITES[e.kind];
     const { w: sw, h: sh } = spriteSize(sprite);
-    const scale = e.kind === 'swarmling' ? 2 : 2;
-    const jitter = e.kind === 'swarmling' ? ((e.id * 37) % 25) - 12 : 0;
+    const scale = e.child ? 1 : 2;
+    const jitter = e.kind === 'swarmling' || e.child || e.kind === 'bat' ? ((e.id * 37) % 25) - 12 : 0;
+    // Bats bob while they're up high.
+    const bob = e.kind === 'bat' && e.depth < SWOOP_DEPTH ? (Math.floor(now / 120 + e.id) % 2) * 2 - 4 : 0;
     const x = Math.round(e.lane * LANE_PX + LANE_PX / 2 - (sw * scale) / 2 + jitter);
-    const y = yOf(Math.min(STAGE_LINE, e.depth + e.speed * alpha)) - sh * scale;
+    const y = yOf(Math.min(STAGE_LINE, e.depth + e.speed * alpha)) - sh * scale + bob;
+    if (e.kind === 'bat' && e.depth < SWOOP_DEPTH) {
+      // A shadow on the floor: it's up in the air.
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = PALETTE.night;
+      ctx.fillRect(x + 2, y + sh * scale + 6, sw * scale - 4, 2);
+      ctx.globalAlpha = 1;
+    }
     drawSprite(ctx, sprite, x, y, scale);
     if (e.hp < e.maxHp) {
       const bw = sw * scale;

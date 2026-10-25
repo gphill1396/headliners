@@ -1,4 +1,5 @@
 import { CARDS } from '../src/engine';
+import { ENEMIES } from '../src/content/enemies';
 import type { RunResult } from './run';
 
 /** SPEC §9 depth thresholds. */
@@ -113,7 +114,7 @@ export function evaluate(byBot: Record<string, RunResult[]>, runsPerBot: number)
   const pickRates: Record<string, number> = {};
   for (const c of CARDS) pickRates[c.id] = top.filter((r) => r.picks.includes(c.id)).length / Math.max(1, top.length);
   const [topPick, topPickRate] = Object.entries(pickRates).sort((a, b) => b[1] - a[1])[0] ?? ['-', 0];
-  checks.push({ id: 'D4', name: 'No must-pick card (top-25% runs)', pass: topPickRate <= T.D4_mustPick, value: `${topPick} in ${pct(topPickRate)}`, target: `≤ ${pct(T.D4_mustPick)}`, note: 'Not meaningful yet: each headliner\'s pick pool is about 15 cards, most already in the starter deck. Revisit with the full card set.' });
+  checks.push({ id: 'D4', name: 'No must-pick card (top-25% runs)', pass: topPickRate <= T.D4_mustPick, value: `${topPick} in ${pct(topPickRate)}`, target: `≤ ${pct(T.D4_mustPick)}`, note: 'Not meaningful yet: Pyro, Side Fill and Spotlight are the only answers to Bats, Shieldbearers and Breakers until the full card set adds alternatives, and picks offer them on purpose.' });
 
   // D5 — no single damage source (top runs stand in for "winning", since Encore is endless).
   const damageShare: Record<string, number> = {};
@@ -126,7 +127,7 @@ export function evaluate(byBot: Record<string, RunResult[]>, runsPerBot: number)
 
   // D6 — every enemy matters.
   const losses = skilled.filter((r) => !r.capped && r.lossCause);
-  const lossCauses: Record<string, number> = { shambler: 0, brute: 0, swarmling: 0 };
+  const lossCauses: Record<string, number> = Object.fromEntries(Object.keys(ENEMIES).map((k) => [k, 0]));
   for (const r of losses) lossCauses[r.lossCause!] = (lossCauses[r.lossCause!] ?? 0) + 1 / losses.length;
   const [minKind, minShare] = Object.entries(lossCauses).sort((a, b) => a[1] - b[1])[0] ?? ['-', 0];
   checks.push({ id: 'D6', name: 'Every enemy matters (top cause of losses)', pass: minShare >= T.D6_enemyLossShare, value: `${minKind} ${pct(minShare)}`, target: `each ≥ ${pct(T.D6_enemyLossShare)}` });

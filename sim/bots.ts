@@ -13,6 +13,7 @@ import {
   type Input,
   type RngState,
 } from '../src/engine';
+import { ENEMIES } from '../src/content/enemies';
 
 /**
  * Bot players for the depth simulator (SPEC §9). Bots only see what a player
@@ -98,6 +99,7 @@ export function createBot(config: BotConfig, rng: RngState): Bot {
 
 /** Remaining enemy health per lane, weighted toward enemies near the stage. */
 function laneThreat(s: EngineState): number[] {
+  // Every enemy counts, including ones normal shots can't touch: that's what makes answers worth buying.
   const t = [0, 0, 0];
   for (const e of s.enemies) {
     if (e.depth < 0) continue;
@@ -156,6 +158,9 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
   const enemiesInLane = s.enemies.filter((e) => e.lane === lane && e.depth >= 0);
   const threatHere = threat[lane]!;
   const armored = enemiesInLane.some((e) => e.armor > 0);
+  const flyers = enemiesInLane.filter((e) => ENEMIES[e.kind].flying).length + s.enemies.filter((e) => ENEMIES[e.kind].flying && e.depth >= 0).length * 0.3;
+  const priority = enemiesInLane.filter((e) => ENEMIES[e.kind].priority).length;
+  const shielded = s.enemies.filter((e) => (e.shieldLeft ?? 0) > 0 && e.depth >= 0);
   const lyraBonus = s.headliner.id === 'lyra' ? unitsInLane.length * 2 : 0; // +1 damage per gate pass
   const swarm = enemiesInLane.filter((e) => e.kind === 'swarmling').length;
   switch (def.type) {
@@ -163,8 +168,9 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
       const u = def.unit!;
       const full = unitsInLane.length >= UNIT_SLOTS;
       const roadieMaker = def.id === 'crew-chief' ? roadieValue(s, lane) * 0.5 : 0;
+      const answers = (u.antiAir ? flyers * 6 : 0) + (u.priority ? priority * 10 : 0);
       const dps = (u.damage * 2) / u.fireEvery + (def.id === 'kick-drum' ? 1.5 : 0) + roadieMaker;
-      return (dps * 3 + threatHere * 0.05) * (full ? 0.3 : 1) * (armored && u.damage <= 4 ? 0.6 : 1);
+      return (dps * 3 + threatHere * 0.05 + answers) * (full ? 0.3 : 1) * (armored && u.damage <= 4 ? 0.6 : 1);
     }
     case 'gate': {
       if (unitsInLane.length === 0) return 0;
@@ -175,15 +181,29 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
       if (g.kind === 'copy') return (laneDps * 2.2 * (g.amount - 1) + lyraBonus) * dupe * full;
       if (g.kind === 'damage') return (unitsInLane.length * 2 * g.amount + lyraBonus + (armored ? 12 : 0)) * dupe * full;
       if (g.kind === 'splash') return (swarm * 3 + laneDps) * dupe * full;
-      if (g.kind === 'shred') return (armored ? laneDps * 3 + 10 : laneDps * 0.5) * dupe * full;
+      if (g.kind === 'shred') {
+        const shieldHere = shielded.some((e) => e.lane === lane);
+        return (armored || shieldHere ? laneDps * 3 + 10 : laneDps * 0.5) * dupe * full;
+      }
+      if (g.kind === 'aim') {
+        // A speaker is worth it when a neighbor lane has a Shieldbearer and this lane is quiet.
+        const next = lane === 0 ? [1] : lane === 2 ? [1] : [0, 2];
+        const target = shielded.filter((e) => next.includes(e.lane)).length;
+        return (target * 12 + (threat[lane]! < 5 ? laneDps * 0.8 : 0)) * dupe * full;
+      }
       return laneDps * dupe * full;
     }
     case 'riff': {
       switch (def.id) {
         case 'power-chord':
           return frontEnemy(s, lane) ? 18 + (armored ? 8 : 0) : 0;
-        case 'feedback-loop':
-          return enemiesInLane.length * 6 - (s.crowd < 8 ? 30 : 4);
+        case 'feedback-loop': {
+          // Costs 1 crowd: only worth it when it stops more than 1 crowd from leaking.
+          const hit = 12 * 1.3;
+          const saved = enemiesInLane.filter((e) => e.depth > 40_000 && e.hp <= hit).reduce((sum, e) => sum + e.crowdDamage, 0);
+          const chip = enemiesInLane.reduce((sum, e) => sum + Math.min(e.hp, hit), 0);
+          return (saved - 2) * 8 + chip * 0.1 - (s.crowd < 10 ? 20 : 0);
+        }
         case 'snare-roll':
           return laneDps * 2 + (unitsInLane.length > 0 ? 3 : 0);
         case 'paradiddle':
@@ -250,6 +270,9 @@ function choosePick(config: BotConfig, s: EngineState, rng: RngState): number | 
   const scores = s.pick.map((id) => {
     const def = getCard(id);
     let v = (base[def.type] ?? 1.5) - 0.6 * owned(id) + nextFloat(rng);
+    // A sensible player buys an answer to an enemy they've met (or is about to meet) if they have none.
+    const answers = Object.values(ENEMIES).some((e) => e.answers?.includes(id));
+    if (answers && owned(id) === 0) v += 1.2;
     if (config.kind === 'archetype' && def.headliner === s.headliner.id) v += 0.3;
     return v;
   });

@@ -343,6 +343,12 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
 
 **Phase 1a — Vertical slice.** One headliner (Thrum) and about 12 cards: 3 units, 3 gates, 5 riffs and 1 amp. 3 enemy types: Shambler, Brute and Swarmlings. Includes chains with the multiplier and Showstopper cap, Echo, Downbeat and Encore, and Encore waves with crowd and game over. Save/resume and synthesized sound are in.
 - *Slice addition:* a guided **soundcheck** (first-run tutorial). It has 9 steps, each teaching one idea and waiting for the player to do it. It is offered on first launch and replayable from the title.
+- *Slice addition:* **adaptive groove** (Grant's idea): the board is the band.
+  - Every unit is an instrument that plays exactly when it fires. Stagehand is the snare backbeat, Kick Drum the kick with its beat-1 burst, and Bassline plays bass over the chord progression.
+  - Lanes are panned left, center and right.
+  - Gates color their lane: Double Stop doubles the part, Overdrive distorts it, Fuzz filters it.
+  - Riffs sound when they land.
+  - Chain layers: a pad at 4+ links and a lead arpeggio at 8+. Both drop out within a beat when the chain breaks.
 - *Slice addition:* **off-beat plays drop the chain**, so timing is the skill that keeps chains alive.
 - *Slice addition:* every 3 waves, Encore offers a **card pick** (choose 1 of 3 to add to your deck, or skip), so long runs grow. To be revisited with the simulator in 1b.
 - *Slice simplifications:*

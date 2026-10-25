@@ -18,7 +18,8 @@ import { CardTile } from './CardTile';
 import { formatNumber } from './format';
 import { GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay } from './Overlays';
 import { GameRunner, type CountIn } from './runner';
-import { scheduleEighth, Synth } from '../audio/synth';
+import { mixFrom, playRiff, scheduleGroove } from '../audio/groove';
+import { Synth } from '../audio/synth';
 import { createTutorialState, freshProgress, TUTORIAL, type Progress, type Target } from './tutorial';
 import {
   clearRun,
@@ -228,7 +229,11 @@ export function App() {
       const sfx = settingsRef.current.sound ? synthRef.current : null;
       for (const e of events) {
         if (sfx) {
-          if (e.type === 'resolved' && !e.isEcho) sfx.play(e.grade);
+          if (e.type === 'resolved') {
+            if (getCard(e.cardId).type === 'riff') playRiff(sfx, e.cardId, e.lane, e.beat, s.clock.bpm);
+            // The band already sounds the play; add a sparkle for Tight and a clunk for Off.
+            if (!e.isEcho && e.grade !== 'good') sfx.play(e.grade);
+          }
           else if (e.type === 'tapped') sfx.play(e.grade);
           else if (e.type === 'link' && e.links >= 2) sfx.link(e.links);
           else if (e.type === 'killed') sfx.kill();
@@ -335,8 +340,7 @@ export function App() {
             const at = runner.realTimeOfTick(tickAt);
             if (at - now < 120) {
               lastEighthScheduled.current = next;
-              const filling = Math.floor(next / 2) < s.headliner.activeUntilBeat;
-              scheduleEighth(synth, next, synth.audioTimeAt(at), filling);
+              scheduleGroove(synth, mixFrom(s), next, synth.audioTimeAt(at), 30 / s.clock.bpm);
             }
           }
         }

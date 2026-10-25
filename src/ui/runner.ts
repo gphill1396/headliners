@@ -132,7 +132,7 @@ export class GameRunner {
       const due = this.pending.filter((p) => p.tick <= tick).map((p) => p.input);
       if (due.length) this.pending = this.pending.filter((p) => p.tick > tick);
       const events = step(this.state, due);
-      this.hooks.onEvents?.(events, this.state);
+      this.safely(() => this.hooks.onEvents?.(events, this.state));
     }
     let countIn: CountIn | null = null;
     if (now < this.countInEnd) {
@@ -141,7 +141,16 @@ export class GameRunner {
       countIn = { beat: Math.min(BEATS_PER_BAR - 1, Math.floor(elapsed)), phase: elapsed % 1 };
     }
     const alpha = Math.min(1, Math.max(0, (now - this.origin) / TICK_MS - this.state.tick));
-    this.hooks.onFrame?.(this.state, alpha, countIn, now);
+    this.safely(() => this.hooks.onFrame?.(this.state, alpha, countIn, now));
     this.rafId = requestAnimationFrame(this.frame);
   };
+
+  /** A bug in sound or drawing must never stop the game clock. */
+  private safely(fn: () => void): void {
+    try {
+      fn();
+    } catch (err) {
+      console.error('Headliners: display/audio hook failed; the game keeps running.', err);
+    }
+  }
 }

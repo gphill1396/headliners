@@ -286,7 +286,7 @@ test('the 50-link cap resolves as a Showstopper and resets the chain', () => {
   const s = testState();
   noWaves(s);
   addEnemy(s, { lane: 0, depth: 30_000, hp: 1e9, maxHp: 1e9 });
-  s.chain = { links: 49, multPct: 300, lastLinkBeat: s.clock.beat, tightStart: false };
+  s.chain = { links: 49, multPct: 300, lastLinkBeat: s.clock.beat };
   const events = playOnBeat(s, 'paradiddle', 0);
   assert.equal(ofType(events, 'showstopper').length, 1);
   assert.equal(s.chain.links, 0);

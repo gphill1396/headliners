@@ -86,6 +86,7 @@ const REJECT_TEXT = {
   lane: 'Pick a lane.',
   'not-playing': 'Wait for the next wave.',
   cooldown: 'Your ability is still cooling down.',
+  busy: 'Let the ability finish before you switch the lead.',
   cycled: 'That one just came in. Swap it next bar.',
 } as const;
 /** Short banner lines and in-use button labels for each headliner's ability. */

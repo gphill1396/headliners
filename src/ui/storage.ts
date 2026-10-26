@@ -24,6 +24,9 @@ export interface Bests {
   score: number;
   chain: number;
   runs: number;
+  /** Tour runs started and won. */
+  tours?: number;
+  toursWon?: number;
 }
 
 function read<T>(key: string): T | null {
@@ -59,6 +62,12 @@ export function loadBests(): Bests {
 /** Record a finished run; returns the updated bests and which records it broke. */
 export function recordRun(state: EngineState): { bests: Bests; newBest: { wave: boolean; score: boolean; chain: boolean } } {
   const old = loadBests();
+  if (state.mode === 'tour') {
+    // Tours keep their own record; wave and score bests are Encore's.
+    const bests: Bests = { ...old, tours: (old.tours ?? 0) + 1, toursWon: (old.toursWon ?? 0) + (state.phase === 'won' ? 1 : 0) };
+    write(BESTS_KEY, JSON.stringify(bests));
+    return { bests, newBest: { wave: false, score: false, chain: false } };
+  }
   const newBest = {
     wave: state.wave.index > old.wave,
     score: state.score > old.score,
@@ -120,4 +129,16 @@ export function loadHeadliner(): HeadlinerId {
 
 export function saveHeadliner(id: HeadlinerId): void {
   write(HEADLINER_KEY, JSON.stringify(id));
+}
+
+export type GameMode = 'encore' | 'tour';
+const MODE_KEY = 'headliners.mode.v1';
+
+/** The mode picked last time on the title screen. */
+export function loadMode(): GameMode {
+  return read<string>(MODE_KEY) === 'tour' ? 'tour' : 'encore';
+}
+
+export function saveMode(mode: GameMode): void {
+  write(MODE_KEY, JSON.stringify(mode));
 }

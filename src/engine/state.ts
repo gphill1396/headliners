@@ -3,6 +3,7 @@ import { HAND_SIZE, START_BPM, START_CROWD, START_ENERGY } from './constants';
 import { createRng, shuffleInPlace, type RngState } from './rng';
 import type { EnemyKind, GateKind, HeadlinerId } from './types';
 import { STARTER_DECKS } from '../content/cards';
+import { startTour } from './tour';
 
 export const ENGINE_STATE_VERSION = 4;
 
@@ -179,19 +180,62 @@ export interface EngineStats {
   damageBySource: Record<string, number>;
 }
 
-export type Phase = 'playing' | 'picking' | 'evolving' | 'over';
+/** 'map', 'shop', 'rest', 'event' and 'won' are Tour-only (SPEC §5, S2.1). */
+export type Phase = 'playing' | 'picking' | 'evolving' | 'map' | 'shop' | 'rest' | 'event' | 'won' | 'over';
 
 /**
  * 'encore': the real game.
  * 'tutorial': the guided soundcheck — no waves, leaks cost nothing, and the
  * script can hand out cards and place enemies with 'grant' and 'spawn' inputs.
  */
-export type Mode = 'encore' | 'tutorial';
+export type Mode = 'encore' | 'tutorial' | 'tour';
 
 /**
  * Entire game state. Must stay plain JSON-safe data so it snapshots, hashes
  * and restores exactly (SPEC §2, §7).
  */
+export type TourNodeKind = 'fight' | 'elite' | 'draft' | 'rest' | 'shop' | 'event' | 'boss';
+
+export interface TourNode {
+  id: number;
+  /** 1–4 are the stops, 5 is the boss. */
+  row: number;
+  col: number;
+  kind: TourNodeKind;
+  /** Node ids you can travel to from here. */
+  next: number[];
+}
+
+export interface TourFight {
+  node: number;
+  kind: 'fight' | 'elite' | 'boss';
+  /** Wave levels to play, in order. */
+  waves: number[];
+  /** Index into `waves` of the wave being played; -1 during the count-in. */
+  wave: number;
+  /** Count-in: the first wave starts on this beat. */
+  startBeat: number;
+}
+
+export interface TourState {
+  act: number;
+  nodes: TourNode[];
+  /** The node you're on; null at the start of an act. */
+  at: number | null;
+  /** Earned from shows, spent in shops. */
+  merch: number;
+  fight: TourFight | null;
+  shop: { cards: { cardId: string; price: number; sold: boolean }[]; removed: boolean; healed: boolean } | null;
+  /** The event on screen. */
+  event: string | null;
+  /** What happens after the current card pick or evolution, in order. */
+  after: ('evolve' | 'next-act' | 'won')[];
+  /** Stops cleared, for the summary. */
+  cleared: number;
+  /** Stops visited this act, in order (for drawing your route). */
+  visited?: number[];
+}
+
 /** The Hush while it's on the field (SPEC §4.8). Phase follows its health: 1 above 2/3, 2 above 1/3, then 3. */
 export interface BossState {
   enemyId: number;
@@ -232,6 +276,10 @@ export interface EngineState {
   wave: WaveState;
   /** Card ids on offer while phase === 'picking'. */
   pick: string[];
+  /** Tour runs only (SPEC S2.1). */
+  tour?: TourState;
+  /** Enemy kinds met so far this run (for "New:" banners). */
+  seenKinds?: EnemyKind[];
   /** Discard-cycle (SPEC §4.3): cards drawn by cycling can't be cycled again this bar. */
   cycle?: { bar: number; locked: number[] };
   headliner: HeadlinerState;
@@ -252,6 +300,12 @@ export function emptyChain(): ChainState {
 }
 
 export function createState(opts: CreateOptions): EngineState {
+  const state = baseState(opts);
+  if (state.mode === 'tour') startTour(state);
+  return state;
+}
+
+function baseState(opts: CreateOptions): EngineState {
   const rng = createRng(opts.seed);
   let nextId = 1;
   const headliner = opts.headliner ?? 'thrum';

@@ -101,6 +101,26 @@ export const PICK_EVERY_WAVES = 3;
 export const VOLUME_MAX = 20;
 /** Discard-cycle a card in hand: costs this much energy (SPEC §4.3). */
 export const CYCLE_COST = 1;
+
+// ---------------------------------------------------------------- Tour (SPEC S2.1)
+export const TOUR_ACTS = 3;
+/** Stops per act before the boss. */
+export const TOUR_ROWS = 4;
+export const TOUR_COLS = 3;
+/** Wave level of each act's first stop; a fight at row r plays levels base+r-1 onward. */
+export const TOUR_ACT_LEVEL = [1, 5, 9] as const;
+/** Waves in a fight. */
+export const TOUR_FIGHT_WAVES = 3;
+/** Elites hit harder: enemy health ×this. */
+export const TOUR_ELITE_HP = 1.25;
+/** Two bars to set up before the first wave of a fight. */
+export const TOUR_COUNT_IN_BEATS = 8;
+export const TOUR_MERCH = { fight: 20, elite: 40, boss: 60 } as const;
+export const TOUR_REST_HEAL = 10;
+export const TOUR_SHOP_HEAL = 8;
+export const TOUR_SHOP_HEAL_PRICE = 25;
+export const TOUR_SHOP_REMOVE_PRICE = 45;
+export const TOUR_PRICES = { starter: 30, common: 40, rare: 65, token: 999 } as const;
 /** After this wave, your headliner evolves (SPEC §4.7, S1.5). */
 export const EVOLVE_AFTER_WAVE = 5;
 /** Metronome: timing windows this much wider, in percent. */

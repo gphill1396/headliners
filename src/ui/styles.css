@@ -1270,3 +1270,176 @@ button:disabled {
 .swap-btn:disabled {
   color: var(--dim);
 }
+
+/* ---------- Tour ---------- */
+.mode-picker .hl-chip.mode-on {
+  --frame: #8a6a1f;
+  background: var(--amber);
+  color: var(--night);
+}
+
+.tour-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: var(--lilac);
+}
+
+.tour-status b {
+  color: var(--cream);
+}
+
+.map-overlay {
+  display: flex;
+  flex-direction: column;
+}
+
+.tour-map {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 4px 8px calc(18px + env(safe-area-inset-bottom));
+}
+
+.tour-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tour-links line {
+  stroke: var(--line);
+  stroke-width: 3;
+  stroke-dasharray: 4 5;
+}
+
+.tour-links line.walked {
+  stroke: var(--amber);
+  stroke-dasharray: none;
+}
+
+.stop {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 76px;
+  padding: 8px 6px 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--dim);
+  background: var(--panel);
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--line),
+    0 var(--px) 0 0 var(--line),
+    calc(var(--px) * -1) 0 0 0 var(--line),
+    var(--px) 0 0 0 var(--line);
+}
+
+.stop.visited {
+  color: var(--lilac);
+  opacity: 0.7;
+}
+
+.stop.here {
+  opacity: 1;
+  color: var(--amber);
+}
+
+.stop.open {
+  color: var(--cream);
+  background: var(--raised);
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--amber),
+    0 var(--px) 0 0 var(--amber),
+    calc(var(--px) * -1) 0 0 0 var(--amber),
+    var(--px) 0 0 0 var(--amber);
+  animation: stop-pulse 1200ms steps(2, end) infinite;
+}
+
+@keyframes stop-pulse {
+  50% {
+    background: #3a2d58;
+  }
+}
+
+/* Stop marks: tiny pixel shapes, one per kind. */
+.stop-mark {
+  width: 12px;
+  height: 12px;
+  background: var(--dim);
+}
+.stop.open .stop-mark,
+.stop.here .stop-mark {
+  background: var(--mark, var(--cream));
+}
+.stop-fight { --mark: var(--thrum); clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); }
+.stop-elite { --mark: var(--miss); clip-path: polygon(50% 0, 100% 40%, 80% 100%, 20% 100%, 0 40%); }
+.stop-draft { --mark: var(--lilac); }
+.stop-rest { --mark: var(--lyra); border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.stop-shop { --mark: var(--amber); clip-path: circle(50%); }
+.stop-event { --mark: var(--clatter); clip-path: polygon(40% 0, 60% 0, 60% 65%, 40% 65%, 40% 80%, 60% 80%, 60% 100%, 40% 100%); }
+.stop-boss { --mark: var(--lilac); width: 18px; clip-path: polygon(0 30%, 50% 0, 100% 30%, 100% 100%, 0 100%); }
+
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  max-height: 38dvh;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.deck-grid .card {
+  min-height: 64px;
+}
+
+.shop-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.shop-item {
+  display: grid;
+  gap: 4px;
+  justify-items: stretch;
+}
+
+.shop-item .card {
+  min-height: 92px;
+}
+
+.shop-item.sold {
+  opacity: 0.4;
+}
+
+.price {
+  text-align: center;
+  font-weight: 700;
+  color: var(--amber);
+}
+
+.shop-extras {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.shop-extras .secondary-btn,
+.event-btn {
+  min-height: 52px;
+  font-size: 16px;
+}
+
+.shop-info {
+  min-height: 2.6em;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--lilac);
+}

@@ -12,6 +12,8 @@ import {
   type HeadlinerId,
   type Input,
   type RngState,
+  deckCards,
+  reachable,
 } from '../src/engine';
 import { ENEMIES } from '../src/content/enemies';
 
@@ -65,6 +67,8 @@ export function createBot(config: BotConfig, rng: RngState): Bot {
     if (s.phase === 'picking') return [{ type: 'pick', index: choosePick(config, s, rng) }];
     // Evolutions are a coin flip, so the report can compare the two branches.
     if (s.phase === 'evolving') return [{ type: 'evolve', index: nextFloat(rng) < 0.5 ? 0 : 1 }];
+    const tourMove = tourAct(config, s, rng);
+    if (tourMove) return tourMove;
     if (s.phase !== 'playing') return [];
     const inputs: Input[] = [];
 
@@ -316,4 +320,47 @@ function choosePick(config: BotConfig, s: EngineState, rng: RngState): number | 
   const best = argmax(scores);
   const bar = 2 + Math.max(0, deck.length - 14) * 0.25;
   return scores[best]! >= bar ? best : null;
+}
+
+// ---------------------------------------------------------------- Tour (map, rest, shop, events)
+
+/** What a bot does between fights on a Tour. Null when it's not on a Tour menu. */
+function tourAct(config: BotConfig, s: EngineState, rng: RngState): Input[] | null {
+  const tour = s.tour;
+  if (!tour) return null;
+  const random = config.kind === 'random';
+  switch (s.phase) {
+    case 'map': {
+      const options = reachable(s).map((id) => tour.nodes.find((n) => n.id === id)!);
+      if (options.length === 0) return [];
+      const low = s.crowd < 18;
+      const score = (k: string) =>
+        random
+          ? nextFloat(rng)
+          : ({ fight: 2, elite: low ? 0.3 : 2.4, draft: 1.8, rest: low ? 3.5 : 0.7, shop: tour.merch >= 40 ? 2.2 : 0.4, event: 1.3, boss: 9 } as Record<string, number>)[k]! + nextFloat(rng) * 0.6;
+      const best = options.reduce((a, b) => (score(b.kind) > score(a.kind) ? b : a));
+      return [{ type: 'travel', node: best.id }];
+    }
+    case 'rest': {
+      const deck = deckCards(s);
+      // Trim weak starters only once the deck has grown.
+      const cut = deck.length > 13 ? deck.find((c) => c.cardId === 'stagehand' || c.cardId === 'feedback-loop') : undefined;
+      if (random) return [{ type: 'rest', choice: nextFloat(rng) < 0.5 || !cut ? 'heal' : 'cut', iid: cut?.iid }];
+      return s.crowd < s.maxCrowd - 8 || !cut ? [{ type: 'rest', choice: 'heal' }] : [{ type: 'rest', choice: 'cut', iid: cut.iid }];
+    }
+    case 'shop': {
+      const shop = tour.shop!;
+      if (!random && !shop.healed && s.crowd < 18 && tour.merch >= 25) return [{ type: 'shop', action: 'heal' }];
+      const affordable = shop.cards.map((c, i) => ({ c, i })).filter(({ c }) => !c.sold && c.price <= tour.merch);
+      if (affordable.length > 0 && (random ? nextFloat(rng) < 0.5 : nextFloat(rng) < 0.8)) {
+        const pick = affordable[nextInt(rng, 0, affordable.length)]!;
+        return [{ type: 'shop', action: 'buy', index: pick.i }];
+      }
+      return [{ type: 'shop', action: 'leave' }];
+    }
+    case 'event':
+      return [{ type: 'event', option: random ? (nextFloat(rng) < 0.5 ? 0 : 1) : s.crowd < 12 ? 1 : nextFloat(rng) < 0.6 ? 0 : 1 }];
+    default:
+      return null;
+  }
 }

@@ -540,12 +540,28 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
 
 ### Phase 2 — Tour + Collection
 
+Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headliners, enemies and bosses.
+
+**Phase 2a — Tour, as built** (Grant's calls: one headliner per Tour until there are more than three; a Tour should take about 15–20 minutes):
+- Pick Encore or Tour on the title screen (remembered). A Tour is 3 acts. Each act is a map of 4 rows of 3 stops, each linked to the stops straight and diagonally ahead, then the boss.
+  - Row 1 is always gigs (fights). Later rows roll gigs, events, drafts, shops, rests and (rows 3–4) a big gig (elite). Every act has an elite, a shop in rows 2–3 and a rest in row 4.
+- **Fights:** a gig is 3 waves from its row's level (act 1 starts at level 1, act 2 at 5, act 3 at 9), after a 2-bar count-in; the last wave ends when it's cleared. A big gig plays one level higher, enemies have 25% more health and one more special. A boss fight is one wave, then The Hush.
+- **Your gear stays set up** between fights in the same act (units, gates and amps stay on stage; Roadies go home; your hand and discard shuffle back in). The stage is struck at the start of each act. *(First built with a fresh stage every fight: Lyra and Clatter won 2–3% of simulated Tours against Thrum's 73%, because their engines need set-up time.)*
+- **Crowd** carries over the whole Tour.
+- **Merch** pays for the shop: 20 per gig, 40 per big gig, 60 per boss.
+- After every fight, a card pick (3 cards, signature cards weighted ×3, commons ×2); big gigs and bosses always offer a rare. Draft stops are a free pick.
+- **Rest:** +10 crowd, or cut a card. **Shop (merch table):** 4 cards (starter 30, common 40, rare 65, signature +5), remove a card (45, once), +8 crowd (25, once). **Events:** 7 short choices with trade-offs (`src/content/events.ts`).
+- Beating the act 1 boss lets your headliner evolve. Beating the act 3 boss wins the Tour.
+- Saves anywhere: on the map, in a menu or mid-fight.
+- `npm run sim -- --mode tour` plays whole Tours with the bots. Bot results at 120 Tours each: Thrum wins 91%, Lyra 64%, Clatter 61%, random 0% (random play rarely gets past act 1). About 6–7 minutes of fight time per Tour; with menus, about 15 minutes.
+  - Open: Thrum is clearly the strongest Tour headliner (no D-threshold covers Tour yet), and the bots may find Tour easier than people do. Heat (Phase 3) is where difficulty goes up.
+
 **S2.1 Tour run**
 *As a player, I want a roguelike tour with drafting and branching paths, so every run builds a different deck.*
-- [ ] There are 3 acts, each with a node map: fight, elite, draft, rest, shop, event, boss.
-- [ ] Drafts offer a choice of 3 cards weighted toward your headliners, with a skip option.
-- [ ] Evolutions are chosen during the run when a headliner reaches the right level.
-- [ ] You can save and resume at any point on the map or mid-fight.
+- [x] There are 3 acts, each with a node map: fight, elite, draft, rest, shop, event, boss.
+- [x] Drafts offer a choice of 3 cards weighted toward your headliners, with a skip option.
+- [x] Evolutions are chosen during the run when a headliner reaches the right level. *(After the act 1 boss, until Collection adds levels.)*
+- [x] You can save and resume at any point on the map or mid-fight.
 
 **S2.2 Collection & Workshop**
 *As Grant, I want to tinker with decks the way I tune Commander decks, with real stats.*

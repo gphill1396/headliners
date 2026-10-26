@@ -22,6 +22,7 @@ import { CardTile } from './CardTile';
 import { cardText, KEYWORD_TEXT } from '../content/text';
 import { formatNumber } from './format';
 import { EvolveOverlay, GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay } from './Overlays';
+import { EventOverlay, MapOverlay, RestOverlay, ShopOverlay, TourEndOverlay } from './TourOverlays';
 import { GameRunner, type CountIn } from './runner';
 import { mixFrom, playRiff, scheduleGroove, type MusicStyle } from '../audio/groove';
 import { Conductor } from '../audio/conductor';
@@ -33,13 +34,16 @@ import {
   tutorialDone as loadTutorialDone,
   loadBests,
   loadHeadliner,
+  loadMode,
   loadRun,
   loadSettings,
   recordRun,
   saveHeadliner,
+  saveMode,
   saveRun,
   saveSettings,
   type Bests,
+  type GameMode,
   type Settings,
 } from './storage';
 
@@ -97,6 +101,10 @@ interface Hud {
   headliner: HeadlinerId;
   /** The Hush's phase, 0 when it isn't here. */
   bossPhase: 0 | 1 | 2 | 3;
+  /** Tour: "Act 1 · Gig", shown where Encore shows the wave. */
+  tourLabel: string | null;
+  /** Changes whenever a Tour menu's contents change, so its overlay re-arms. */
+  menuKey: string;
   fillIn: number;
   filling: boolean;
   phase: EngineState['phase'];
@@ -119,6 +127,8 @@ function sampleHud(s: EngineState): Hud {
     pocket: s.pocket.depth,
     headliner: s.headliner.id,
     bossPhase: s.boss?.phase ?? 0,
+    tourLabel: s.tour ? `Act ${s.tour.act}${s.tour.fight ? ` · ${FIGHT_LABEL[s.tour.fight.kind]}` : ''}` : null,
+    menuKey: s.tour ? `${s.phase}:${s.tour.at}:${s.tour.act}:${s.pick.join(',')}:${s.tour.merch}:${s.tour.shop?.cards.filter((c) => c.sold).length ?? 0}` : s.phase,
     fillIn: Math.max(0, s.headliner.readyBeat - s.clock.beat),
     filling,
     phase: s.phase,
@@ -129,10 +139,14 @@ function sampleHud(s: EngineState): Hud {
   };
 }
 
-function newRun(settings: Settings, headliner: HeadlinerId): EngineState {
+function newRun(settings: Settings, headliner: HeadlinerId, mode: GameMode = 'encore'): EngineState {
   // The UI picks the seed; the engine never reads the clock itself.
-  return createState({ seed: `run-${new Date().toISOString()}`, relaxedTiming: settings.relaxedTiming, headliner });
+  return createState({ seed: `run-${new Date().toISOString()}`, relaxedTiming: settings.relaxedTiming, headliner, mode });
 }
+
+/** Phases where a menu is up and the band plays on, muffled, behind it. */
+const MENU_PHASES: EngineState['phase'][] = ['picking', 'evolving', 'map', 'shop', 'rest', 'event'];
+const FIGHT_LABEL = { fight: 'Gig', elite: 'Big gig', boss: 'The Hush' } as const;
 
 function gateLabel(kind: Hud['gates'][number]['kind'], amount: number, lane: number): string {
   switch (kind) {
@@ -177,6 +191,9 @@ export function App() {
   const [tutorialDone, setTutorialDone] = useState(loadTutorialDone);
   const [headliner, setHeadliner] = useState<HeadlinerId>(loadHeadliner);
   const [inspect, setInspect] = useState<Inspect | null>(null);
+  const [mode, setMode] = useState<GameMode>(loadMode);
+  /** What the last Tour fight paid, for the pick screen. */
+  const lastReward = useRef<{ kind: string; merch: number } | null>(null);
   const [tutStep, setTutStep] = useState<number | null>(null);
   const [nudge, setNudge] = useState<string | null>(null);
   const [practiceHits, setPracticeHits] = useState(0);
@@ -448,7 +465,17 @@ export function App() {
             break;
           case 'pickOffered':
           case 'evolveOffered':
-            handToConductor('muffled', s);
+            if (conductorRef.current.mode === 'engine') handToConductor('muffled', s);
+            break;
+          case 'fightWon':
+            lastReward.current = { kind: e.kind, merch: e.merch };
+            showBanner(e.kind === 'boss' ? 'The Hush is broken' : "Show's over", `+${e.merch} merch`);
+            break;
+          case 'actStart':
+          case 'tourStop':
+            lastReward.current = null;
+            break;
+          case 'tourWon':
             break;
           case 'evolved': {
             const evo = HEADLINERS[e.headliner].evolutions.find((x) => x.id === e.evolution)!;
@@ -462,7 +489,7 @@ export function App() {
         }
       }
       tutorialTick.current?.(events, s);
-      if (events.some((e) => e.type === 'gameOver')) {
+      if (events.some((e) => e.type === 'gameOver' || e.type === 'tourWon')) {
         runner.pause();
         finishRun(s);
       }
@@ -552,8 +579,8 @@ export function App() {
 
   // Clear the "pick sent" flag once the engine leaves the pick screen.
   useEffect(() => {
-    if (hud.phase !== 'picking' && hud.phase !== 'evolving') setPickSent(false);
-  }, [hud.phase]);
+    setPickSent(false);
+  }, [hud.phase, hud.menuKey]);
 
   const showCardText = (iid: number | null) => {
     const el = infoRef.current;
@@ -767,7 +794,7 @@ export function App() {
     const conductor = conductorRef.current;
     const s = runner.state;
     setView('playing');
-    if (s.phase === 'picking' || s.phase === 'evolving') {
+    if (MENU_PHASES.includes(s.phase)) {
       // Back onto a card pick: the muffled band keeps playing until a card is chosen.
       conductor.setMode('muffled', settingsRef.current.sound ? synthRef.current : null);
       runner.start(false);
@@ -801,7 +828,7 @@ export function App() {
     clearRun();
     savedRun.current = null;
     setCanResume(false);
-    runner.load(newRun(settings, headliner));
+    runner.load(newRun(settings, headliner, mode));
     fxRef.current = createFx();
     overlayRef.current?.replaceChildren();
     setSelected(null);
@@ -809,7 +836,29 @@ export function App() {
     startPlaying();
   };
 
+  /** Tour menus: the band stays muffled, so just send the choice. */
+  const sendMenu = (input: Parameters<typeof runner.send>[0]) => {
+    setPickSent(true);
+    runner.send(input);
+  };
+
+  /** Tour: go to a stop. Fights bring the band back in on the next beat 1, like after a card pick. */
+  const travel = (node: number) => {
+    const kind = runner.state.tour?.nodes.find((n) => n.id === node)?.kind;
+    if (kind !== 'fight' && kind !== 'elite' && kind !== 'boss') return sendMenu({ type: 'travel', node });
+    setPickSent(true);
+    const now = performance.now();
+    const conductor = conductorRef.current;
+    const beat = runner.state.clock.beat;
+    const at = conductor.nextBeatAt(now, beatInBar(beat), 1);
+    conductor.handBackAt(at, beat);
+    lastEighthScheduled.current = 2 * beat;
+    runner.send({ type: 'travel', node });
+    runner.holdUntil(at, now);
+  };
+
   const pick = (index: number | null) => {
+    if (runner.state.mode === 'tour') return sendMenu({ type: 'pick', index });
     setPickSent(true);
     const now = performance.now();
     const conductor = conductorRef.current;
@@ -823,6 +872,7 @@ export function App() {
 
   /** Same as a card pick: the band comes back in on the next beat 1. */
   const evolve = (index: 0 | 1) => {
+    if (runner.state.mode === 'tour') return sendMenu({ type: 'evolve', index });
     setPickSent(true);
     const now = performance.now();
     const conductor = conductorRef.current;
@@ -932,7 +982,7 @@ export function App() {
   return (
     <div className="app">
       <header className="hud">
-        <span className="hud-wave">{hud.mode === 'tutorial' ? 'Soundcheck' : hud.wave > 0 ? `Wave ${hud.wave}` : 'Get ready'}</span>
+        <span className="hud-wave">{hud.mode === 'tutorial' ? 'Soundcheck' : hud.tourLabel ?? (hud.wave > 0 ? `Wave ${hud.wave}` : 'Get ready')}</span>
         <span className={`hud-crowd${coached('crowd')}`} aria-label={`Crowd ${hud.crowd} of ${hud.maxCrowd}`}>
           <span className="hud-label">Crowd</span>
           <span className="crowd-bar">
@@ -1132,6 +1182,11 @@ export function App() {
             setHeadliner(id);
             saveHeadliner(id);
           }}
+          mode={mode}
+          onMode={(m) => {
+            setMode(m);
+            saveMode(m);
+          }}
           settings={settings}
           onToggle={toggleSetting}
         />
@@ -1146,9 +1201,32 @@ export function App() {
           onToggle={toggleSetting}
         />
       )}
-      {view === 'playing' && hud.phase === 'picking' && !pickSent && <PickOverlay state={runner.state} onPick={pick} />}
+      {view === 'playing' && hud.phase === 'picking' && !pickSent && (
+        <PickOverlay
+          key={hud.menuKey}
+          state={runner.state}
+          onPick={pick}
+          title={runner.state.mode === 'tour' ? (runner.state.tour?.fight === null && lastReward.current ? "Show's over" : 'Draft') : undefined}
+          lede={
+            runner.state.mode === 'tour'
+              ? lastReward.current
+                ? `+${lastReward.current.merch} merch. Pick a card for your deck, or skip to keep it lean.`
+                : 'Pick a card for your deck, or skip to keep it lean.'
+              : undefined
+          }
+        />
+      )}
+      {view === 'playing' && hud.phase === 'map' && !pickSent && <MapOverlay key={hud.menuKey} state={runner.state} onTravel={travel} />}
+      {view === 'playing' && hud.phase === 'rest' && !pickSent && (
+        <RestOverlay key={hud.menuKey} state={runner.state} onRest={(choice, iid) => sendMenu({ type: 'rest', choice, iid })} />
+      )}
+      {view === 'playing' && hud.phase === 'shop' && <ShopOverlay state={runner.state} onShop={(a) => runner.send({ type: 'shop', ...a })} />}
+      {view === 'playing' && hud.phase === 'event' && !pickSent && (
+        <EventOverlay key={hud.menuKey} state={runner.state} onChoose={(option) => sendMenu({ type: 'event', option })} />
+      )}
       {view === 'playing' && hud.phase === 'evolving' && !pickSent && <EvolveOverlay state={runner.state} onEvolve={evolve} />}
-      {view === 'over' && <GameOverOverlay state={runner.state} bests={bests} newBest={newBest} onAgain={startNew} />}
+      {view === 'over' && runner.state.mode === 'tour' && <TourEndOverlay state={runner.state} onAgain={startNew} />}
+      {view === 'over' && runner.state.mode !== 'tour' && <GameOverOverlay state={runner.state} bests={bests} newBest={newBest} onAgain={startNew} />}
     </div>
   );
 }

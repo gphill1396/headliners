@@ -9,6 +9,7 @@ import type { EngineEvent } from './events';
 import type { EngineState } from './state';
 import type { EnemyKind } from './types';
 import { beatMuted, onBeatWaves, spawnGroup, startWave, updateBoss } from './waves';
+import { afterTourChoice, eventChoice, onBeatTour, rest, shop, travel, type ShopAction } from './tour';
 import { getCard } from '../content/cards';
 import { HEADLINERS } from '../content/headliners';
 
@@ -26,6 +27,14 @@ export type Input =
   | { type: 'pick'; index: number | null }
   /** Discard-cycle: pay 1 energy to swap a card in hand for the next one (once per card per bar). */
   | { type: 'cycle'; iid: number }
+  /** Tour: go to a stop on the map. */
+  | { type: 'travel'; node: number }
+  /** Tour: buy, remove a card, heal, or leave the shop. */
+  | ({ type: 'shop' } & ShopAction)
+  /** Tour: at a rest stop, heal or cut a card from your deck. */
+  | { type: 'rest'; choice: 'heal' | 'cut'; iid?: number }
+  /** Tour: choose an option at an event. */
+  | { type: 'event'; option: 0 | 1 }
   /** Choose one of the headliner's two evolutions while phase === 'evolving'. */
   | { type: 'evolve'; index: 0 | 1 }
   /** Practice tap on a lane with no card: graded for timing, no other effect. */
@@ -94,7 +103,7 @@ function onBeat(state: EngineState, ctx: TickCtx): void {
 
   state.energy = Math.min(MAX_ENERGY, state.energy + 1);
   // The tutorial script hands out exactly the cards each step needs.
-  if (downbeat && state.mode === 'encore') refillHand(state, ctx.events);
+  if (downbeat && state.mode !== 'tutorial') refillHand(state, ctx.events);
   expireTokens(state, ctx);
   smashGates(state, ctx);
 
@@ -102,6 +111,7 @@ function onBeat(state: EngineState, ctx: TickCtx): void {
   resolveDuePlays(state, ctx);
   if (downbeat) runDownbeatTriggers(state, ctx);
   if (state.phase === 'playing' && state.mode === 'encore') onBeatWaves(state, ctx);
+  if (state.phase === 'playing' && state.mode === 'tour') onBeatTour(state, ctx);
 }
 
 function applyInput(state: EngineState, ctx: TickCtx, input: Input): void {
@@ -117,6 +127,18 @@ function applyInput(state: EngineState, ctx: TickCtx, input: Input): void {
       return;
     case 'cycle':
       cycle(state, ctx, input.iid);
+      return;
+    case 'travel':
+      travel(state, ctx, input.node);
+      return;
+    case 'shop':
+      shop(state, ctx, input);
+      return;
+    case 'rest':
+      rest(state, ctx, input.choice, input.iid);
+      return;
+    case 'event':
+      eventChoice(state, ctx, input.option);
       return;
     case 'pick':
       pick(state, ctx, input.index);
@@ -292,6 +314,7 @@ function evolve(state: EngineState, ctx: TickCtx, index: number): void {
   const evo = HEADLINERS[state.headliner.id].evolutions[index];
   ctx.events.push({ type: 'evolved', headliner: state.headliner.id, evolution: evo.id });
   state.phase = 'playing';
+  if (state.mode === 'tour') return afterTourChoice(state, ctx);
   startWave(state, ctx, state.wave.index + 1);
 }
 
@@ -301,6 +324,7 @@ function pick(state: EngineState, ctx: TickCtx, index: number | null): void {
   if (cardId) addCardToDeck(state, cardId);
   ctx.events.push({ type: 'picked', cardId });
   state.pick = [];
+  if (state.mode === 'tour') return afterTourChoice(state, ctx);
   state.phase = 'playing';
   startWave(state, ctx, state.wave.index + 1);
 }

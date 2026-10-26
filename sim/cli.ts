@@ -2,10 +2,11 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BotConfig } from './bots';
 import { evaluate, formatReport } from './report';
-import { runOne, type RunResult } from './run';
+import { runOne, runTour, type RunResult } from './run';
+import { median } from './report';
 
 /**
- * npm run sim -- [--runs 100] [--mode encore] [--bots random,thrum] [--ci]
+ * npm run sim -- [--runs 100] [--mode encore|tour] [--bots random,thrum] [--ci]
  *
  * Plays the real engine with bot players and checks the depth thresholds
  * (SPEC §9). In --ci mode, failures print as GitHub warnings and never fail
@@ -19,8 +20,8 @@ const arg = (name: string, fallback: string) => {
 const runs = Number(arg('runs', '100'));
 const mode = arg('mode', 'encore');
 const ci = args.includes('--ci');
-if (mode !== 'encore') {
-  console.error(`Only --mode encore exists in Phase 1 (got ${mode}).`);
+if (mode !== 'encore' && mode !== 'tour') {
+  console.error(`--mode must be encore or tour (got ${mode}).`);
   process.exit(1);
 }
 
@@ -38,6 +39,25 @@ const only = arg('bots', '');
 if (only) {
   const keep = new Set(only.split(','));
   BOTS.splice(0, BOTS.length, ...BOTS.filter((b) => keep.has(b.name)));
+}
+
+if (mode === 'tour') {
+  // Tour: no D1–D8 (those are defined on Encore); report win rates and how far runs get.
+  const tourBots = BOTS.filter((b) => ['random', 'thrum', 'lyra', 'clatter'].includes(b.name));
+  console.log(`Headliners Tour report — ${runs} runs per bot\n`);
+  console.log('Bot        runs  won    act reached (1/2/3)   stops cleared  minutes  deck');
+  for (const bot of tourBots) {
+    const rs = Array.from({ length: runs }, (_, i) => runTour(bot, `tour-${i}`));
+    const won = rs.filter((r) => r.won).length / rs.length;
+    const acts = [1, 2, 3].map((a) => rs.filter((r) => r.act === a).length);
+    console.log(
+      `${bot.name.padEnd(10)} ${String(runs).padStart(4)}  ${(won * 100).toFixed(0).padStart(3)}%   ${acts.join(' / ').padEnd(20)}  ${median(rs.map((r) => r.cleared)).toString().padStart(13)}  ${median(rs.map((r) => r.minutes)).toFixed(1).padStart(7)}  ${median(rs.map((r) => r.deckSize)).toString().padStart(4)}`,
+    );
+    const lost: Record<string, number> = {};
+    for (const r of rs) if (r.lostAt) lost[r.lostAt] = (lost[r.lostAt] ?? 0) + 1;
+    console.log(`           lost at: ${Object.entries(lost).sort((a, b) => b[1] - a[1]).map(([k, v]) => `act ${k} ${v}`).join(', ')}`);
+  }
+  process.exit(0);
 }
 
 const started = Date.now();

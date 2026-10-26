@@ -1,4 +1,5 @@
 import type { Grade } from './clock';
+import type { TourNodeKind } from './state';
 import type { EnemyKind, EvolutionId, HeadlinerId } from './types';
 
 /** What happened during a tick, for rendering, audio and haptics. Never fed back into the engine. */
@@ -41,6 +42,14 @@ export type EngineEvent =
   /** A Shieldbearer blocked a shot. At most one per Shieldbearer per beat, for the pop. */
   | { type: 'blocked'; enemyId: number; lane: number; depth: number; broke: boolean }
   | { type: 'pickOffered'; options: string[] }
+  /** Tour: you arrived at a stop on the map. */
+  | { type: 'tourStop'; kind: TourNodeKind; act: number; row: number }
+  /** Tour: a fight, elite or boss is won. */
+  | { type: 'fightWon'; kind: 'fight' | 'elite' | 'boss'; merch: number }
+  | { type: 'actStart'; act: number }
+  | { type: 'tourWon'; merch: number; cleared: number }
+  /** Tour: crowd changed outside a fight (rest, shop, event). */
+  | { type: 'tourCrowd'; amount: number }
   /** Your headliner is ready to evolve: choose one of its two evolutions. */
   | { type: 'evolveOffered' }
   | { type: 'evolved'; headliner: HeadlinerId; evolution: EvolutionId }

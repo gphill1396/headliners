@@ -14,6 +14,7 @@ import {
   WAVE_MAX_BPM,
   WAVE_SPAWN_BEATS,
   WAVE_TEMPO_STEP,
+  TOUR_ELITE_HP,
 } from './constants';
 import type { TickCtx } from './context';
 import { nextInt, shuffleInPlace } from './rng';
@@ -104,11 +105,30 @@ export function debutKinds(index: number): EnemyKind[] {
   return (Object.keys(DEBUT_WAVE) as EnemyKind[]).filter((k) => DEBUT_WAVE[k] === index);
 }
 
-export function startWave(state: EngineState, ctx: TickCtx, index: number): void {
+/** Enemy health multiplier for a wave level: ×WAVE_HP_GROWTH per level. */
+export function hpMultFor(index: number): number {
+  let m = 1;
+  for (let i = 1; i < index; i++) m *= WAVE_HP_GROWTH;
+  return m;
+}
+
+export interface WaveOptions {
+  /** Spawn The Hush with this wave (default: every 10th wave in Encore). */
+  boss?: boolean;
+  /** Tour elites: tougher enemies and one more special. */
+  elite?: boolean;
+}
+
+export function startWave(state: EngineState, ctx: TickCtx, index: number, opts: WaveOptions = {}): void {
   let hpMult = state.wave.hpMult;
-  for (let i = Math.max(1, state.wave.index); i < index; i++) hpMult *= WAVE_HP_GROWTH;
+  if (state.mode === 'tour') hpMult = hpMultFor(index) * (opts.elite ? TOUR_ELITE_HP : 1);
+  else for (let i = Math.max(1, state.wave.index); i < index; i++) hpMult *= WAVE_HP_GROWTH;
   const kinds = waveKinds(state, index);
-  const bossWave = index % BOSS_EVERY_WAVES === 0;
+  if (opts.elite) {
+    const extra = ALL_KINDS.filter((k) => DEBUT_WAVE[k] <= index + 1 && !kinds.includes(k));
+    if (extra.length > 0) kinds.push(extra[nextInt(state.rng, 0, extra.length)]!);
+  }
+  const bossWave = opts.boss ?? (state.mode === 'encore' && index % BOSS_EVERY_WAVES === 0);
   // Waves 1–2 are a gentle start. A boss wave brings half the usual crowd with it.
   const full = index === 1 ? 3 : index === 2 ? 4 : Math.min(22, 4 + Math.floor((index * 2) / 3));
   const groups = bossWave ? Math.ceil(full / 2) : full;
@@ -125,7 +145,10 @@ export function startWave(state: EngineState, ctx: TickCtx, index: number): void
   }
   state.wave = { index, startBeat: state.clock.beat, hpMult, spawns, nextSpawn: 0, kinds };
   setTempo(state.clock, Math.min(WAVE_MAX_BPM, START_BPM + WAVE_TEMPO_STEP * (index - 1)));
-  const debut = debutKinds(index);
+  // "New:" banners for enemies you haven't met this run.
+  const seen = state.seenKinds ?? [];
+  const debut = [...kinds, ...(bossWave ? (['hush'] as EnemyKind[]) : [])].filter((k) => !seen.includes(k));
+  state.seenKinds = [...seen, ...debut];
   if (bossWave) spawnBoss(state);
   ctx.events.push({ type: 'waveStart', index, kinds, ...(debut.length > 0 ? { debut } : {}), ...(bossWave ? { boss: true } : {}) });
   if (bossWave) ctx.events.push({ type: 'bossPhase', phase: 1 });
@@ -138,7 +161,7 @@ function spawnBoss(state: EngineState): void {
   state.boss = { enemyId: hush.id, phase: 1, nextBruteBeat: 0 };
 }
 
-function spawnDue(state: EngineState): void {
+export function spawnDue(state: EngineState): void {
   const wave = state.wave;
   const elapsed = state.clock.beat - wave.startBeat;
   while (wave.nextSpawn < wave.spawns.length && wave.spawns[wave.nextSpawn]!.beatOffset <= elapsed) {

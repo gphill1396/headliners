@@ -66,3 +66,35 @@ export function runOne(config: BotConfig, seed: string, maxTicks = DEFAULT_MAX_T
     choices: bot.choiceSamples,
   };
 }
+
+export interface TourResult {
+  bot: string;
+  headliner: HeadlinerId;
+  seed: string;
+  won: boolean;
+  act: number;
+  cleared: number;
+  minutes: number;
+  deckSize: number;
+  /** Where a lost run ended: act and stop kind. */
+  lostAt: string | null;
+}
+
+/** One whole Tour run (SPEC S2.1). */
+export function runTour(config: BotConfig, seed: string, maxTicks = DEFAULT_MAX_TICKS): TourResult {
+  const headliner = config.headliner === 'rotate' ? ROTATION[seedIndex(seed) % ROTATION.length]! : config.headliner;
+  const s: EngineState = createState({ seed, headliner, mode: 'tour' });
+  const bot = createBot(config, createRng(`bot:${config.name}:${seed}`));
+  while (s.phase !== 'over' && s.phase !== 'won' && s.tick < maxTicks) step(s, bot.act(s));
+  return {
+    bot: config.name,
+    headliner,
+    seed,
+    won: s.phase === 'won',
+    act: s.tour?.act ?? 1,
+    cleared: s.tour?.cleared ?? 0,
+    minutes: s.tick / 3600,
+    deckSize: s.draw.length + s.hand.length + s.discard.length,
+    lostAt: s.phase === 'over' ? `${s.tour?.act}:${s.tour?.nodes.find((n) => n.id === s.tour?.at)?.kind ?? '?'}` : null,
+  };
+}

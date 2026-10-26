@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getCard, HEADLINERS, type EngineState, type HeadlinerId } from '../engine';
 import { CardTile } from './CardTile';
 import { formatNumber } from './format';
-import type { Bests, Settings } from './storage';
+import type { Bests, GameMode, Settings } from './storage';
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
   return (
@@ -39,6 +39,8 @@ export function TitleOverlay({
   onNew,
   headliner,
   onHeadliner,
+  mode,
+  onMode,
   ...settings
 }: SettingsProps & {
   bests: Bests;
@@ -49,6 +51,8 @@ export function TitleOverlay({
   onNew: () => void;
   headliner: HeadlinerId;
   onHeadliner: (id: HeadlinerId) => void;
+  mode: GameMode;
+  onMode: (mode: GameMode) => void;
 }) {
   const h = HEADLINERS[headliner];
   // A new run is played as the chosen headliner; a saved run keeps whoever it started with.
@@ -73,14 +77,29 @@ export function TitleOverlay({
           </p>
           <p className="muted">Sound: {h.sound}</p>
         </div>
-        {bests.runs > 0 && (
+        {mode === 'encore' && bests.runs > 0 && (
           <p className="muted">
             Best: wave {bests.wave}, {formatNumber(bests.score)} score, {bests.chain}-link chain
+          </p>
+        )}
+        {mode === 'tour' && (
+          <p className="muted">
+            Tour: 3 acts of gigs, shops and rest stops, with The Hush at the end of each. Your crowd carries the whole way.
+            {(bests.tours ?? 0) > 0 ? ` Tours won: ${bests.toursWon ?? 0} of ${bests.tours}.` : ''}
           </p>
         )}
       </div>
       <div className="overlay-controls">
         <SettingsList {...settings} />
+        {(choosing || canResume) && (
+          <div className="hl-picker mode-picker" role="radiogroup" aria-label="Mode for a new run">
+            {(['encore', 'tour'] as const).map((m) => (
+              <button key={m} role="radio" aria-checked={m === mode} className={`hl-chip${m === mode ? ' on mode-on' : ''}`} onClick={() => onMode(m)}>
+                {m === 'encore' ? 'Encore' : 'Tour'}
+              </button>
+            ))}
+          </div>
+        )}
         {(choosing || canResume) && (
           <div className="hl-picker" role="radiogroup" aria-label="Headliner for a new run">
             {(Object.keys(HEADLINERS) as HeadlinerId[]).map((id) => (
@@ -102,12 +121,12 @@ export function TitleOverlay({
               Resume run
             </button>
             <button className="secondary-btn" onClick={onNew}>
-              New run as {h.name}
+              New {mode === 'tour' ? 'tour' : 'run'} as {h.name}
             </button>
           </>
         ) : tutorialDone ? (
           <button className="primary-btn" onClick={onNew}>
-            Start as {h.name}
+            {mode === 'tour' ? 'Start a tour' : 'Start'} as {h.name}
           </button>
         ) : (
           <>
@@ -162,7 +181,7 @@ export function PauseOverlay({
 /** How long the pick screen ignores taps after it opens, so a play in progress can't pick by accident. */
 const PICK_LOCKOUT_MS = 600;
 
-export function PickOverlay({ state, onPick }: { state: EngineState; onPick: (index: number | null) => void }) {
+export function PickOverlay({ state, onPick, title, lede }: { state: EngineState; onPick: (index: number | null) => void; title?: string; lede?: string }) {
   const [armed, setArmed] = useState(false);
   const [chosen, setChosen] = useState<number | null>(null);
   useEffect(() => {
@@ -173,9 +192,9 @@ export function PickOverlay({ state, onPick }: { state: EngineState; onPick: (in
   return (
     <div className={`overlay${armed ? '' : ' arming'}`} role="dialog" aria-modal="true" aria-label="Encore pick">
       <div className="overlay-top">
-        <h2 className="title small">Encore pick</h2>
+        <h2 className="title small">{title ?? 'Encore pick'}</h2>
         <p className="lede">
-          Wave {state.wave.index} survived. Tap a card to look at it, then add it to your deck. Or skip to keep it lean.
+          {lede ?? `Wave ${state.wave.index} survived. Tap a card to look at it, then add it to your deck. Or skip to keep it lean.`}
         </p>
       </div>
       <div className="overlay-controls">

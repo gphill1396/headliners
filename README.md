@@ -8,6 +8,8 @@ A portrait card-combo horde game for killing time on a phone. The full design is
 
 Phase 1b is under way. Pick a headliner on the title screen — Thrum the drum drake (rhythm), Lyra the serpent bard (gates and multipliers) or Clatter the kobold road crew (Roadie swarms) — each with their own starter deck, ability and band sound. Play against eight kinds of enemy — Shamblers, Brutes, Swarmlings, Bats, Splitters, Hexers, Shieldbearers and Breakers, each introduced on its own wave — in endless Encore waves, with chains, Echo, Downbeat, card picks every 3 waves, an adaptive soundtrack and save/resume. `npm run sim` plays thousands of bot runs and checks the depth thresholds. Every 10th wave, The Hush (the boss) shows up. 43 cards in all, and after wave 5 your headliner evolves into one of two forms. Tap or drag cards onto lanes, long-press anything to read it, and Swap a card you don't want for 1 energy.
 
+Two modes: **Encore** (endless waves for a high score) and **Tour** (three acts of gigs, drafts, shops, rest stops and events, with The Hush at the end of each act).
+
 **How to play:** tap a card, then tap a lane on the beat. The wide amber light is beat one. Off-beat plays break your chain.
 
 ## Develop

@@ -5,6 +5,7 @@ import {
   GATE_DEPTHS,
   LANES,
   MAX_PROJECTILES,
+  MOSH_PIT_TOKENS,
   PROJECTILE_SPEED,
   SPLASH_PCT,
   SPLASH_RADIUS,
@@ -12,6 +13,7 @@ import {
   SWOOP_DEPTH,
 } from './constants';
 import type { TickCtx } from './context';
+import { evolvedInto } from './evolution';
 import type { EngineState, Enemy, Gate, Projectile, Unit } from './state';
 
 /** Enemies are hit at their leading (stage-side) edge. */
@@ -21,6 +23,8 @@ const LYRA_GATE_BONUS = 1;
 
 /** Spawn `shots` projectiles from a unit. `multPct` scales damage (chain multiplier). */
 export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct: number): void {
+  // Clatter's Mosh Pit: with enough Roadies on stage, their shots Splash.
+  const mosh = unit.token === true && evolvedInto(state, 'mosh-pit') && state.units.filter((u) => u.token).length >= MOSH_PIT_TOKENS;
   for (let s = 0; s < shots; s++) {
     if (state.projectiles.length >= MAX_PROJECTILES) return;
     state.projectiles.push({
@@ -31,7 +35,7 @@ export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct:
       depth: STAGE_LINE - s * 1_400,
       damage: (unit.damage * multPct) / 100,
       pierceLeft: unit.pierce,
-      splash: unit.splash,
+      splash: unit.splash || mosh,
       ...(unit.antiAir ? { antiAir: true } : {}),
       ...(unit.priority ? { priority: true } : {}),
       gatesPassed: 0,
@@ -252,8 +256,16 @@ function applyGate(state: EngineState, p: Projectile, g: Gate): boolean {
   g.durability -= 1;
   // Lyra's passive: every gate a shot passes through adds 1 damage.
   if (state.headliner.id === 'lyra') p.damage += LYRA_GATE_BONUS;
-  // Lyra's Swell: for a couple of beats every gate works twice as hard.
-  const swell = state.headliner.id === 'lyra' && state.clock.beat < state.headliner.activeUntilBeat;
+  // Lyra's Swell: for a couple of beats every gate works twice as hard. Harmony: two gates in a lane always do.
+  const swell =
+    (state.headliner.id === 'lyra' && state.clock.beat < state.headliner.activeUntilBeat) ||
+    (evolvedInto(state, 'harmony') && state.gates.filter((x) => x.lane === g.lane && x.durability > 0).length >= 2);
+  // Lyra's Crescendo: +5% damage for every 10 shots through this gate, up to double.
+  if (evolvedInto(state, 'crescendo')) {
+    g.passes = (g.passes ?? 0) + 1;
+    const steps = Math.min(20, Math.floor(g.passes / 10));
+    if (steps > 0) p.damage = (p.damage * (100 + 5 * steps)) / 100;
+  }
   switch (g.kind) {
     case 'copy': {
       const amount = g.amount + (swell ? 1 : 0);

@@ -8,12 +8,14 @@ import {
   CHAIN_STEP_AUTO_PCT,
   GATE_DEPTHS,
   LANES,
+  LOAD_OUT_HAND_MAX,
   POCKET_STEP_PCT,
   MAX_ENERGY,
   UNIT_SLOTS,
   VOLUME_MAX,
 } from './constants';
 import { isDownbeat } from './clock';
+import { evolvedInto } from './evolution';
 import type { TickCtx } from './context';
 import { drawCards } from './deck';
 import { emptyChain, type EngineState, type QueuedPlay, type Unit } from './state';
@@ -65,7 +67,7 @@ export function addLink(state: EngineState, ctx: TickCtx, cardId: string, label:
 export function checkChainEnd(state: EngineState, ctx: TickCtx): void {
   const chain = state.chain;
   if (chain.links === 0) return;
-  if (state.clock.beat - chain.lastLinkBeat > CHAIN_GRACE_BEATS) {
+  if (state.clock.beat - chain.lastLinkBeat > CHAIN_GRACE_BEATS && state.clock.beat > (chain.holdUntilBeat ?? -1)) {
     ctx.events.push({ type: 'chainEnd', links: chain.links, dropped: false });
     state.chain = emptyChain();
     // Stopping playing lets you drift out of the pocket.
@@ -254,11 +256,25 @@ export function createToken(state: EngineState, ctx: TickCtx, cardId: string, la
 export function expireTokens(state: EngineState, ctx: TickCtx): void {
   const beat = state.clock.beat;
   if (!state.units.some((u) => u.token && u.expiresBeat !== undefined && u.expiresBeat <= beat)) return;
+  let left = 0;
   state.units = state.units.filter((u) => {
     const gone = u.token === true && u.expiresBeat !== undefined && u.expiresBeat <= beat;
-    if (gone) ctx.events.push({ type: 'unitExpired', unitId: u.id, cardId: u.cardId, lane: u.lane, slot: u.slot });
+    if (gone) {
+      left += 1;
+      ctx.events.push({ type: 'unitExpired', unitId: u.id, cardId: u.cardId, lane: u.lane, slot: u.slot });
+    }
     return !gone;
   });
+  // Clatter's Load Out: a Roadie leaving brings your latest Riff back from the discard pile.
+  if (left > 0 && evolvedInto(state, 'load-out') && state.headliner.lastLoadOutBeat !== beat && state.hand.length < LOAD_OUT_HAND_MAX) {
+    for (let i = state.discard.length - 1; i >= 0; i--) {
+      if (getCard(state.discard[i]!.cardId).type !== 'riff') continue;
+      state.hand.push(state.discard.splice(i, 1)[0]!);
+      state.headliner.lastLoadOutBeat = beat;
+      ctx.events.push({ type: 'drew', count: 1 });
+      break;
+    }
+  }
 }
 
 export function checkGameOver(state: EngineState, ctx: TickCtx): void {
@@ -285,6 +301,8 @@ export function resolvePlay(state: EngineState, ctx: TickCtx, play: QueuedPlay):
   }
 
   addLink(state, ctx, def.id, play.isEcho ? `${def.name} echoes` : def.name, play.lane, play.isEcho ? CHAIN_STEP_AUTO_PCT : play.chainStepPct);
+  // Thrum's Metronome: a Tight play keeps the chain alive one extra beat.
+  if (!play.isEcho && play.grade === 'tight' && evolvedInto(state, 'metronome')) state.chain.holdUntilBeat = beat + CHAIN_GRACE_BEATS + 1;
   const multPct = (gradePct * boostPct(state)) / 100;
 
   switch (def.type) {
@@ -311,7 +329,13 @@ export function resolvePlay(state: EngineState, ctx: TickCtx, play: QueuedPlay):
 
   if (def.echo && !play.isEcho && state.phase !== 'over') {
     state.queue.push({ ...play, id: state.nextId++, resolveBeat: beat + 1, isEcho: true });
+    // Thrum's Polyrhythm: switch lanes from the beat before, and it echoes twice.
+    const last = state.headliner.lastPlay;
+    if (evolvedInto(state, 'polyrhythm') && last && last.beat === beat - 1 && last.lane !== play.lane) {
+      state.queue.push({ ...play, id: state.nextId++, resolveBeat: beat + 2, isEcho: true });
+    }
   }
+  if (!play.isEcho) state.headliner.lastPlay = { beat, lane: play.lane };
 }
 
 function placeUnit(state: EngineState, ctx: TickCtx, play: QueuedPlay, gradePct: number): void {

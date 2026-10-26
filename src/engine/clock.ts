@@ -114,7 +114,7 @@ export function ticksPerBeat(bpm: number): number {
  *   resolves immediately as part of that beat.
  * - Otherwise Off → resolves on the next beat with no bonus.
  */
-export function gradeInput(clock: ClockState, permille: number, relaxed: boolean): Timing {
+export function gradeInput(clock: ClockState, permille: number, relaxed: boolean, widenPct = 100): Timing {
   if (!Number.isInteger(permille) || permille < 0 || permille >= SUBTICK) {
     throw new RangeError(`permille must be an integer in [0, ${SUBTICK}), got ${permille}`);
   }
@@ -132,7 +132,7 @@ export function gradeInput(clock: ClockState, permille: number, relaxed: boolean
   // milliPerMs(bpm) = BEAT_MILLI * bpm / 60000 = 60 * bpm for the current constants.
   const scale = relaxed ? 2 : 1;
   const within = (milli: number, windowMs: number) =>
-    milli * 60_000 <= windowMs * scale * BEAT_MILLI * clock.bpm;
+    milli * 60_000 * 100 <= windowMs * scale * widenPct * BEAT_MILLI * clock.bpm;
 
   if (untilNext <= sinceBeat) {
     const grade: Grade = within(untilNext, TIGHT_WINDOW_MS) ? 'tight' : within(untilNext, GOOD_WINDOW_MS) ? 'good' : 'off';
@@ -146,33 +146,33 @@ export function gradeInput(clock: ClockState, permille: number, relaxed: boolean
 }
 
 /** Milli-units per ms of timing window, honoring relaxed timing. */
-function windowMilli(ms: number, bpm: number, relaxed: boolean): number {
-  return ms * (relaxed ? 2 : 1) * ((BEAT_MILLI * bpm) / 60_000);
+function windowMilli(ms: number, bpm: number, relaxed: boolean, widenPct = 100): number {
+  return (ms * (relaxed ? 2 : 1) * widenPct * ((BEAT_MILLI * bpm) / 60_000)) / 100;
 }
 
 /** How much a play's own effect is multiplied by its timing, in percent (continuous, not stepped). */
-export function accuracyPct(offsetMilli: number, bpm: number, relaxed: boolean): number {
+export function accuracyPct(offsetMilli: number, bpm: number, relaxed: boolean, widenPct = 100): number {
   const a = offsetMilli < 0 ? -offsetMilli : offsetMilli;
-  const tight = windowMilli(TIGHT_WINDOW_MS, bpm, relaxed);
-  const good = windowMilli(GOOD_WINDOW_MS, bpm, relaxed);
+  const tight = windowMilli(TIGHT_WINDOW_MS, bpm, relaxed, widenPct);
+  const good = windowMilli(GOOD_WINDOW_MS, bpm, relaxed, widenPct);
   if (a <= tight) return ACC_DEAD_ON_PCT - Math.floor(((ACC_DEAD_ON_PCT - ACC_TIGHT_EDGE_PCT) * a) / tight);
   if (a <= good) return ACC_TIGHT_EDGE_PCT - Math.floor(((ACC_TIGHT_EDGE_PCT - ACC_GOOD_EDGE_PCT) * (a - tight)) / (good - tight));
   return OFF_MULT_PCT;
 }
 
 /** How much a played link raises the chain multiplier, by how on-beat it was. */
-export function chainStepPct(offsetMilli: number, bpm: number, relaxed: boolean): number {
+export function chainStepPct(offsetMilli: number, bpm: number, relaxed: boolean, widenPct = 100): number {
   const a = offsetMilli < 0 ? -offsetMilli : offsetMilli;
-  if (a <= windowMilli(DEAD_ON_WINDOW_MS, bpm, relaxed)) return CHAIN_STEP_DEAD_ON_PCT;
-  if (a <= windowMilli(TIGHT_WINDOW_MS, bpm, relaxed)) return CHAIN_STEP_TIGHT_PCT;
-  if (a <= windowMilli(GOOD_WINDOW_MS, bpm, relaxed)) return CHAIN_STEP_GOOD_PCT;
+  if (a <= windowMilli(DEAD_ON_WINDOW_MS, bpm, relaxed, widenPct)) return CHAIN_STEP_DEAD_ON_PCT;
+  if (a <= windowMilli(TIGHT_WINDOW_MS, bpm, relaxed, widenPct)) return CHAIN_STEP_TIGHT_PCT;
+  if (a <= windowMilli(GOOD_WINDOW_MS, bpm, relaxed, widenPct)) return CHAIN_STEP_GOOD_PCT;
   return 0;
 }
 
 /** Is this offset within the pocket window of your running average? */
-export function inPocket(offsetMilli: number, avgOffsetMilli: number, bpm: number, relaxed: boolean): boolean {
+export function inPocket(offsetMilli: number, avgOffsetMilli: number, bpm: number, relaxed: boolean, widenPct = 100): boolean {
   const d = offsetMilli - avgOffsetMilli;
-  return (d < 0 ? -d : d) <= windowMilli(POCKET_WINDOW_MS, bpm, relaxed);
+  return (d < 0 ? -d : d) <= windowMilli(POCKET_WINDOW_MS, bpm, relaxed, widenPct);
 }
 
 /** Stepped multiplier by grade (pre-pocket saves and tests). */

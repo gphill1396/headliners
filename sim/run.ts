@@ -1,9 +1,11 @@
-import { createRng, createState, step, type EnemyKind, type EngineState, type HeadlinerId } from '../src/engine';
+import { createRng, createState, evolution, step, type EnemyKind, type EngineState, type HeadlinerId } from '../src/engine';
 import { createBot, type BotConfig } from './bots';
 
 export interface RunResult {
   bot: string;
   headliner: HeadlinerId;
+  /** The evolution taken, if the run got that far. */
+  evolution: string | null;
   seed: string;
   wave: number;
   score: number;
@@ -49,6 +51,7 @@ export function runOne(config: BotConfig, seed: string, maxTicks = DEFAULT_MAX_T
   return {
     bot: config.name,
     headliner,
+    evolution: evolution(s),
     seed,
     wave: s.wave.index,
     score: s.score,

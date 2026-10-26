@@ -1,5 +1,5 @@
 import type { Grade } from './clock';
-import type { EnemyKind, HeadlinerId } from './types';
+import type { EnemyKind, EvolutionId, HeadlinerId } from './types';
 
 /** What happened during a tick, for rendering, audio and haptics. Never fed back into the engine. */
 export type EngineEvent =
@@ -39,6 +39,9 @@ export type EngineEvent =
   /** A Shieldbearer blocked a shot. At most one per Shieldbearer per beat, for the pop. */
   | { type: 'blocked'; enemyId: number; lane: number; depth: number; broke: boolean }
   | { type: 'pickOffered'; options: string[] }
+  /** Your headliner is ready to evolve: choose one of its two evolutions. */
+  | { type: 'evolveOffered' }
+  | { type: 'evolved'; headliner: HeadlinerId; evolution: EvolutionId }
   | { type: 'picked'; cardId: string | null }
   /** A headliner's active ability went off. (Named 'fill' after Thrum's, the first one.) */
   | { type: 'fill'; untilBeat: number; headliner: HeadlinerId }

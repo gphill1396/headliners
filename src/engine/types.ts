@@ -152,6 +152,14 @@ export interface EnemyDef {
   wide?: boolean;
 }
 
+export type EvolutionId = 'metronome' | 'polyrhythm' | 'crescendo' | 'harmony' | 'load-out' | 'mosh-pit';
+
+export interface EvolutionDef {
+  id: EvolutionId;
+  name: string;
+  text: string;
+}
+
 export interface HeadlinerDef {
   id: HeadlinerId;
   name: string;
@@ -162,5 +170,5 @@ export interface HeadlinerDef {
   sound: string;
   /** One line on how this headliner plays. */
   style: string;
-  evolutions: [{ name: string; text: string }, { name: string; text: string }];
+  evolutions: [EvolutionDef, EvolutionDef];
 }

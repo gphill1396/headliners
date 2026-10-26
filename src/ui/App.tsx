@@ -19,7 +19,7 @@ import { addBurst, createFx, decayFx, depthToFraction, drawField, fitCanvas, GAT
 import { PALETTE } from '../render/palette';
 import { CardTile } from './CardTile';
 import { formatNumber } from './format';
-import { GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay } from './Overlays';
+import { EvolveOverlay, GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay } from './Overlays';
 import { GameRunner, type CountIn } from './runner';
 import { mixFrom, playRiff, scheduleGroove, type MusicStyle } from '../audio/groove';
 import { Conductor } from '../audio/conductor';
@@ -424,8 +424,14 @@ export function App() {
             else if (e.depth === 0 && e.delta <= -4) pop('Lost the pocket', 1, 30_000, 'pop-note');
             break;
           case 'pickOffered':
+          case 'evolveOffered':
             handToConductor('muffled', s);
             break;
+          case 'evolved': {
+            const evo = HEADLINERS[e.headliner].evolutions.find((x) => x.id === e.evolution)!;
+            showBanner(`${HEADLINERS[e.headliner].name} evolves`, evo.name);
+            break;
+          }
           case 'gameOver':
             break;
           default:
@@ -523,7 +529,7 @@ export function App() {
 
   // Clear the "pick sent" flag once the engine leaves the pick screen.
   useEffect(() => {
-    if (hud.phase !== 'picking') setPickSent(false);
+    if (hud.phase !== 'picking' && hud.phase !== 'evolving') setPickSent(false);
   }, [hud.phase]);
 
   const showCardText = (iid: number | null) => {
@@ -619,7 +625,7 @@ export function App() {
     const conductor = conductorRef.current;
     const s = runner.state;
     setView('playing');
-    if (s.phase === 'picking') {
+    if (s.phase === 'picking' || s.phase === 'evolving') {
       // Back onto a card pick: the muffled band keeps playing until a card is chosen.
       conductor.setMode('muffled', settingsRef.current.sound ? synthRef.current : null);
       runner.start(false);
@@ -670,6 +676,18 @@ export function App() {
     const at = conductor.nextBeatAt(now, beatInBar(beat), 1);
     conductor.handBackAt(at, beat);
     runner.send({ type: 'pick', index });
+    runner.holdUntil(at, now);
+  };
+
+  /** Same as a card pick: the band comes back in on the next beat 1. */
+  const evolve = (index: 0 | 1) => {
+    setPickSent(true);
+    const now = performance.now();
+    const conductor = conductorRef.current;
+    const beat = runner.state.clock.beat;
+    const at = conductor.nextBeatAt(now, beatInBar(beat), 1);
+    conductor.handBackAt(at, beat);
+    runner.send({ type: 'evolve', index });
     runner.holdUntil(at, now);
   };
 
@@ -962,6 +980,7 @@ export function App() {
         />
       )}
       {view === 'playing' && hud.phase === 'picking' && !pickSent && <PickOverlay state={runner.state} onPick={pick} />}
+      {view === 'playing' && hud.phase === 'evolving' && !pickSent && <EvolveOverlay state={runner.state} onEvolve={evolve} />}
       {view === 'over' && <GameOverOverlay state={runner.state} bests={bests} newBest={newBest} onAgain={startNew} />}
     </div>
   );

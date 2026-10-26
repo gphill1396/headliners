@@ -14,8 +14,8 @@ export const HEADLINERS: Record<HeadlinerId, HeadlinerDef> = {
       durationBeats: 2,
     },
     evolutions: [
-      { name: 'Metronome', text: 'Timing windows widen, and every Tight extends the chain.' },
-      { name: 'Polyrhythm', text: 'Alternating lanes on consecutive beats doubles Echo.' },
+      { id: 'metronome', name: 'Metronome', text: 'Timing windows are 30% wider, and a Tight play keeps your chain alive one extra beat.' },
+      { id: 'polyrhythm', name: 'Polyrhythm', text: 'Play an Echo card in a different lane from the beat before, and it echoes twice.' },
     ],
     sound: 'Drums: kick, snare, toms.',
     style: 'Rhythm. Keep chains going and hit the beat for energy.',
@@ -32,8 +32,8 @@ export const HEADLINERS: Record<HeadlinerId, HeadlinerDef> = {
       durationBeats: 2,
     },
     evolutions: [
-      { name: 'Crescendo', text: 'Gates grow stronger the more shots pass through them.' },
-      { name: 'Harmony', text: 'Two gates in the same lane combine their effects.' },
+      { id: 'crescendo', name: 'Crescendo', text: 'Gates grow stronger the more shots pass through: +5% damage per 10 shots, up to double.' },
+      { id: 'harmony', name: 'Harmony', text: 'Two gates in the same lane harmonize: both work as if Swelled, all the time.' },
     ],
     sound: 'Keys: electric piano and shimmering arpeggios.',
     style: 'Multipliers. Stack gates, feed them shots, watch the numbers climb.',
@@ -50,8 +50,8 @@ export const HEADLINERS: Record<HeadlinerId, HeadlinerDef> = {
       durationBeats: 0,
     },
     evolutions: [
-      { name: 'Load Out', text: 'When a Roadie leaves, a Riff card comes back to your hand.' },
-      { name: 'Mosh Pit', text: 'Roadies gain Splash once you have 6 or more.' },
+      { id: 'load-out', name: 'Load Out', text: 'When a Roadie leaves, a Riff from your discard pile comes back to your hand (once per beat).' },
+      { id: 'mosh-pit', name: 'Mosh Pit', text: 'With 5 or more Roadies on stage, their shots Splash.' },
     ],
     sound: 'Junkyard percussion: cowbell, clanks, shakers.',
     style: 'Swarm. Flood the stage with Roadies and keep them busy.',

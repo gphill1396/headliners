@@ -202,6 +202,44 @@ export function PickOverlay({ state, onPick }: { state: EngineState; onPick: (in
   );
 }
 
+/** After wave 5 the headliner evolves: pick one of two branches for the rest of the run. Guarded like a card pick. */
+export function EvolveOverlay({ state, onEvolve }: { state: EngineState; onEvolve: (index: 0 | 1) => void }) {
+  const [armed, setArmed] = useState(false);
+  const [chosen, setChosen] = useState<0 | 1 | null>(null);
+  useEffect(() => {
+    const id = window.setTimeout(() => setArmed(true), PICK_LOCKOUT_MS);
+    return () => window.clearTimeout(id);
+  }, []);
+  const h = HEADLINERS[state.headliner.id];
+  return (
+    <div className={`overlay${armed ? '' : ' arming'}`} role="dialog" aria-modal="true" aria-label="Evolve">
+      <div className="overlay-top">
+        <h2 className="title small">{h.name} evolves</h2>
+        <p className="lede">Choose one. It lasts the rest of the run.</p>
+      </div>
+      <div className="overlay-controls">
+        <div className={`evolve-row hl-${h.id}`}>
+          {h.evolutions.map((evo, i) => (
+            <button
+              key={evo.id}
+              type="button"
+              className={`evolve-card${chosen === i ? ' selected' : ''}`}
+              aria-pressed={chosen === i}
+              onClick={() => armed && setChosen(i as 0 | 1)}
+            >
+              <span className="evolve-name">{evo.name}</span>
+              <span className="evolve-text">{evo.text}</span>
+            </button>
+          ))}
+        </div>
+        <button className="primary-btn" disabled={!armed || chosen === null} onClick={() => armed && chosen !== null && onEvolve(chosen)}>
+          {chosen === null ? 'Choose one' : `Evolve into ${h.evolutions[chosen].name}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function GameOverOverlay({
   state,
   bests,

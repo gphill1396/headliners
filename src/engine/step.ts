@@ -1,6 +1,7 @@
 import { accuracyPct, advanceClock, beatInBar, chainStepPct, gradeInput, inPocket, isDownbeat, setTempo, type Grade } from './clock';
 import { moveEnemies, moveProjectiles, smashGates, sweepDead } from './combat';
-import { BEAT_UNITS, BEATS_PER_BAR, CHAIN_STEP_GOOD_PCT, LANES, MAX_ENERGY, POCKET_MAX, SUBTICK } from './constants';
+import { BEAT_UNITS, BEATS_PER_BAR, CHAIN_STEP_GOOD_PCT, LANES, MAX_ENERGY, METRONOME_WIDEN_PCT, POCKET_MAX, SUBTICK } from './constants';
+import { evolvedInto } from './evolution';
 import { createCtx, flushDamage, type TickCtx } from './context';
 import { addCardToDeck, refillHand } from './deck';
 import { checkChainEnd, checkGameOver, createToken, expireTokens, fireUnitsOnEighth, resolvePlay, runDownbeatTriggers } from './effects';
@@ -23,6 +24,8 @@ export type Input =
   | { type: 'activate'; permille: number }
   /** Choose a card pick option by index, or null to skip. */
   | { type: 'pick'; index: number | null }
+  /** Choose one of the headliner's two evolutions while phase === 'evolving'. */
+  | { type: 'evolve'; index: 0 | 1 }
   /** Practice tap on a lane with no card: graded for timing, no other effect. */
   | { type: 'tap'; lane: number; permille: number }
   /** Tutorial only: put cards in hand and/or set energy. Ignored in Encore. */
@@ -107,6 +110,9 @@ function applyInput(state: EngineState, ctx: TickCtx, input: Input): void {
     case 'activate':
       activate(state, ctx);
       return;
+    case 'evolve':
+      evolve(state, ctx, input.index);
+      return;
     case 'pick':
       pick(state, ctx, input.index);
       return;
@@ -161,12 +167,14 @@ function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: nu
   state.energy -= def.cost;
   state.hand.splice(handIndex, 1);
   const relaxed = state.settings.relaxedTiming;
-  const timing = gradeInput(state.clock, clampPermille(input.permille), relaxed);
+  // Thrum's Metronome evolution widens the timing windows.
+  const widen = evolvedInto(state, 'metronome') ? METRONOME_WIDEN_PCT : 100;
+  const timing = gradeInput(state.clock, clampPermille(input.permille), relaxed, widen);
   // The Hush, phase 2, mutes the beat: no timing bonuses (penalties for Off plays still apply).
   const muted = beatMuted(state);
-  const fullAccuracy = accuracyPct(timing.offsetMilli, state.clock.bpm, relaxed);
+  const fullAccuracy = accuracyPct(timing.offsetMilli, state.clock.bpm, relaxed, widen);
   const accuracy = muted ? Math.min(100, fullAccuracy) : fullAccuracy;
-  const fullStep = chainStepPct(timing.offsetMilli, state.clock.bpm, relaxed);
+  const fullStep = chainStepPct(timing.offsetMilli, state.clock.bpm, relaxed, widen);
   const chainStep = muted ? Math.min(CHAIN_STEP_GOOD_PCT, fullStep) : fullStep;
   state.stats[timing.grade] += 1;
   const id = state.nextId++;
@@ -192,7 +200,7 @@ function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: nu
     accuracyPct: accuracy,
     resolveBeat: timing.resolveBeat,
   });
-  if (!muted || timing.grade !== 'tight') updatePocket(state, ctx, timing.grade, timing.offsetMilli);
+  if (!muted || timing.grade !== 'tight') updatePocket(state, ctx, timing.grade, timing.offsetMilli, widen);
 
   // Passives that reward a Tight hit, once per bar (not while the beat is muted).
   // Thrum: refund 1 energy. Clatter: call a Roadie to that lane.
@@ -215,12 +223,12 @@ function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: nu
  * The pocket (consistency, not perfection): a Tight play close to your own
  * running average timing deepens it; drifting, Good plays and Off plays don't.
  */
-function updatePocket(state: EngineState, ctx: TickCtx, grade: Grade, offsetMilli: number): void {
+function updatePocket(state: EngineState, ctx: TickCtx, grade: Grade, offsetMilli: number, widenPct = 100): void {
   const p = state.pocket;
   const before = p.depth;
   if (grade === 'off') p.depth = 0;
   else if (grade === 'good') p.depth = Math.max(0, p.depth - 2);
-  else if (inPocket(offsetMilli, p.avgOffsetMilli, state.clock.bpm, state.settings.relaxedTiming)) p.depth = Math.min(POCKET_MAX, p.depth + 1);
+  else if (inPocket(offsetMilli, p.avgOffsetMilli, state.clock.bpm, state.settings.relaxedTiming, widenPct)) p.depth = Math.min(POCKET_MAX, p.depth + 1);
   else p.depth = Math.max(0, p.depth - 1);
   // Where your pocket sits: a running average, so a consistent laid-back feel counts.
   p.avgOffsetMilli = Math.trunc((p.avgOffsetMilli * 3 + offsetMilli) / 4);
@@ -240,6 +248,16 @@ function activate(state: EngineState, ctx: TickCtx): void {
   // Clatter's All Hands: a Roadie in every lane, right now.
   if (state.headliner.id === 'clatter') for (let lane = 0; lane < LANES; lane++) createToken(state, ctx, 'roadie', lane);
   ctx.events.push({ type: 'fill', untilBeat: state.headliner.activeUntilBeat, headliner: state.headliner.id });
+}
+
+/** Choose the headliner's evolution (SPEC §4.7): 0 or 1. */
+function evolve(state: EngineState, ctx: TickCtx, index: number): void {
+  if (state.phase !== 'evolving' || (index !== 0 && index !== 1)) return;
+  state.headliner.evolution = index;
+  const evo = HEADLINERS[state.headliner.id].evolutions[index];
+  ctx.events.push({ type: 'evolved', headliner: state.headliner.id, evolution: evo.id });
+  state.phase = 'playing';
+  startWave(state, ctx, state.wave.index + 1);
 }
 
 function pick(state: EngineState, ctx: TickCtx, index: number | null): void {

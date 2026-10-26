@@ -99,6 +99,14 @@ export const WAVE_MAX_BPM = 150;
 export const PICK_EVERY_WAVES = 3;
 /** A unit can gain at most this many Volume counters. */
 export const VOLUME_MAX = 20;
+/** After this wave, your headliner evolves (SPEC §4.7, S1.5). */
+export const EVOLVE_AFTER_WAVE = 5;
+/** Metronome: timing windows this much wider, in percent. */
+export const METRONOME_WIDEN_PCT = 130;
+/** Load Out: hand size cap for returned Riffs. */
+export const LOAD_OUT_HAND_MAX = 7;
+/** Mosh Pit: Roadies on stage needed for their shots to Splash. */
+export const MOSH_PIT_TOKENS = 5;
 /** The Hush, the Phase 1 boss, plays every 10th wave (SPEC §4.8). */
 export const BOSS_EVERY_WAVES = 10;
 /** Phase 3: The Hush calls in a Brute this often. */

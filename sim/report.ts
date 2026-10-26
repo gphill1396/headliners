@@ -69,6 +69,8 @@ export interface Report {
   bots: BotSummary[];
   checks: Check[];
   pickRates: Record<string, number>;
+  /** Median wave per evolution (archetype bots that evolved). */
+  evolutions: Record<string, { runs: number; medianWave: number }>;
   damageShare: Record<string, number>;
   lossCauses: Record<string, number>;
 }
@@ -150,7 +152,19 @@ export function evaluate(byBot: Record<string, RunResult[]>, runsPerBot: number)
   const d8 = all.filter((r) => r.showstopper).length / Math.max(1, all.length);
   checks.push({ id: 'D8', name: 'Showstopper cap is rare', pass: d8 < T.D8_capRate, value: pct(d8), target: `< ${pct(T.D8_capRate)}` });
 
+  // Evolutions: neither branch of a headliner should be the obvious pick.
+  const evolutions: Record<string, { runs: number; medianWave: number }> = {};
+  for (const r of archetypes.flatMap((h) => byBot[h]!)) {
+    if (!r.evolution) continue;
+    const e = (evolutions[r.evolution] ??= { runs: 0, medianWave: 0 });
+    e.runs += 1;
+  }
+  for (const id of Object.keys(evolutions)) {
+    evolutions[id]!.medianWave = median(archetypes.flatMap((h) => byBot[h]!).filter((r) => r.evolution === id).map((r) => r.wave));
+  }
+
   return {
+    evolutions,
     generatedAt: new Date().toISOString(),
     runsPerBot,
     bots: Object.values(byBot).map(summarize),
@@ -178,6 +192,7 @@ export function formatReport(r: Report): string {
   }
   lines.push('');
   lines.push('Damage share in top runs: ' + Object.entries(r.damageShare).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${(v * 100).toFixed(0)}%`).join(', '));
+  lines.push('Evolutions (median wave): ' + Object.entries(r.evolutions).map(([k, v]) => `${k} ${v.medianWave} (${v.runs})`).join(', '));
   lines.push('Loss causes: ' + Object.entries(r.lossCauses).map(([k, v]) => `${k} ${(v * 100).toFixed(0)}%`).join(', '));
   return lines.join('\n');
 }

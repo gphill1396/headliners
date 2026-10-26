@@ -193,7 +193,7 @@ tests/
 
 **Thrum — the drum drake (rhythm / on-beat)**
 - Passive: Tight hits give +1 energy (once per bar).
-- Evolution A, **Metronome**: the timing windows widen, and every Tight extends the chain.
+- Evolution A, **Metronome**: the timing windows widen, and every Tight extends the chain (keeps it alive an extra beat).
 - Evolution B, **Polyrhythm**: alternating lanes on consecutive beats doubles Echo.
 
 **Lyra — the serpent bard (gates / multipliers, number go up)**
@@ -453,6 +453,18 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
 - **Results** at 200 runs per bot: median wave Thrum 19, Lyra 18, Clatter 18, random 6. D1 3.00× (Lyra and Clatter), D2 4.6×, D3 1.06×, D5 22.3%, D6 5.6%, D7 3.0, D8 0% — pass.
   - **D4 still fails narrowly:** Encore! is in 44% of top archetype decks (Fuzz Box 41%). Top runs take about 8 picks from a pool of about 25, so most cards land near 30–40% and the top few sit just over the line. Nerfing whichever card is on top just moves the top spot (Encore! at cost 3 put Fuzz Box at 44% and dropped Lyra below D1).
 
+**Phase 1b progress — evolutions** (done):
+- After wave 5, the run stops on an evolve screen (guarded like a card pick, the band keeps playing muffled) and you choose one of your headliner's two evolutions for the rest of the run.
+- As built (changes from §4.7 marked):
+  - **Metronome** (Thrum): timing windows 30% wider, and a Tight play keeps the chain alive one extra beat. *(First built as "every Tight adds an extra link": the 50-link cap then hit in 6.9% of runs, failing D8.)*
+  - **Polyrhythm** (Thrum): an Echo card played in a different lane from the beat before echoes twice.
+  - **Crescendo** (Lyra): +5% damage per 10 shots through a gate, up to double.
+  - **Harmony** (Lyra): two gates in the same lane both work as if Swelled, all the time. *(Changed: "combine their effects" means nothing here, since every shot already passes both gates in its lane.)*
+  - **Load Out** (Clatter): when a Roadie leaves, your latest Riff comes back from the discard pile (once per beat, hand up to 7).
+  - **Mosh Pit** (Clatter): with 5 or more Roadies on stage, their shots Splash. *(Changed from 6: with 9 stage slots, 6 left almost no room for real units.)* Clatter's amp card that shared the name is now **Circle Pit**.
+- The sim's bots flip a coin for their evolution, and the report prints each one's median wave: Metronome 21, Polyrhythm 19, Crescendo 19, Harmony 18, Load Out 18, Mosh Pit 18.
+- **Results** at 200 runs per bot: median wave Thrum 20, Lyra 18, Clatter 18, random 6. **All eight checks pass**: D1 3.00× (Lyra and Clatter; Thrum 3.33×), D2 5.4×, D3 1.11×, D4 40.0% (Soundboard, right on the line), D5 22.0%, D6 7.2%, D7 3.0, D8 0.2%.
+
 **Phase 1b — Fill out.** Adds the simulator and the D1–D8 report, then tunes the slice against it. Then adds Lyra and Clatter, the other 5 enemy types, The Hush, the full ~40 cards, evolutions, the remaining keywords, audio, discard-cycle and drag-to-play.
 
 **S1.1 Play a card into a lane**
@@ -486,7 +498,7 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
 *As a player, I want to pick 3 headliners that change how I play, so each run feels different.*
 - [ ] There's a select screen with all 3 headliners, showing their passive, active ability and signature cards. *(Phase 1b: pick one per run on the title screen; see §4.7.)*
 - [ ] Active abilities are in the control zone and show their cooldown in beats.
-- [ ] Phase 1 shows the evolution branches as a preview. They're fully playable in Encore after a set number of waves.
+- [x] Phase 1 shows the evolution branches as a preview. They're fully playable in Encore after a set number of waves. *(After wave 5.)*
 
 **S1.6 Enemies demand answers**
 *As a player, I want enemies that need specific tools, so I have to think about my build.*

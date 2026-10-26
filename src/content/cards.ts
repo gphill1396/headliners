@@ -512,7 +512,7 @@ export const CARDS: readonly CardDef[] = [
   },
   {
     id: 'mosh-pit',
-    name: 'Mosh Pit',
+    name: 'Circle Pit',
     type: 'amp',
     cost: 3,
     rarity: 'rare',

@@ -3,6 +3,7 @@ import {
   BEAT_UNITS,
   BOSS_BRUTE_EVERY_BEATS,
   BOSS_EVERY_WAVES,
+  EVOLVE_AFTER_WAVE,
   LANES,
   PICK_EVERY_WAVES,
   PICK_OPTIONS,
@@ -46,7 +47,10 @@ export function onBeatWaves(state: EngineState, ctx: TickCtx): void {
     if (beat >= FIRST_WAVE_BEAT) startWave(state, ctx, 1);
   } else if (beat >= wave.startBeat + WAVE_BEATS && !state.boss) {
     // A boss wave lasts until The Hush is beaten or reaches the stage.
-    if (wave.index % PICK_EVERY_WAVES === 0) offerPick(state, ctx);
+    if (wave.index === EVOLVE_AFTER_WAVE && (state.headliner.evolution ?? null) === null) {
+      state.phase = 'evolving';
+      ctx.events.push({ type: 'evolveOffered' });
+    } else if (wave.index % PICK_EVERY_WAVES === 0) offerPick(state, ctx);
     else startWave(state, ctx, wave.index + 1);
   }
   if (state.phase !== 'playing') return;

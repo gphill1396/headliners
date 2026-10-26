@@ -63,6 +63,8 @@ export function createBot(config: BotConfig, rng: RngState): Bot {
 
   const act = (s: EngineState): Input[] => {
     if (s.phase === 'picking') return [{ type: 'pick', index: choosePick(config, s, rng) }];
+    // Evolutions are a coin flip, so the report can compare the two branches.
+    if (s.phase === 'evolving') return [{ type: 'evolve', index: nextFloat(rng) < 0.5 ? 0 : 1 }];
     if (s.phase !== 'playing') return [];
     const inputs: Input[] = [];
 

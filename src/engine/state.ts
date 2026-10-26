@@ -64,6 +64,8 @@ export interface Gate {
   durability: number;
   maxDurability: number;
   placedBeat: number;
+  /** Crescendo: shots that have passed through it. */
+  passes?: number;
   /** Disabled by a Hexer this tick: shots pass through unchanged. */
   hexed?: boolean;
 }
@@ -125,6 +127,8 @@ export interface ChainState {
   multPct: number;
   /** Beat of the most recent link; -1 when no chain is running. */
   lastLinkBeat: number;
+  /** Metronome: the chain can't lapse before this beat. */
+  holdUntilBeat?: number;
 }
 
 /** The pocket: how consistently you've been landing your plays (0–POCKET_MAX). */
@@ -150,6 +154,12 @@ export interface HeadlinerState {
   activeUntilBeat: number;
   /** Bar index when the Tight-energy passive last paid out. */
   lastTightBonusBar: number;
+  /** Chosen evolution (index into the headliner's two), once it has evolved. Missing in older saves = not yet. */
+  evolution?: 0 | 1 | null;
+  /** Polyrhythm: the last non-echo play's beat and lane. */
+  lastPlay?: { beat: number; lane: number };
+  /** Load Out: the last beat a Riff came back. */
+  lastLoadOutBeat?: number;
 }
 
 export interface EngineSettings {
@@ -169,7 +179,7 @@ export interface EngineStats {
   damageBySource: Record<string, number>;
 }
 
-export type Phase = 'playing' | 'picking' | 'over';
+export type Phase = 'playing' | 'picking' | 'evolving' | 'over';
 
 /**
  * 'encore': the real game.

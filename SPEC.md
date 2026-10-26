@@ -683,12 +683,12 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 
 **S4.2 Art pass (the Metroid Fusion bar)**
 *As Grant, I want the whole game to look like Thrum's portrait, so it feels finished.*
-- [ ] Every headliner, unit, monster and boss has shaded, palette-indexed pixel art with at least 2 animation frames, drawn to the bar Thrum's portrait set (approved Oct 26).
-- [ ] The playfield is redrawn at a higher internal resolution (toward the GBA's 240 px wide) so that detail reads, and still fits a phone in portrait with input in the bottom ~38%.
-- [ ] Each sprite reads at a glance: a clear silhouette, a dark outline, and lit from the top left.
-- [ ] Calmer flashes and the light on-screen text rule still hold.
+- [x] Every headliner, unit, monster and boss has shaded, palette-indexed pixel art with at least 2 animation frames, drawn to the bar Thrum's portrait set (approved Oct 26).
+- [x] The playfield is redrawn at a higher internal resolution (toward the GBA's 240 px wide) so that detail reads, and still fits a phone in portrait with input in the bottom ~38%.
+- [x] Each sprite reads at a glance: a clear silhouette, a dark outline, and lit from the top left.
+- [x] Calmer flashes and the light on-screen text rule still hold.
 
-*Progress:* the pipeline is in `art/` (shapes → shading → outline → hand touches, regenerated with `python3 art/build.py`). **Batch 1 (done):** the playfield is now 240 px wide (the GBA's width), and all 12 monsters, the shieldless Hobgoblin, the small Slime and the three bosses are redrawn with two frames each (a step every beat; Harpies flap, Wisps flicker, Spiderlings scurry). Units on stage are still the old placeholders, scaled 2× until **batch 2** (units, then the other four headliner portraits).
+*Progress:* the pipeline is in `art/` (shapes → shading → outline → hand touches, regenerated with `python3 art/build.py`). **Batch 1 (done):** the playfield is now 240 px wide (the GBA's width), and all 12 monsters, the shieldless Hobgoblin, the small Slime and the three bosses are redrawn with two frames each (a step every beat; Harpies flap, Wisps flicker, Spiderlings scurry). **Batch 2 (done):** all 19 units (the 18 unit cards and the Squire token) as front-facing performers in their headliner's colours, playing on the first part of each beat; and portraits for Lyra (a cobra-hooded naga with a lute), Clatter (a goggled kobold cranking a hurdy-gurdy), Aria (a siren mid-song) and Riot (a mohawked drake on the bagpipes), shown on the title screen like Thrum's. Not redrawn (still simple shapes, by design): gates, shots, bursts and the stage. Open: Grant's verdict on batch 2.
 
 ---
 

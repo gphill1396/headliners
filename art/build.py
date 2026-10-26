@@ -16,6 +16,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'sprites'))
 from PIL import Image, ImageDraw  # noqa: E402
 
 import monsters  # noqa: E402
+import units  # noqa: E402
+import portraits  # noqa: E402
 from pixelkit import to_sprite  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,6 +27,10 @@ def all_sprites():
     out = {}
     for name in monsters.SPRITES:
         out[name] = monsters.frames(name)
+    for name in units.SPRITES:
+        out[f'unit:{name}'] = units.frames(name)
+    for name in portraits.PORTRAITS:
+        out[f'portrait:{name}'] = portraits.frames(name)
     return out
 
 
@@ -55,14 +61,16 @@ def write_ts(sprites):
         fh.write('\n'.join(lines) + '\n')
 
 
-def sheet(sprites, path, scale=5):
+def sheet(sprites, path, scale=5, only=None):
     cells = []
     for name, frames in sprites.items():
+        if only and not name.startswith(only):
+            continue
         for i, f in enumerate(frames):
             cells.append((f'{name}:{i}', f))
     cw = max(f.shape[1] for _, f in cells) * scale + 16
     ch = max(f.shape[0] for _, f in cells) * scale + 28
-    cols = 6
+    cols = 8 if only else 6
     rows = (len(cells) + cols - 1) // cols
     img = Image.new('RGBA', (cols * cw, rows * ch), (33, 25, 52, 255))
     d = ImageDraw.Draw(img)
@@ -81,5 +89,6 @@ if __name__ == '__main__':
     sprites = all_sprites()
     write_ts(sprites)
     if '--sheet' in sys.argv:
-        sheet(sprites, sys.argv[sys.argv.index('--sheet') + 1])
+        only = sys.argv[sys.argv.index('--only') + 1] if '--only' in sys.argv else None
+        sheet(sprites, sys.argv[sys.argv.index('--sheet') + 1], scale=8 if only else 5, only=only)
     print(f'{len(sprites)} sprites')

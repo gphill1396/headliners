@@ -13,5 +13,7 @@ of the web build or CI.
 
 - `sprites/monsters.py` — the 12 monsters, the Hobgoblin without its shield, the
   small Slime, and the three bosses (batch 1).
+- `sprites/units.py` — the 19 units on stage (batch 2).
+- `sprites/portraits.py` — Lyra, Clatter, Aria and Riot's title portraits (batch 2).
 - `sprites/thrum_portrait_original.py` — the first sample (Thrum's title portrait),
   kept as it was approved; its output lives in `src/render/portraits.ts`.

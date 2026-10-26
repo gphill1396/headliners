@@ -250,10 +250,11 @@ export function drawField(
   for (const u of state.units) {
     // Tokens blink through their last two beats so you can see them about to leave.
     if (u.token && u.expiresBeat !== undefined && u.expiresBeat - state.clock.beat <= 2 && Math.floor(beatPhase * 4) % 2 === 1) continue;
+    const art = ART[`unit:${u.cardId}`];
     const sprite: Sprite = (SPRITES as Record<string, Sprite>)[u.cardId] ?? SPRITES.stagehand;
-    const { w: sw0, h: sh0 } = spriteSize(sprite);
-    const sw = sw0 * OLD_SCALE;
-    const sh = sh0 * OLD_SCALE;
+    const old = spriteSize(sprite);
+    const sw = art ? art.frames[0]![0]!.length : old.w * OLD_SCALE;
+    const sh = art ? art.frames[0]!.length : old.h * OLD_SCALE;
     const cx = u.lane * LANE_PX + ((u.slot + 0.5) * LANE_PX) / 3;
     const x = Math.round(cx - sw / 2);
     const y = stageY - sh + 5;
@@ -261,7 +262,9 @@ export function drawField(
       ctx.fillStyle = PALETTE.footlight;
       ctx.fillRect(x - 1, y - 1, sw + 2, sh + 2);
     }
-    drawSprite(ctx, sprite, x, y, OLD_SCALE);
+    // The band plays on the beat: the playing pose for the first part of each beat.
+    if (art) drawAnim(ctx, art, beatPhase < 0.3 ? 1 : 0, x, y, 1);
+    else drawSprite(ctx, sprite, x, y, OLD_SCALE);
   }
 
   if (fx.bigFlash > 0.01) {

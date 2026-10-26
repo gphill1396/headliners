@@ -100,6 +100,24 @@ export const TUTORIAL: readonly TutorialStep[] = [
     done: (_e, _s, p) => p.kills >= 2 || p.beats >= 10,
   },
   {
+    // Shift (S4.3): slide between lane buttons to move the band. The Page leaves Mid; the gate stays.
+    id: 'shift',
+    title: 'Shift your band',
+    body: 'A ghoul is coming down Left, and no one’s there. With no card selected, press Mid and slide to Left. Your band moves over; gates stay put.',
+    targets: () => ['lane-1', 'lane-0'],
+    setup: [
+      { type: 'grant', energy: 10 },
+      { type: 'spawn', kind: 'shambler', lane: 0, travelBeats: 22 },
+    ],
+    // Done when the moved band takes down a monster in Left (or Left is clear after the move).
+    done: (events, s) => s.units.some((u) => u.lane === 0) && (events.some((e) => e.type === 'killed' && e.lane === 0) || !s.enemies.some((e) => e.lane === 0 && e.hp > 0)),
+    retry: (_e, s) => {
+      if (s.units.some((u) => u.lane === 0) || s.enemies.some((e) => e.lane === 0 && e.hp > 0)) return null;
+      // The ghoul got past before they moved: send another.
+      return [{ type: 'spawn', kind: 'shambler', lane: 0, travelBeats: 22 }];
+    },
+  },
+  {
     id: 'energy',
     title: 'Cards cost energy',
     body: 'The number in a card’s corner is its cost. You gain 1 energy every beat, up to 10. Dim cards cost more than you have.',

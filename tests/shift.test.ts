@@ -89,3 +89,33 @@ test('a run with a Shift saves and restores exactly', () => {
   const back = fromSnapshot(toSnapshot(s));
   assert.equal(hashState(back), hashState(s));
 });
+
+test('soundcheck: the Shift step finishes once the band moves over and the ghoul goes down', async () => {
+  const { TUTORIAL, createTutorialState, freshProgress } = await import('../src/ui/tutorial');
+  const stepDef = TUTORIAL.find((t) => t.id === 'shift')!;
+  const s = createTutorialState(false);
+  step(s, [{ type: 'grant', cardIds: ['stagehand'], energy: 10 }]);
+  const iid = s.hand[0]!.iid;
+  nextBeat(s);
+  step(s, [{ type: 'commit', iid, lane: 1, permille: 0 }]);
+  runTicks(s, 120);
+  assert.equal(s.units[0]?.lane, 1);
+  for (const input of stepDef.setup ?? []) step(s, [input]);
+  const p = freshProgress();
+  const advance = (inputs: Parameters<typeof step>[1] = []) => {
+    const ev = step(s, inputs);
+    p.kills += ev.filter((e) => e.type === 'killed').length;
+    return stepDef.done!(ev, s, p);
+  };
+  // Waiting without moving never finishes it (the ghoul walks past an empty lane, and another comes).
+  let done = false;
+  for (let t = 0; t < 60 * 20 && !done; t++) {
+    done = advance();
+    const again = stepDef.retry!([], s, p);
+    if (again) for (const input of again) step(s, [input]);
+  }
+  assert.equal(done, false);
+  advance([{ type: 'shift', from: 1, to: 0 }]);
+  for (let t = 0; t < 60 * 30 && !done; t++) done = advance();
+  assert.ok(done);
+});

@@ -40,7 +40,8 @@ export function runOne(config: BotConfig, seed: string, maxTicks = DEFAULT_MAX_T
   while (s.phase !== 'over' && s.tick < maxTicks) {
     const events = step(s, bot.act(s));
     for (const e of events) {
-      if (e.type === 'leaked') crowdLost[e.kind] = (crowdLost[e.kind] ?? 0) + e.crowdDamage;
+      // A Nest's hatchlings are the Nest's doing.
+      if (e.type === 'leaked') crowdLost[e.hatchedBy ?? e.kind] = (crowdLost[e.hatchedBy ?? e.kind] ?? 0) + e.crowdDamage;
       else if (e.type === 'picked' && e.cardId) picks.push(e.cardId);
     }
   }

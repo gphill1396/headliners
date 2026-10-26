@@ -17,6 +17,11 @@ export function cardAccent(def: CardDef): string {
   }
 }
 
+/** Crowd a card costs to play (Feedback cards), shown as a small red mark so the loss is never a surprise. */
+export function crowdCost(def: CardDef): number {
+  return (def.onPlay ?? []).reduce((n, e) => n + (e.do === 'loseCrowd' ? e.amount : 0), 0);
+}
+
 const TYPE_LABEL: Record<CardDef['type'], string> = { unit: 'Unit', gate: 'Gate', riff: 'Riff', amp: 'Amp' };
 
 interface Props {
@@ -56,6 +61,11 @@ export function CardTile({ def, selected = false, affordable = true, large = fal
       aria-label={`${def.name}, costs ${def.cost}. ${cardText(def)}`}
     >
       <span className="card-cost">{def.cost}</span>
+      {crowdCost(def) > 0 && (
+        <span className="card-crowd" title={`Costs ${crowdCost(def)} crowd`}>
+          −{crowdCost(def)}
+        </span>
+      )}
       {def.headliner && <span className={`card-sig hl-${def.headliner}`} title={`${HEADLINERS[def.headliner].name} signature card`} />}
       <span className="card-name">{def.name}</span>
       {/* In hand, just the name: what it does shows above the hand when you select it. */}

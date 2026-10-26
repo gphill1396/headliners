@@ -8,7 +8,7 @@ import { checkChainEnd, checkGameOver, createToken, expireTokens, fireUnitsOnEig
 import type { EngineEvent } from './events';
 import type { EngineState } from './state';
 import type { EnemyKind } from './types';
-import { beatMuted, onBeatWaves, spawnGroup, startWave, updateBoss } from './waves';
+import { beatMuted, enemyAbilities, onBeatWaves, spawnGroup, startWave, updateBoss } from './waves';
 import { afterTourChoice, eventChoice, onBeatTour, rest, shop, travel, type ShopAction } from './tour';
 import { getCard } from '../content/cards';
 import { HEADLINERS } from '../content/headliners';
@@ -106,6 +106,7 @@ function onBeat(state: EngineState, ctx: TickCtx): void {
   if (downbeat && state.mode !== 'tutorial') refillHand(state, ctx.events);
   expireTokens(state, ctx);
   smashGates(state, ctx);
+  if (state.phase === 'playing') enemyAbilities(state, ctx);
 
   checkChainEnd(state, ctx);
   resolveDuePlays(state, ctx);

@@ -19,6 +19,7 @@ import {
 } from './constants';
 import { isDownbeat } from './clock';
 import { evolvedInto } from './evolution';
+import { chainFrozen } from './waves';
 import type { TickCtx } from './context';
 import { drawCards } from './deck';
 import { emptyChain, type EngineState, type QueuedPlay, type Unit } from './state';
@@ -48,6 +49,11 @@ export function boostPct(state: EngineState): number {
  */
 export function addLink(state: EngineState, ctx: TickCtx, cardId: string, label: string, lane: number, stepPct: number): void {
   const chain = state.chain;
+  // The Critic, phase 2: unimpressed. Plays keep your chain alive, but it doesn't grow.
+  if (chainFrozen(state) && chain.links > 0) {
+    chain.lastLinkBeat = state.clock.beat;
+    return;
+  }
   if (chain.links === 0) chain.multPct = CHAIN_BASE_PCT;
   chain.links += 1;
   chain.lastLinkBeat = state.clock.beat;
@@ -187,6 +193,7 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
       // Riot's Anarchy: no Feedback cost while the chain is long.
       if (evolvedInto(state, 'anarchy') && state.chain.links >= ANARCHY_CHAIN) return;
       state.crowd -= effect.amount;
+      ctx.events.push({ type: 'crowdCost', amount: effect.amount, lane: src.lane, cardId: src.cardId });
       checkGameOver(state, ctx);
       return;
     case 'ifChain':

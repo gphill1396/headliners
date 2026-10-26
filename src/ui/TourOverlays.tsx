@@ -36,7 +36,7 @@ const STOP_LABEL: Record<TourNodeKind, string> = {
   rest: 'Rest',
   shop: 'Shop',
   event: 'Event',
-  boss: 'The Hush',
+  boss: 'Boss',
 };
 
 /** A small pixel mark per stop kind, drawn in CSS (no icon font needed). */
@@ -265,7 +265,7 @@ export function TourEndOverlay({ state, onAgain, progress }: { state: EngineStat
       <div className="overlay-top">
         <h2 className="title small">{won ? 'Tour complete!' : 'The tour bus broke down'}</h2>
         <p className="lede">
-          {won ? `${h.name} played all ${TOUR_ACTS} acts and beat The Hush every time.` : `${h.name} made it to act ${tour.act}.`}
+          {won ? `${h.name} played all ${TOUR_ACTS} acts and beat every boss.` : `${h.name} made it to act ${tour.act}.`}
         </p>
         {progress && <p className="run-progress">{progress}</p>}
         <dl className="run-stats">

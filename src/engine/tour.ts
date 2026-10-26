@@ -1,5 +1,4 @@
 import {
-  BOSS_BRUTE_EVERY_BEATS,
   PICK_OPTIONS,
   START_ENERGY,
   TOUR_ACT_LEVEL,
@@ -20,7 +19,7 @@ import type { TickCtx } from './context';
 import { addCardToDeck, refillHand } from './deck';
 import { nextFloat, nextInt, shuffleInPlace } from './rng';
 import { emptyChain, type CardInstance, type EngineState, type TourNode, type TourNodeKind, type TourState } from './state';
-import { spawnDue, spawnGroup, startWave } from './waves';
+import { BOSS_ORDER, bossCalls, spawnDue, startWave } from './waves';
 import { getCard, pickPool } from '../content/cards';
 import { TOUR_EVENTS, type TourEffect } from '../content/events';
 
@@ -209,17 +208,15 @@ export function onBeatTour(state: EngineState, ctx: TickCtx): void {
   }
   if (state.phase !== 'playing') return;
   spawnDue(state);
-  if (state.boss?.phase === 3 && beat >= state.boss.nextBruteBeat) {
-    spawnGroup(state, 'brute');
-    state.boss.nextBruteBeat = beat + BOSS_BRUTE_EVERY_BEATS;
-  }
+  bossCalls(state);
 }
 
 function nextFightWave(state: EngineState, ctx: TickCtx): void {
   const fight = state.tour!.fight!;
   fight.wave += 1;
   const last = fight.wave === fight.waves.length - 1;
-  startWave(state, ctx, fight.waves[fight.wave]!, { boss: fight.kind === 'boss' && last, elite: fight.kind === 'elite' });
+  // Each act has its own boss: The Hush, then The Critic, then Dead Air.
+  startWave(state, ctx, fight.waves[fight.wave]!, { boss: fight.kind === 'boss' && last, bossKind: BOSS_ORDER[(state.tour!.act - 1) % BOSS_ORDER.length], elite: fight.kind === 'elite' });
 }
 
 function fightWon(state: EngineState, ctx: TickCtx): void {

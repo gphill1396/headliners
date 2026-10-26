@@ -7,10 +7,12 @@ import {
   ENEMIES,
   getCard,
   HEADLINERS,
+  bossKind,
   isBigChain,
   LANES,
   MAX_ENERGY,
   milliToMs,
+  type EnemyKind,
   type EngineEvent,
   type EngineState,
   type Grade,
@@ -107,8 +109,10 @@ interface Hud {
   mult: number;
   pocket: number;
   headliner: HeadlinerId;
-  /** The Hush's phase, 0 when it isn't here. */
+  /** The boss's phase, 0 when there isn't one. */
   bossPhase: 0 | 1 | 2 | 3;
+  /** The Hush, phase 2: the beat dots go quiet. */
+  hushed: boolean;
   /** Tour: "Act 1 · Gig", shown where Encore shows the wave. */
   tourLabel: string | null;
   /** Changes whenever a Tour menu's contents change, so its overlay re-arms. */
@@ -135,6 +139,7 @@ function sampleHud(s: EngineState): Hud {
     pocket: s.pocket.depth,
     headliner: s.headliner.id,
     bossPhase: s.boss?.phase ?? 0,
+    hushed: s.boss?.phase === 2 && bossKind(s) === 'hush',
     tourLabel: s.tour ? `Act ${s.tour.act}${s.tour.fight ? ` · ${FIGHT_LABEL[s.tour.fight.kind]}` : ''}` : null,
     menuKey: s.tour ? `${s.phase}:${s.tour.at}:${s.tour.act}:${s.pick.join(',')}:${s.tour.merch}:${s.tour.shop?.cards.filter((c) => c.sold).length ?? 0}` : s.phase,
     fillIn: Math.max(0, s.headliner.readyBeat - s.clock.beat),
@@ -166,7 +171,23 @@ function newRun(settings: Settings, headliner: HeadlinerId, mode: GameMode = 'en
 
 /** Phases where a menu is up and the band plays on, muffled, behind it. */
 const MENU_PHASES: EngineState['phase'][] = ['picking', 'evolving', 'map', 'shop', 'rest', 'event'];
-const FIGHT_LABEL = { fight: 'Gig', elite: 'Big gig', boss: 'The Hush' } as const;
+const FIGHT_LABEL = { fight: 'Gig', elite: 'Big gig', boss: 'Boss' } as const;
+
+/** Each boss's phase 2 and phase 3 banners: [title, one short line]. */
+const BOSS_PHASE_BANNER: Partial<Record<EnemyKind, [[string, string], [string, string]]>> = {
+  hush: [
+    ['Hushed', 'The beat goes quiet. No timing bonuses.'],
+    ['Brutes!', 'The Hush calls for backup'],
+  ],
+  critic: [
+    ['Unimpressed', 'Armor off, but your chain stops growing'],
+    ['Medics!', 'The Critic calls for Medics'],
+  ],
+  'dead-air': [
+    ['It landed', 'Every shot hits now. Ghosts are coming.'],
+    ['Rush!', 'Everything else runs at the stage'],
+  ],
+};
 
 function gateLabel(kind: Hud['gates'][number]['kind'], amount: number, lane: number): string {
   switch (kind) {
@@ -458,6 +479,10 @@ export function App() {
             fx.laneMiss[e.lane] = 1;
             pop(`-${e.crowdDamage} crowd`, e.lane, 88_000, 'pop-leak');
             break;
+          case 'crowdCost':
+            // Feedback cards cost crowd; say so where the leaks show, so it never looks like a mystery leak.
+            pop(`-${e.amount} crowd · Feedback`, e.lane, 88_000, 'pop-leak');
+            break;
           case 'gateBroken':
             pop('Gate broke', e.lane, 60_000, 'pop-note');
             break;
@@ -468,12 +493,19 @@ export function App() {
           case 'blocked':
             pop(e.broke ? 'Shield broke' : 'Blocked', e.lane, e.depth + 4_000, 'pop-note');
             break;
-          case 'bossPhase':
-            if (e.phase === 2) showBanner('Hushed', 'The beat goes quiet. No timing bonuses.');
-            else if (e.phase === 3) showBanner('Brutes!', 'The Hush calls for backup');
+          case 'bossPhase': {
+            const banner = e.phase > 1 ? BOSS_PHASE_BANNER[e.boss]?.[e.phase - 2] : undefined;
+            if (banner) showBanner(banner[0], banner[1]);
             break;
+          }
           case 'bossEnd':
-            showBanner(e.defeated ? 'Hush broken' : 'It got through', e.defeated ? `+${e.crowd} crowd` : `${e.crowd} crowd`);
+            showBanner(e.defeated ? `${ENEMIES[e.boss].name}: beaten` : 'It got through', e.defeated ? `+${e.crowd} crowd` : `${e.crowd} crowd`);
+            break;
+          case 'healed':
+            pop(`+${Math.round(e.amount)}`, e.lane, e.depth, 'pop-note');
+            break;
+          case 'hatched':
+            pop('Hatched!', e.lane, e.depth, 'pop-note');
             break;
           case 'split':
             pop('Split!', e.lane, e.depth, 'pop-note');
@@ -482,7 +514,7 @@ export function App() {
             const names = e.kinds.map((k) => ENEMIES[k].name);
             const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0] ?? '';
             const fresh = e.debut?.find((k) => k !== 'shambler');
-            if (e.boss) showBanner(`Wave ${e.index}`, ENEMIES.hush.name, e.index === 10 ? ENEMIES.hush.tip : undefined);
+            if (e.boss && e.bossKind) showBanner(`Wave ${e.index}`, ENEMIES[e.bossKind].name, e.debut?.includes(e.bossKind) ? ENEMIES[e.bossKind].tip : undefined);
             else if (fresh) showBanner(`Wave ${e.index}`, `New: ${ENEMIES[fresh].name}`, ENEMIES[fresh].tip);
             else showBanner(`Wave ${e.index}`, list);
             break;
@@ -508,7 +540,7 @@ export function App() {
             break;
           case 'fightWon':
             lastReward.current = { kind: e.kind, merch: e.merch };
-            showBanner(e.kind === 'boss' ? 'The Hush is broken' : "Show's over", `+${e.merch} merch`);
+            showBanner(e.kind === 'boss' ? 'Boss beaten' : "Show's over", `+${e.merch} merch`);
             break;
           case 'actStart':
           case 'tourStop':
@@ -1092,7 +1124,7 @@ export function App() {
 
       <section className="controls" aria-label="Controls">
         <div className="control-top">
-          <div className={`beat-stack${hud.bossPhase === 2 ? ' hushed' : ''}`}>
+          <div className={`beat-stack${hud.hushed ? ' hushed' : ''}`}>
             <div className={`pads${coached('pads')}`} aria-hidden="true">
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} ref={(el) => void (padRefs.current[i] = el)} className={i === 0 ? 'pad pad-down' : 'pad'} />

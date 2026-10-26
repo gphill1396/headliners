@@ -122,7 +122,22 @@ export interface CardDef {
   flavor: string;
 }
 
-export type EnemyKind = 'shambler' | 'brute' | 'swarmling' | 'bat' | 'splitter' | 'shieldbearer' | 'hexer' | 'breaker' | 'hush';
+export type EnemyKind =
+  | 'shambler'
+  | 'brute'
+  | 'swarmling'
+  | 'bat'
+  | 'splitter'
+  | 'shieldbearer'
+  | 'hexer'
+  | 'breaker'
+  | 'charger'
+  | 'medic'
+  | 'nest'
+  | 'ghost'
+  | 'hush'
+  | 'critic'
+  | 'dead-air';
 
 export interface EnemyDef {
   kind: EnemyKind;
@@ -152,6 +167,14 @@ export interface EnemyDef {
   smashPerBeat?: number;
   /** Priority targets for units with the Priority keyword. */
   priority?: boolean;
+  /** Charger: walks at slowPct% speed until this depth, then charges at fastPct%. */
+  charge?: { atDepth: number; slowPct: number; fastPct: number };
+  /** Medic: every beat, other enemies in its lane regain this % of their max health. */
+  healsPct?: number;
+  /** Nest: every few beats, hatches enemies where it stands. */
+  hatches?: { kind: EnemyKind; count: number; everyBeats: number };
+  /** Ghost: fades out on beats 2 and 4; only hittable on beats 1 and 3. */
+  phased?: boolean;
   /** A boss: spawned by its own rule, never in a normal wave mix. */
   boss?: boolean;
   /** Spans every lane: shots and riffs from any lane can hit it. */

@@ -57,7 +57,7 @@ export function mixFrom(s: EngineState): BoardMix {
     fillUntil: s.headliner.id === 'thrum' ? s.headliner.activeUntilBeat : -1,
     headliner: s.headliner.id,
     swellUntil: s.headliner.id === 'lyra' ? s.headliner.activeUntilBeat : -1,
-    hushed: s.boss?.phase === 2,
+    hushed: s.boss?.phase === 2 && (s.boss.kind ?? 'hush') === 'hush',
   };
 }
 

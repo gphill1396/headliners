@@ -24,17 +24,23 @@ export type EngineEvent =
   | { type: 'gatesRepaired'; lane: number; amount: number }
   | { type: 'damage'; lane: number; depth: number; amount: number }
   | { type: 'killed'; enemyId: number; kind: EnemyKind; lane: number; depth: number }
-  | { type: 'leaked'; enemyId: number; kind: EnemyKind; lane: number; crowdDamage: number }
+  | { type: 'leaked'; enemyId: number; kind: EnemyKind; lane: number; crowdDamage: number; hatchedBy?: EnemyKind }
+  /** A Medic patched up its lane. */
+  | { type: 'healed'; lane: number; depth: number; amount: number }
+  /** A Nest hatched Swarmlings. */
+  | { type: 'hatched'; lane: number; depth: number; count: number }
+  /** A Feedback card's price: crowd lost on purpose, not to a leak. */
+  | { type: 'crowdCost'; amount: number; lane: number; cardId: string }
   | { type: 'energy'; amount: number; reason: 'tight' | 'card' }
   | { type: 'drew'; count: number }
   /** A card was discard-cycled for a fresh one. */
   | { type: 'cycled'; iid: number; cardId: string }
   /** `debut`: enemy kinds appearing for the first time this run. */
-  | { type: 'waveStart'; index: number; kinds: EnemyKind[]; debut?: EnemyKind[]; boss?: boolean }
+  | { type: 'waveStart'; index: number; kinds: EnemyKind[]; debut?: EnemyKind[]; boss?: boolean; bossKind?: EnemyKind }
   /** The Hush moved to a new phase. */
-  | { type: 'bossPhase'; phase: 1 | 2 | 3 }
+  | { type: 'bossPhase'; phase: 1 | 2 | 3; boss: EnemyKind }
   /** The Hush is gone: beaten (crowd won back) or it reached the stage. */
-  | { type: 'bossEnd'; defeated: boolean; crowd: number }
+  | { type: 'bossEnd'; boss: EnemyKind; defeated: boolean; crowd: number }
   /** A Splitter burst into pieces. */
   | { type: 'split'; lane: number; depth: number; count: number }
   /** A Breaker hit a gate. */

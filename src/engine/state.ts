@@ -92,6 +92,8 @@ export interface Enemy {
   leaked: boolean;
   /** A piece of a Splitter: doesn't split again. */
   child?: boolean;
+  /** Hatched by a Nest (the sim credits the Nest for its leaks). */
+  hatchedBy?: EnemyKind;
   /** Damage beyond its remaining health on the killing hit. */
   overkill?: number;
   /** Last beat a Shieldbearer reported a block (throttles the 'blocked' event). */
@@ -248,6 +250,8 @@ export interface TourState {
 /** The Hush while it's on the field (SPEC §4.8). Phase follows its health: 1 above 2/3, 2 above 1/3, then 3. */
 export interface BossState {
   enemyId: number;
+  /** Which boss. Missing in older saves = The Hush. */
+  kind?: EnemyKind;
   phase: 1 | 2 | 3;
   /** Phase 3: next beat a Brute is called in. */
   nextBruteBeat: number;

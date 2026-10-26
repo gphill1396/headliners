@@ -93,7 +93,7 @@ export function TitleOverlay({
         )}
         {mode === 'tour' && (
           <p className="muted">
-            Tour: 3 acts of gigs, shops and rest stops, with The Hush at the end of each. Your crowd carries the whole way.
+            Tour: 3 acts of gigs, shops and rest stops, with a boss at the end of each. Your crowd carries the whole way.
             {(bests.tours ?? 0) > 0 ? ` Tours won: ${bests.toursWon ?? 0} of ${bests.tours}.` : ''}
           </p>
         )}

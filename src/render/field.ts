@@ -1,4 +1,4 @@
-import { LANES, PROJECTILE_SPEED, STAGE_LINE, SWOOP_DEPTH, type EngineState, type GateKind } from '../engine';
+import { airborne, ENEMIES, faded, LANES, PROJECTILE_SPEED, STAGE_LINE, SWOOP_DEPTH, type EngineState, type GateKind } from '../engine';
 import { PALETTE } from './palette';
 import { drawSprite, SPRITES, spriteSize, type Sprite } from './sprites';
 
@@ -141,7 +141,8 @@ export function drawField(
     if (e.depth < -1_000) continue;
     const sprite: Sprite = e.kind === 'shieldbearer' && !e.shieldLeft ? SPRITES['shieldbearer-bare'] : SPRITES[e.kind];
     const { w: sw, h: sh } = spriteSize(sprite);
-    const wide = e.kind === 'hush';
+    const wide = ENEMIES[e.kind].wide === true;
+    const up = airborne(state, e);
     const scale = e.child ? 1 : wide ? 3 : 2;
     const jitter = e.kind === 'swarmling' || e.child || e.kind === 'bat' ? ((e.id * 37) % 25) - 12 : 0;
     // Bats bob while they're up high.
@@ -150,14 +151,17 @@ export function drawField(
     const rawY = yOf(Math.min(STAGE_LINE, e.depth + e.speed * alpha)) - sh * scale + bob;
     // The Hush looms in from the top: keep all of it on screen, under its health bar.
     const y = wide ? Math.max(8, rawY) : rawY;
-    if (e.kind === 'bat' && e.depth < SWOOP_DEPTH) {
+    if (up) {
       // A shadow on the floor: it's up in the air.
       ctx.globalAlpha = 0.35;
       ctx.fillStyle = PALETTE.night;
       ctx.fillRect(x + 2, y + sh * scale + 6, sw * scale - 4, 2);
       ctx.globalAlpha = 1;
     }
+    // A Ghost on beats 2 and 4 is barely there (and can't be hit).
+    if (faded(state, e)) ctx.globalAlpha = 0.25;
     drawSprite(ctx, sprite, x, y, scale);
+    ctx.globalAlpha = 1;
     // Slowed (Aria): a pink band at the feet; held still: pink all round.
     const held = state.headliner.id === 'aria' && state.clock.beat < state.headliner.activeUntilBeat;
     if (held || (e.slowUntilBeat ?? -1) > state.clock.beat) {
@@ -168,7 +172,7 @@ export function drawField(
       ctx.globalAlpha = 1;
     }
     // The Hush, phase 1: everyone else wears a pale shield.
-    if (state.boss?.phase === 1 && !wide) {
+    if (state.boss?.phase === 1 && (state.boss.kind ?? 'hush') === 'hush' && !wide) {
       ctx.fillStyle = '#d6caef';
       ctx.fillRect(x - 1, y - 5, sw * scale + 2, 1);
     }

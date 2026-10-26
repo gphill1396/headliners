@@ -34,8 +34,26 @@ export const DEBUT_WAVE: Record<EnemyKind, number> = {
   hexer: 6,
   shieldbearer: 7,
   breaker: 8,
+  charger: 9,
+  medic: 11,
+  ghost: 12,
+  nest: 13,
   hush: BOSS_EVERY_WAVES,
+  critic: BOSS_EVERY_WAVES * 2,
+  'dead-air': BOSS_EVERY_WAVES * 3,
 };
+
+/** The bosses, in the order they turn up: Encore cycles through them every 10th wave; Tour acts 1–3 get one each. */
+export const BOSS_ORDER: EnemyKind[] = ['hush', 'critic', 'dead-air'];
+
+export function bossForWave(index: number): EnemyKind {
+  return BOSS_ORDER[(Math.max(1, Math.floor(index / BOSS_EVERY_WAVES)) - 1) % BOSS_ORDER.length]!;
+}
+
+/** Which boss is on the field (older saves only had The Hush). */
+export function bossKind(state: EngineState): EnemyKind | null {
+  return state.boss ? (state.boss.kind ?? 'hush') : null;
+}
 /** Kinds that turn up in normal waves (bosses have their own rule). */
 const ALL_KINDS = (Object.keys(DEBUT_WAVE) as EnemyKind[]).filter((k) => !ENEMIES[k].boss);
 /** Two bars to get a first card down before wave 1. */
@@ -63,11 +81,22 @@ export function onBeatWaves(state: EngineState, ctx: TickCtx): void {
   }
   if (state.phase !== 'playing') return;
   spawnDue(state);
-  // The Hush, phase 3: a Brute every few beats.
-  if (state.boss?.phase === 3 && beat >= state.boss.nextBruteBeat) {
-    spawnGroup(state, 'brute');
-    state.boss.nextBruteBeat = beat + BOSS_BRUTE_EVERY_BEATS;
-  }
+  bossCalls(state);
+}
+
+/**
+ * Bosses call in help: The Hush brings Brutes in phase 3, The Critic brings
+ * Medics in phase 3, Dead Air brings Ghosts from phase 2. Once per beat.
+ */
+export function bossCalls(state: EngineState): void {
+  const boss = state.boss;
+  if (!boss || state.clock.beat < boss.nextBruteBeat) return;
+  const kind = bossKind(state);
+  const call: EnemyKind | null =
+    kind === 'hush' && boss.phase === 3 ? 'brute' : kind === 'critic' && boss.phase === 3 ? 'medic' : kind === 'dead-air' && boss.phase >= 2 ? 'ghost' : null;
+  if (!call) return;
+  spawnGroup(state, call);
+  boss.nextBruteBeat = state.clock.beat + BOSS_BRUTE_EVERY_BEATS;
 }
 
 /** Keep The Hush's phase in step with its health. Call every tick. */
@@ -79,13 +108,20 @@ export function updateBoss(state: EngineState, ctx: TickCtx): void {
   const phase: 1 | 2 | 3 = hush.hp * 3 > hush.maxHp * 2 ? 1 : hush.hp * 3 > hush.maxHp ? 2 : 3;
   if (phase <= boss.phase) return;
   boss.phase = phase;
-  if (phase === 3) boss.nextBruteBeat = state.clock.beat + 1;
-  ctx.events.push({ type: 'bossPhase', phase });
+  boss.nextBruteBeat = state.clock.beat + 1;
+  // The Critic drops its armor after phase 1.
+  if (bossKind(state) === 'critic' && phase >= 2) hush.armor = 0;
+  ctx.events.push({ type: 'bossPhase', phase, boss: bossKind(state)! });
 }
 
 /** The Hush, phase 2: the beat is muted and timing bonuses are off. */
 export function beatMuted(state: EngineState): boolean {
-  return state.boss?.phase === 2;
+  return state.boss?.phase === 2 && bossKind(state) === 'hush';
+}
+
+/** The Critic, phase 2: unimpressed, so the chain multiplier stops growing. */
+export function chainFrozen(state: EngineState): boolean {
+  return state.boss?.phase === 2 && bossKind(state) === 'critic';
 }
 
 /**
@@ -102,7 +138,7 @@ export function waveKinds(state: EngineState, index: number): EnemyKind[] {
   // The horde: Shamblers walk in every wave (and Swarmlings from wave 9), with specials mixed in.
   const horde: EnemyKind[] = index >= 9 ? ['shambler', 'swarmling'] : ['shambler'];
   const specials = known.filter((k) => !horde.includes(k));
-  const count = index <= 3 ? 0 : index <= 8 ? 1 : index < 15 ? 2 : 3;
+  const count = index <= 3 ? 0 : index <= 8 ? 1 : index < 13 ? 2 : 3;
   const others = shuffleInPlace(state.rng, specials).slice(0, count);
   return [...horde, ...debut, ...others].sort((a, b) => DEBUT_WAVE[a] - DEBUT_WAVE[b]);
 }
@@ -120,8 +156,10 @@ export function hpMultFor(index: number): number {
 }
 
 export interface WaveOptions {
-  /** Spawn The Hush with this wave (default: every 10th wave in Encore). */
+  /** Spawn a boss with this wave (default: every 10th wave in Encore). */
   boss?: boolean;
+  /** Which boss (default: by wave number). */
+  bossKind?: EnemyKind;
   /** Tour elites: tougher enemies and one more special. */
   elite?: boolean;
 }
@@ -154,18 +192,19 @@ export function startWave(state: EngineState, ctx: TickCtx, index: number, opts:
   setTempo(state.clock, Math.min(WAVE_MAX_BPM, START_BPM + WAVE_TEMPO_STEP * (index - 1)));
   // "New:" banners for enemies you haven't met this run.
   const seen = state.seenKinds ?? [];
-  const debut = [...kinds, ...(bossWave ? (['hush'] as EnemyKind[]) : [])].filter((k) => !seen.includes(k));
+  const boss = opts.bossKind ?? bossForWave(index);
+  const debut = [...kinds, ...(bossWave ? [boss] : [])].filter((k) => !seen.includes(k));
   state.seenKinds = [...seen, ...debut];
-  if (bossWave) spawnBoss(state);
-  ctx.events.push({ type: 'waveStart', index, kinds, ...(debut.length > 0 ? { debut } : {}), ...(bossWave ? { boss: true } : {}) });
-  if (bossWave) ctx.events.push({ type: 'bossPhase', phase: 1 });
+  if (bossWave) spawnBoss(state, boss);
+  ctx.events.push({ type: 'waveStart', index, kinds, ...(debut.length > 0 ? { debut } : {}), ...(bossWave ? { boss: true, bossKind: boss } : {}) });
+  if (bossWave) ctx.events.push({ type: 'bossPhase', phase: 1, boss });
 }
 
-function spawnBoss(state: EngineState): void {
-  spawnGroup(state, 'hush', 1);
-  const hush = state.enemies[state.enemies.length - 1]!;
-  hush.depth = 0;
-  state.boss = { enemyId: hush.id, phase: 1, nextBruteBeat: 0 };
+function spawnBoss(state: EngineState, kind: EnemyKind): void {
+  spawnGroup(state, kind, 1);
+  const boss = state.enemies[state.enemies.length - 1]!;
+  boss.depth = 0;
+  state.boss = { enemyId: boss.id, kind, phase: 1, nextBruteBeat: 0 };
 }
 
 export function spawnDue(state: EngineState): void {
@@ -177,18 +216,18 @@ export function spawnDue(state: EngineState): void {
   }
 }
 
-export function spawnGroup(state: EngineState, kind: EnemyKind, lane = nextInt(state.rng, 0, LANES), travelBeats?: number): void {
+export function spawnGroup(state: EngineState, kind: EnemyKind, lane = nextInt(state.rng, 0, LANES), travelBeats?: number, atDepth?: number, count?: number): void {
   const def = ENEMIES[kind];
   const hp = def.hp * state.wave.hpMult;
   // Walk to the stage in `travelBeats` beats at the current tempo. The first waves walk slower.
   const beats = travelBeats ?? (state.wave.index <= 2 ? def.travelBeats + 4 : def.travelBeats);
   const speed = Math.max(1, Math.floor((STAGE_LINE * state.clock.bpm) / (beats * BEAT_UNITS)));
-  for (let i = 0; i < def.packSize; i++) {
+  for (let i = 0; i < (count ?? def.packSize); i++) {
     state.enemies.push({
       id: state.nextId++,
       kind,
       lane,
-      depth: -i * 2_600,
+      depth: (atDepth ?? 0) - i * 2_600,
       speed,
       hp,
       maxHp: hp,
@@ -198,6 +237,37 @@ export function spawnGroup(state: EngineState, kind: EnemyKind, lane = nextInt(s
       // Shields get a little sturdier as the show goes on.
       ...(def.shieldHits ? { shieldLeft: def.shieldHits + Math.floor(state.wave.index / 2) } : {}),
     });
+  }
+}
+
+/** Medics heal at most this much per beat (keeps them from out-healing a boss's health bar). */
+export const MEDIC_HEAL_MAX = 12;
+
+/**
+ * Once a beat, on the field: Medics patch up everyone else in their lane;
+ * Nests hatch Swarmlings where they stand. Neither does anything off-screen.
+ */
+export function enemyAbilities(state: EngineState, ctx: TickCtx): void {
+  const beat = state.clock.beat;
+  const field = state.enemies.filter((e) => e.hp > 0 && e.depth >= 0);
+  for (const m of field) {
+    const def = ENEMIES[m.kind];
+    if (def.healsPct) {
+      let healed = 0;
+      for (const e of field) {
+        if (e === m || e.hp >= e.maxHp || !(e.lane === m.lane || ENEMIES[e.kind].wide)) continue;
+        const amount = Math.min(MEDIC_HEAL_MAX, (e.maxHp * def.healsPct) / 100, e.maxHp - e.hp);
+        e.hp += amount;
+        healed += amount;
+      }
+      if (healed > 0) ctx.events.push({ type: 'healed', lane: m.lane, depth: m.depth, amount: healed });
+    }
+    if (def.hatches && (beat + m.id) % def.hatches.everyBeats === 0) {
+      const first = state.enemies.length;
+      spawnGroup(state, def.hatches.kind, m.lane, undefined, m.depth, def.hatches.count);
+      for (let i = first; i < state.enemies.length; i++) state.enemies[i]!.hatchedBy = m.kind;
+      ctx.events.push({ type: 'hatched', lane: m.lane, depth: m.depth, count: def.hatches.count });
+    }
   }
 }
 

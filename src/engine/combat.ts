@@ -20,6 +20,7 @@ import {
   SWOOP_DEPTH,
 } from './constants';
 import type { TickCtx } from './context';
+import { beatInBar } from './clock';
 import { evolvedInto } from './evolution';
 import type { EngineState, Enemy, Gate, Projectile, Unit } from './state';
 
@@ -27,6 +28,8 @@ import type { EngineState, Enemy, Gate, Projectile, Unit } from './state';
 const HIT_OFFSET = 2_000;
 const SLOT_X = [200, 500, 800];
 const LYRA_GATE_BONUS = 1;
+/** Each Splitter piece that gets through costs this much crowd. */
+const SPLITTER_PIECE_CROWD = 2;
 
 /** Spawn `shots` projectiles from a unit. `multPct` scales damage (chain multiplier). */
 export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct: number): void {
@@ -54,8 +57,10 @@ export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct:
 /** Deal damage to one enemy, after armor. Returns damage actually dealt (overkill not counted). */
 export function damageEnemy(state: EngineState, ctx: TickCtx, enemy: Enemy, amount: number, sourceCardId: string, ignoreArmor = false): number {
   if (enemy.hp <= 0) return 0;
+  // A Ghost on beats 2 and 4 isn't really there.
+  if (faded(state, enemy)) return 0;
   // The Hush, phase 1: it shields everyone else.
-  if (state.boss?.phase === 1 && enemy.id !== state.boss.enemyId) amount = (amount * BOSS_SHIELD_PCT) / 100;
+  if (state.boss?.phase === 1 && (state.boss.kind ?? 'hush') === 'hush' && enemy.id !== state.boss.enemyId) amount = (amount * BOSS_SHIELD_PCT) / 100;
   // Aria's Banshee: slowed enemies take more damage.
   if (isSlowed(state, enemy) && evolvedInto(state, 'banshee')) amount = (amount * BANSHEE_PCT) / 100;
   // Riot's ability: everything hits twice as hard for a couple of beats.
@@ -75,6 +80,30 @@ export function damageEnemy(state: EngineState, ctx: TickCtx, enemy: Enemy, amou
   ctx.laneDamage[enemy.lane] = (ctx.laneDamage[enemy.lane] ?? 0) + dealt;
   ctx.laneDamageDepth[enemy.lane] = enemy.depth;
   return dealt;
+}
+
+/** Ghosts fade out on beats 2 and 4: shots pass through and nothing lands. */
+export function faded(state: EngineState, e: Enemy): boolean {
+  return ENEMIES[e.kind].phased === true && beatInBar(state.clock.beat) % 2 === 1;
+}
+
+/** Up in the air, out of reach of ordinary shots: Bats until they swoop, and Dead Air in phase 1. */
+export function airborne(state: EngineState, e: Enemy): boolean {
+  if (e.depth >= SWOOP_DEPTH) return false;
+  if (ENEMIES[e.kind].flying) return true;
+  return e.kind === 'dead-air' && state.boss?.enemyId === e.id && state.boss.phase === 1;
+}
+
+/** Dead Air, phase 3: everything else rushes the stage. */
+const RUSH_PCT = 150;
+
+/** How far an enemy walks this tick. Chargers amble, then sprint once they're close; slows and Dead Air's rush scale it. */
+export function stepOf(state: EngineState, e: Enemy): number {
+  const def = ENEMIES[e.kind];
+  let pct = def.charge ? (e.depth < def.charge.atDepth ? def.charge.slowPct : def.charge.fastPct) : 100;
+  if (state.boss?.kind === 'dead-air' && state.boss.phase === 3 && e.id !== state.boss.enemyId) pct = (pct * RUSH_PCT) / 100;
+  if (isSlowed(state, e)) pct = (pct * (e.slowPct ?? 100)) / 100;
+  return pct === 100 ? e.speed : Math.max(1, Math.floor((e.speed * pct) / 100));
 }
 
 export function isSlowed(state: EngineState, e: Enemy): boolean {
@@ -117,7 +146,7 @@ function splash(state: EngineState, ctx: TickCtx, center: Enemy, damage: number,
   const amount = (damage * SPLASH_PCT) / 100;
   for (const e of state.enemies) {
     if (e === center || !inLane(e, lane) || e.hp <= 0) continue;
-    if (ENEMIES[e.kind].flying && !antiAir && e.depth < SWOOP_DEPTH) continue;
+    if (!antiAir && airborne(state, e)) continue;
     const d = e.depth - center.depth;
     if (d <= SPLASH_RADIUS && d >= -SPLASH_RADIUS) damageEnemy(state, ctx, e, amount, sourceCardId);
   }
@@ -127,6 +156,7 @@ function splash(state: EngineState, ctx: TickCtx, center: Enemy, damage: number,
 export function moveEnemies(state: EngineState, ctx: TickCtx): void {
   // Aria's Hold: for a couple of beats, nobody moves.
   const held = state.headliner.id === 'aria' && state.clock.beat < state.headliner.activeUntilBeat;
+
   for (const e of state.enemies) {
     if (e.hp <= 0 || held) continue;
     const def = ENEMIES[e.kind];
@@ -137,13 +167,13 @@ export function moveEnemies(state: EngineState, ctx: TickCtx): void {
         continue;
       }
     }
-    e.depth += isSlowed(state, e) ? Math.floor((e.speed * (e.slowPct ?? 100)) / 100) : e.speed;
+    e.depth += stepOf(state, e);
     if (e.depth >= STAGE_LINE) {
       e.hp = 0;
       // In the tutorial a leak is shown but costs nothing.
       if (state.mode !== 'tutorial') state.crowd -= e.crowdDamage;
       state.stats.leaks += 1;
-      ctx.events.push({ type: 'leaked', enemyId: e.id, kind: e.kind, lane: e.lane, crowdDamage: e.crowdDamage });
+      ctx.events.push({ type: 'leaked', enemyId: e.id, kind: e.kind, lane: e.lane, crowdDamage: e.crowdDamage, ...(e.hatchedBy ? { hatchedBy: e.hatchedBy } : {}) });
       e.depth = STAGE_LINE;
       e.leaked = true;
     }
@@ -231,10 +261,11 @@ export function moveProjectiles(state: EngineState, ctx: TickCtx): void {
     for (const e of state.enemies) {
       if (!inLane(e, p.lane) || e.hp <= 0) continue;
       const def = ENEMIES[e.kind];
-      if (def.flying && !p.antiAir && e.depth < SWOOP_DEPTH) continue; // shots pass under flyers until they swoop
+      if (!p.antiAir && airborne(state, e)) continue; // shots pass under flyers until they swoop
+      if (faded(state, e)) continue; // and straight through a faded Ghost
       if (seeking && !def.priority) continue; // Priority shots fly past everything else
       const pos = e.depth + HIT_OFFSET;
-      if (pos > to && pos <= from + e.speed) path.push({ pos, gate: null, enemy: e });
+      if (pos > to && pos <= from + stepOf(state, e)) path.push({ pos, gate: null, enemy: e });
     }
     if (path.length > 1) path.sort((a, b) => b.pos - a.pos || (a.gate ? -1 : 1) - (b.gate ? -1 : 1) || idOf(a) - idOf(b));
 
@@ -362,7 +393,7 @@ export function sweepDead(state: EngineState, ctx: TickCtx): void {
     if (e.id === state.boss?.enemyId) {
       // The Hush is gone: beaten, or it reached the stage.
       if (!e.leaked) state.crowd = Math.min(state.maxCrowd, state.crowd + BOSS_CROWD_REWARD);
-      ctx.events.push({ type: 'bossEnd', defeated: !e.leaked, crowd: e.leaked ? -e.crowdDamage : BOSS_CROWD_REWARD });
+      ctx.events.push({ type: 'bossEnd', boss: e.kind, defeated: !e.leaked, crowd: e.leaked ? -e.crowdDamage : BOSS_CROWD_REWARD });
       state.boss = null;
     }
     if (e.leaked) continue;
@@ -393,7 +424,7 @@ export function sweepDead(state: EngineState, ctx: TickCtx): void {
           hp,
           maxHp: hp,
           armor: 0,
-          crowdDamage: 1,
+          crowdDamage: SPLITTER_PIECE_CROWD,
           leaked: false,
           child: true,
         });

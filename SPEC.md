@@ -8,6 +8,10 @@ You play as a fantasy band on tour. You pick three headliners (dragon-like creat
 - **Use:** personal, hosted on GitHub Pages
 - **Status:** v0.1 spec
 
+> **Direction from Grant (Oct 26), to apply next:**
+> - **Theme:** you're a ren faire band transported to a fantasy world, protecting the crowd from monsters. Retheme pass right after Phase 2c part 2 (before teams of 3): headliner, card, enemy and boss names, flavor text, and instruments (lute, bagpipes, hurdy-gurdy, drums and so on).
+> - **Art bar:** at minimum the level of *Metroid Fusion* (detailed, shaded GBA-style pixel sprites with animation frames). Claude hand-draws palette-indexed sprites; one character first so Grant can judge the bar before the rest. The current sprites are placeholders.
+
 ---
 
 ## 1. Design pillars
@@ -228,6 +232,17 @@ Each enemy type exists to demand a different answer.
 | Hexer | Aura: switches off every gate ahead of it in its lane | Burst it down fast, Priority (Spotlight) |
 | Breaker | Stops at each gate in its lane and smashes 10 durability a beat | Units with priority targeting (Spotlight) |
 
+**Phase 2c enemies:**
+
+| Enemy | Trait | Demands |
+|---|---|---|
+| Charger | Ambles at 55% speed, then sprints at 230% once it is past halfway | Slows, Hold, early burst (Heckle, Power Chord) |
+| Medic | Priority. Every beat, heals the others in its lane 8% of their health (at most 12) | Priority shots and riffs: kill it first |
+| Nest | Armor 1. Hatches 2 Swarmlings where it stands every 5 beats | Splash and big hits, fast |
+| Ghost | Fades on beats 2 and 4: shots and riffs pass through | Timing: land riffs and Downbeats on 1 and 3 (no card is its answer) |
+
+Debuts: Charger 9, Medic 11, Ghost 12, Nest 13. From wave 13, waves mix in 3 specials (was 3 from wave 15).
+
 *As built in Phase 1b:* each enemy debuts on its own wave with a banner that explains it (Swarmlings 2, Brute 3, Bats 4, Splitter 5, Hexer 6, Shieldbearer 7, Breaker 8). Shamblers are the horde and walk in every wave; Swarmlings join them from wave 9. If an enemy is coming in the next 3 waves (or is already here) and your deck has nothing that answers it, the card pick offers an answer.
 
 **Phase 1 boss: The Hush** (every 10th wave in Encore)
@@ -240,6 +255,11 @@ Each enemy type exists to demand a different answer.
   - 1200 health × the wave's health growth. Its phase follows its health: above 2/3, phase 1; above 1/3, phase 2; then phase 3.
   - Phase 1: other enemies take half damage. Phase 2: plays can't earn more than ×1.0 or a Good-sized chain step, the pocket doesn't grow, and Tight-hit passives pause (Off plays still cost you). The drums drop out of the music, leaving a held chord. Phase 3: a Brute every 6 beats.
   - The boss wave brings half the usual escort, and lasts until The Hush is gone.
+
+**Phase 2c bosses: The Critic and Dead Air.** The three bosses take turns: The Hush on waves 10, 40, 70…, The Critic on 20, 50…, Dead Air on 30, 60…. In Tour, act 1 ends with The Hush, act 2 with The Critic, act 3 with Dead Air. Both span all lanes, sink over 72 beats, cost 15 crowd if they reach the stage and win back 5 if beaten.
+- **The Critic** (1300 health, armor 6). Phase 1: armored (needs big hits). Phase 2: armor off, but *unimpressed*: plays keep your chain alive but it doesn't grow (no new links, no multiplier growth). Phase 3: calls a Medic every 6 beats.
+- **Dead Air** (1400 health). Phase 1: flying, so only Anti-Air shots and riffs reach it. Phase 2: lands and calls a Ghost every 6 beats. Phase 3: rush, every other enemy moves 50% faster.
+- *Why:* The Critic punishes leaning on one long chain; Dead Air punishes a deck with no Anti-Air or riffs and then tests timing (Ghosts).
 
 ### 4.9 Waves and scaling
 
@@ -591,9 +611,20 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 - [x] Each card tracks its history: games played, average damage share, and wins.
 - [x] You can save up to 10 deck lists.
 
+**Phase 2c, part 2 — four enemies and two bosses, as built:** see §4.8 for what each does.
+- New enemy parts in the data: `charge`, `healsPct`, `hatches`, `phased`; bosses carry a `kind` and the boss calls (Brutes, Medics, Ghosts) share one helper.
+- **Crowd you lose on purpose now shows** (Grant asked why crowd dropped with nothing getting through): Feedback cards (Feedback Loop in every starter deck; Smash the Guitar, Anthem, Power Slide) pop "−1 crowd · Feedback" where leaks show, and carry a small red −1 mark in hand.
+- **Balance pass** (D6 failed at first, with 11 non-boss enemies sharing the losses): Swarmlings were 32% of losses, Medics 0.4%.
+  - Leaks by a Nest's hatchlings count as the Nest's in the simulator's loss causes *(measurement change; the Nest caused them)*.
+  - Crowd damage: Bat 1→2, Splitter 2→3 (and its pieces 1→2), Hexer 4→5 (health 50→60), Breaker 4→5. Ghost health 40→36.
+  - Ghost has no card answer: answer lists for it and the Charger made Mic Drop, then Hype Man, then Soundboard must-picks (D4).
+  - The Critic's phase 2 holds the chain instead of only freezing the multiplier; long boss fights were letting the sharpest bot hit the 50-link cap (D8).
+- **Results** at 200 runs per bot: median wave Thrum 19, Lyra 17, Clatter 17, Aria 18.5, Riot 18, random 5. All D1–D8 pass: D1 3.40× (Lyra), D2 5.0×, D3 1.12×, D4 36.0%, D5 19.6%, D6 5.6% (Swarmling), D7 3.0, D8 0.7%. Loss causes: Brute 15%, Nest 10%, Ghost 10%, Medic 9%, Splitter 8%, Hexer 8%, Breaker 8%, Shieldbearer 7%, the rest 6%.
+- Tour (80 runs): Thrum 78%, Aria 74%, Riot 60%, Lyra 51%, Clatter 44% (was 94/93/71/71/66). Act 3 is now the wall: Dead Air plus the new enemies. No D-threshold covers Tour; flagged.
+
 **S2.3 Content expansion**
-- [ ] 2 new headliners, 4 new enemies and 2 bosses are added, all following §4 and §6.
-- [ ] The simulator thresholds still pass after they're added.
+- [x] 2 new headliners, 4 new enemies and 2 bosses are added, all following §4 and §6.
+- [x] The simulator thresholds still pass after they're added.
 
 ### Phase 3 — Daily Setlist + Heat
 

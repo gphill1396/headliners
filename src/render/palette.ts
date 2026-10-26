@@ -16,4 +16,6 @@ export const PALETTE = {
   thrum: '#f0773e',
   lyra: '#4fd1c5',
   clatter: '#e8d36a',
+  aria: '#f29cc3',
+  riot: '#9fe061',
 } as const;

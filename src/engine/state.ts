@@ -98,6 +98,9 @@ export interface Enemy {
   lastBlockBeat?: number;
   /** Shots a Shieldbearer's shield can still block. */
   shieldLeft?: number;
+  /** Slowed: moves at slowPct% speed until this beat. */
+  slowUntilBeat?: number;
+  slowPct?: number;
 }
 
 export interface Projectile {
@@ -117,6 +120,8 @@ export interface Projectile {
   priority?: boolean;
   /** Came in from the side through a speaker: gets past Shieldbearers. */
   side?: boolean;
+  /** Slows what it hits (through Aria's Vibrato). */
+  slows?: boolean;
   /** Bitmask of gate slots this shot has already passed. */
   gatesPassed: number;
   /** Card that fired it, for the damage breakdown. */
@@ -163,6 +168,8 @@ export interface HeadlinerState {
   lastPlay?: { beat: number; lane: number };
   /** Load Out: the last beat a Riff came back. */
   lastLoadOutBeat?: number;
+  /** Riot: kills toward the next crowd point. */
+  kills?: number;
 }
 
 export interface EngineSettings {

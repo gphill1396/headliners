@@ -51,6 +51,7 @@ const MS_PER_TICK = 1000 / TICK_RATE;
 
 export function createBot(config: BotConfig, rng: RngState): Bot {
   let plan: Plan | null = null;
+  let abilityAt: number | null = null;
   let lastPlannedBeat = -1;
   const choiceSamples: number[] = [];
 
@@ -71,6 +72,11 @@ export function createBot(config: BotConfig, rng: RngState): Bot {
     if (tourMove) return tourMove;
     if (s.phase !== 'playing') return [];
     const inputs: Input[] = [];
+
+    if (abilityAt !== null && s.tick >= abilityAt) {
+      abilityAt = null;
+      inputs.push({ type: 'activate', permille: nextInt(rng, 0, 1000) });
+    }
 
     // Execute a planned play.
     if (plan && s.tick >= plan.tick) {
@@ -93,7 +99,12 @@ export function createBot(config: BotConfig, rng: RngState): Bot {
         const target = s.tick + ticksPerBeat + drawOffsetMs() / MS_PER_TICK;
         plan = { tick: Math.max(s.tick + 1, Math.floor(target)), iid: choice.card.iid, lane: choice.lane };
       }
-      if (wantsFill(config, s, rng)) inputs.push({ type: 'activate', permille: 0 });
+      if (wantsFill(config, s, rng)) {
+        // Abilities are graded on the beat too: aim at the next beat with the bot's timing skill.
+        const ticksPerBeat = BEAT_UNITS / s.clock.bpm;
+        const target = s.tick + ticksPerBeat + drawOffsetMs() / MS_PER_TICK;
+        abilityAt = Math.max(s.tick + 1, Math.floor(target));
+      }
     }
     return inputs;
   };
@@ -191,6 +202,7 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
         const shieldHere = shielded.some((e) => e.lane === lane);
         return (armored || shieldHere ? laneDps * 3 + 10 : laneDps * 0.5) * dupe * full;
       }
+      if (g.kind === 'slow') return (enemiesInLane.length * 2 + laneDps * 0.8) * dupe * full;
       if (g.kind === 'lift') return (flyers * 8 + (flyers > 0 ? laneDps : 0)) * dupe * full;
       if (g.kind === 'aim') {
         // A speaker is worth it when a neighbor lane has a Shieldbearer and this lane is quiet.
@@ -217,6 +229,36 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
           return s.energy < 4 ? 8 : 3;
         case 'encore':
           return s.chain.links >= 2 ? 8 + s.enemies.length * 1.6 : 0;
+        case 'lullaby':
+        case 'siren-call': {
+          const targets = def.id === 'siren-call' ? s.enemies.filter((e) => e.depth >= 0).length : enemiesInLane.length;
+          const close = (def.id === 'siren-call' ? s.enemies : enemiesInLane).filter((e) => e.depth > 50_000).length;
+          return targets * 2.5 + close * 4;
+        }
+        case 'high-note': {
+          const f = frontEnemy(s, lane);
+          return f ? ((f.slowUntilBeat ?? -1) > s.clock.beat ? 30 : 14) + (armored ? 5 : 0) : 0;
+        }
+        case 'ballad':
+        case 'crowd-surf': {
+          const missing = s.maxCrowd - s.crowd;
+          return def.id === 'ballad' ? Math.min(missing, 4) * 3 : 4 + Math.min(missing, 3) * 2;
+        }
+        case 'shatter': {
+          const allFlyers = s.enemies.filter((e) => ENEMIES[e.kind].flying && e.depth >= 0).length;
+          return allFlyers * 7;
+        }
+        case 'power-slide': {
+          const hit = 20 * 1.3;
+          const saved = enemiesInLane.filter((e) => e.depth > 40_000 && e.hp <= hit).reduce((sum, e) => sum + e.crowdDamage, 0);
+          return (saved - 1) * 8 + enemiesInLane.reduce((sum, e) => sum + Math.min(e.hp, hit), 0) * 0.15 - (s.crowd < 10 ? 20 : 0);
+        }
+        case 'smash-the-guitar': {
+          const all = s.enemies.filter((e) => e.depth >= 0);
+          return all.length * 3.5 - 8 - (s.crowd < 12 ? 30 : 0);
+        }
+        case 'anthem':
+          return s.units.length * 2.4 - 4 - (s.crowd < 10 ? 20 : 0);
         case 'heckle': {
           const pr = enemiesInLane.some((e) => ENEMIES[e.kind].priority);
           return pr ? 20 : frontEnemy(s, lane) ? 10 : 0;
@@ -261,6 +303,8 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
       if (s.amps.length >= 2) return 1;
       if (def.id === 'mosh-pit') return 4 + s.units.filter((u) => u.token).length * 4;
       if (def.id === 'soundboard') return 8;
+      if (def.id === 'chorus-line') return 4 + s.enemies.filter((e) => e.depth >= 0).length * 1.5;
+      if (def.id === 'wall-of-death') return 4 + s.enemies.length * 0.8;
       if (def.id === 'four-on-the-floor') return 4 + s.units.length * 2.5;
       if (def.id === 'resonance') return 4 + s.gates.length * 3;
       return 6 + s.units.length * 2;
@@ -292,6 +336,11 @@ function wantsFill(config: BotConfig, s: EngineState, rng: RngState): boolean {
       return pressed && s.gates.length > 0 && s.units.length > 0;
     case 'clatter':
       return pressed || threat.filter((t) => t > 0).length >= 2;
+    case 'aria':
+      // Hold everything still when something is about to reach the stage.
+      return s.enemies.some((e) => e.depth > 70_000 && e.hp > 0);
+    case 'riot':
+      return pressed && s.units.length > 0;
     default:
       return pressed && s.units.length > 0;
   }

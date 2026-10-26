@@ -88,8 +88,10 @@ const ACTIVE_BANNER: Record<HeadlinerId, string> = {
   thrum: 'Every unit fires on every eighth note',
   lyra: 'Every gate works twice as hard',
   clatter: 'A Roadie in every lane',
+  aria: 'Every enemy holds still',
+  riot: 'All damage doubled',
 };
-const ACTIVE_ON: Record<HeadlinerId, string> = { thrum: 'Filling', lyra: 'Swelling', clatter: 'All in' };
+const ACTIVE_ON: Record<HeadlinerId, string> = { thrum: 'Filling', lyra: 'Swelling', clatter: 'All in', aria: 'Holding', riot: 'Rioting' };
 
 
 type View = 'title' | 'playing' | 'paused' | 'over';
@@ -180,6 +182,8 @@ function gateLabel(kind: Hud['gates'][number]['kind'], amount: number, lane: num
       return `Pierce +${amount}`;
     case 'shred':
       return 'Toolbox';
+    case 'slow':
+      return 'Vibrato';
     case 'lift':
       return 'Anti-Air';
   }
@@ -488,7 +492,9 @@ export function App() {
             break;
           case 'fill': {
             const active = HEADLINERS[e.headliner].active;
-            showBanner(`${active.name}!`, ACTIVE_BANNER[e.headliner]);
+            // Abilities land on the beat too: Off fizzles, Good is a beat shorter.
+            if (e.grade === 'off') flashInfo(`<strong>Off</strong><span>${active.name} missed the beat. Try again in a moment.</span>`, 'off');
+            else showBanner(`${active.name}!`, e.grade === 'good' ? `${ACTIVE_BANNER[e.headliner]} (Good: a beat shorter)` : ACTIVE_BANNER[e.headliner]);
             break;
           }
           case 'pocket':

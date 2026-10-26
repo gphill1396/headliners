@@ -55,7 +55,7 @@ export type EngineEvent =
   | { type: 'evolved'; headliner: HeadlinerId; evolution: EvolutionId }
   | { type: 'picked'; cardId: string | null }
   /** A headliner's active ability went off. (Named 'fill' after Thrum's, the first one.) */
-  | { type: 'fill'; untilBeat: number; headliner: HeadlinerId }
+  | { type: 'fill'; untilBeat: number; headliner: HeadlinerId; grade?: Grade }
   | { type: 'gameOver'; wave: number; score: number };
 
 export type RejectReason = 'not-in-hand' | 'energy' | 'lane' | 'not-playing' | 'cooldown' | 'cycled';

@@ -103,6 +103,26 @@ export const SPRITES = {
     rows: ['|.yy.', '|yoyo', '|.yy.', '|gggg', '|.gg.', '|g..g', '|....'],
     colors: { '|': '#a69cc0', y: '#e8d36a', o: '#211934', g: '#7a5c3e' },
   },
+  'backup-singer': {
+    rows: ['.ppp.', 'p#p#p', '.ppp.', '..c..', '.ccc.', 'c.c.c', '.c.c.'],
+    colors: { p: '#f29cc3', c: '#f6ecd6', '#': '#211934' },
+  },
+  soprano: {
+    rows: ['.ppp.', 'pp#pp', '.ppp.', 'ccccc', '.ccc.', '.ccc.', 'ccccc'],
+    colors: { p: '#f29cc3', c: '#d6caef', '#': '#211934' },
+  },
+  skater: {
+    rows: ['.ggg.', 'g#g#g', '.ggg.', '.ccc.', 'c.c.c', '.c.c.', 'kkkkk'],
+    colors: { g: '#9fe061', c: '#f6ecd6', '#': '#211934', k: '#7a5c3e' },
+  },
+  'bottle-rocket': {
+    rows: ['..r..', '.rrr.', '.rgr.', '.rgr.', '.rrr.', '..f..', '.f.f.'],
+    colors: { r: '#9fe061', g: '#f6ecd6', f: '#ffc94d' },
+  },
+  bouncer: {
+    rows: ['.ggg.', 'g#g#g', 'ggggg', 'kkkkk', 'kkkkk', 'kk.kk', 'kk.kk'],
+    colors: { g: '#9fe061', '#': '#211934', k: '#6b6b84' },
+  },
   pyro: {
     rows: ['..f..', '.fyf.', '..f..', '.ccc.', 'cc#cc', '.c.c.', '.c.c.'],
     colors: { f: '#f0773e', y: '#ffc94d', c: '#f6ecd6', '#': '#211934' },

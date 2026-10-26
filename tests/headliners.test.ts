@@ -4,7 +4,7 @@ import { createState, getCard, step, STAGE_LINE, type EngineState } from '../src
 import { pickPool, STARTER_DECKS } from '../src/content/cards';
 import { countShots, nextBeat, noWaves, ofType, playOnBeat } from './helpers';
 
-function as(headliner: 'thrum' | 'lyra' | 'clatter', seed = 'h'): EngineState {
+function as(headliner: 'thrum' | 'lyra' | 'clatter' | 'aria' | 'riot', seed = 'h'): EngineState {
   const s = createState({ seed, headliner });
   s.energy = 10;
   noWaves(s);
@@ -12,7 +12,7 @@ function as(headliner: 'thrum' | 'lyra' | 'clatter', seed = 'h'): EngineState {
 }
 
 test('each headliner starts with their own 12-card deck', () => {
-  for (const h of ['thrum', 'lyra', 'clatter'] as const) {
+  for (const h of ['thrum', 'lyra', 'clatter', 'aria', 'riot'] as const) {
     const s = createState({ seed: 'deck', headliner: h });
     assert.equal(s.headliner.id, h);
     const ids = [...s.hand, ...s.draw].map((c) => c.cardId).sort();

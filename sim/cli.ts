@@ -31,6 +31,8 @@ const BOTS: BotConfig[] = [
   { name: 'thrum', kind: 'archetype', headliner: 'thrum', timingSkill: 0.7 },
   { name: 'lyra', kind: 'archetype', headliner: 'lyra', timingSkill: 0.7 },
   { name: 'clatter', kind: 'archetype', headliner: 'clatter', timingSkill: 0.7 },
+  { name: 'aria', kind: 'archetype', headliner: 'aria', timingSkill: 0.7 },
+  { name: 'riot', kind: 'archetype', headliner: 'riot', timingSkill: 0.7 },
   { name: 'thrum-sharp', kind: 'archetype', headliner: 'thrum', timingSkill: 0.9 },
   { name: 'thrum-sloppy', kind: 'archetype', headliner: 'thrum', timingSkill: 0.2 },
 ];
@@ -43,7 +45,7 @@ if (only) {
 
 if (mode === 'tour') {
   // Tour: no D1–D8 (those are defined on Encore); report win rates and how far runs get.
-  const tourBots = BOTS.filter((b) => ['random', 'thrum', 'lyra', 'clatter'].includes(b.name));
+  const tourBots = BOTS.filter((b) => ['random', 'thrum', 'lyra', 'clatter', 'aria', 'riot'].includes(b.name));
   console.log(`Headliners Tour report — ${runs} runs per bot\n`);
   console.log('Bot        runs  won    act reached (1/2/3)   stops cleared  minutes  deck');
   for (const bot of tourBots) {

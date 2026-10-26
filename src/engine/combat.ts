@@ -1,5 +1,12 @@
 import { ENEMIES } from '../content/enemies';
 import {
+  BANSHEE_PCT,
+  COMEBACK_MAX_PCT,
+  COMEBACK_PCT_PER_CROWD,
+  RIOT_DAMAGE_PCT,
+  RIOT_KILLS_PER_CROWD,
+  SLOW_SHOT_BEATS,
+  SLOW_SHOT_PCT,
   BOSS_CROWD_REWARD,
   BOSS_SHIELD_PCT,
   GATE_DEPTHS,
@@ -49,6 +56,15 @@ export function damageEnemy(state: EngineState, ctx: TickCtx, enemy: Enemy, amou
   if (enemy.hp <= 0) return 0;
   // The Hush, phase 1: it shields everyone else.
   if (state.boss?.phase === 1 && enemy.id !== state.boss.enemyId) amount = (amount * BOSS_SHIELD_PCT) / 100;
+  // Aria's Banshee: slowed enemies take more damage.
+  if (isSlowed(state, enemy) && evolvedInto(state, 'banshee')) amount = (amount * BANSHEE_PCT) / 100;
+  // Riot's ability: everything hits twice as hard for a couple of beats.
+  if (state.headliner.id === 'riot' && state.clock.beat < state.headliner.activeUntilBeat) amount = (amount * RIOT_DAMAGE_PCT) / 100;
+  // Riot's Comeback: the more crowd you've lost, the harder you hit.
+  if (evolvedInto(state, 'comeback')) {
+    const missing = Math.max(0, state.maxCrowd - state.crowd);
+    amount = (amount * (100 + Math.min(COMEBACK_MAX_PCT, missing * COMEBACK_PCT_PER_CROWD))) / 100;
+  }
   const raw = ignoreArmor ? amount : amount - enemy.armor;
   if (raw <= 0) return 0;
   if (raw >= enemy.hp) enemy.overkill = raw - enemy.hp;
@@ -59,6 +75,17 @@ export function damageEnemy(state: EngineState, ctx: TickCtx, enemy: Enemy, amou
   ctx.laneDamage[enemy.lane] = (ctx.laneDamage[enemy.lane] ?? 0) + dealt;
   ctx.laneDamageDepth[enemy.lane] = enemy.depth;
   return dealt;
+}
+
+export function isSlowed(state: EngineState, e: Enemy): boolean {
+  return (e.slowUntilBeat ?? -1) > state.clock.beat;
+}
+
+/** Slow an enemy to `pct`% speed for `beats` beats (a stronger or longer slow wins). */
+export function slowEnemy(state: EngineState, e: Enemy, pct: number, beats: number): void {
+  const until = state.clock.beat + beats;
+  if (!isSlowed(state, e) || pct < (e.slowPct ?? 100)) e.slowPct = pct;
+  e.slowUntilBeat = Math.max(e.slowUntilBeat ?? -1, until);
 }
 
 /** Is this enemy in this lane? Wide enemies (The Hush) are in all of them. */
@@ -98,8 +125,10 @@ function splash(state: EngineState, ctx: TickCtx, center: Enemy, damage: number,
 
 /** Enemies walk toward the stage; any that reach it cost crowd. Breakers stop at gates; Hexers switch gates off. */
 export function moveEnemies(state: EngineState, ctx: TickCtx): void {
+  // Aria's Hold: for a couple of beats, nobody moves.
+  const held = state.headliner.id === 'aria' && state.clock.beat < state.headliner.activeUntilBeat;
   for (const e of state.enemies) {
-    if (e.hp <= 0) continue;
+    if (e.hp <= 0 || held) continue;
     const def = ENEMIES[e.kind];
     if (def.smashPerBeat) {
       const gate = gateInTheWay(state, e);
@@ -108,7 +137,7 @@ export function moveEnemies(state: EngineState, ctx: TickCtx): void {
         continue;
       }
     }
-    e.depth += e.speed;
+    e.depth += isSlowed(state, e) ? Math.floor((e.speed * (e.slowPct ?? 100)) / 100) : e.speed;
     if (e.depth >= STAGE_LINE) {
       e.hp = 0;
       // In the tutorial a leak is shown but costs nothing.
@@ -231,6 +260,7 @@ export function moveProjectiles(state: EngineState, ctx: TickCtx): void {
         break;
       }
       damageEnemy(state, ctx, e, p.damage, p.sourceCardId, p.shred === true);
+      if (p.slows) slowEnemy(state, e, SLOW_SHOT_PCT, SLOW_SHOT_BEATS);
       if (p.splash) splash(state, ctx, e, p.damage, p.sourceCardId, p.antiAir === true, p.lane);
       if (p.pierceLeft > 0) {
         p.pierceLeft -= 1;
@@ -300,6 +330,9 @@ function applyGate(state: EngineState, p: Projectile, g: Gate): boolean {
     case 'lift':
       p.antiAir = true;
       break;
+    case 'slow':
+      p.slows = true;
+      break;
     case 'aim': {
       // Edge lanes aim at the middle; the middle alternates left and right, shot by shot.
       const target = g.lane === 0 ? 1 : g.lane === LANES - 1 ? LANES - 2 : p.id % 2 === 0 ? g.lane - 1 : g.lane + 1;
@@ -334,6 +367,17 @@ export function sweepDead(state: EngineState, ctx: TickCtx): void {
     }
     if (e.leaked) continue;
     state.stats.kills += 1;
+    // Riot's passive: every few kills while the chain is going win back a point of crowd.
+    if (state.headliner.id === 'riot' && state.mode !== 'tutorial' && state.chain.links >= 3) {
+      state.headliner.kills = (state.headliner.kills ?? 0) + 1;
+      if (state.headliner.kills >= RIOT_KILLS_PER_CROWD) {
+        state.headliner.kills = 0;
+        if (state.crowd < state.maxCrowd) {
+          state.crowd += 1;
+          ctx.events.push({ type: 'tourCrowd', amount: 1 });
+        }
+      }
+    }
     ctx.events.push({ type: 'killed', enemyId: e.id, kind: e.kind, lane: e.lane, depth: e.depth });
     const splits = ENEMIES[e.kind].splits;
     if (splits && !e.child && (e.overkill ?? 0) * 100 < e.maxHp * splits.overkillPct) {

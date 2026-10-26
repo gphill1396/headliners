@@ -1,4 +1,4 @@
-import { damageEnemy, fireUnit, frontEnemy, gateDepth, inLane, priorityEnemy } from './combat';
+import { damageEnemy, fireUnit, frontEnemy, gateDepth, inLane, isSlowed, priorityEnemy, slowEnemy } from './combat';
 import { ENEMIES } from '../content/enemies';
 import {
   BIG_CHAIN,
@@ -6,6 +6,9 @@ import {
   CHAIN_CAP,
   CHAIN_GRACE_BEATS,
   CHAIN_STEP_AUTO_PCT,
+  ANARCHY_CHAIN,
+  ARIA_RIFF_SLOW_BEATS,
+  ARIA_RIFF_SLOW_PCT,
   GATE_DEPTHS,
   LANES,
   LOAD_OUT_HAND_MAX,
@@ -114,7 +117,18 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
   switch (effect.do) {
     case 'damageFront': {
       const target = (effect.prefer === 'priority' ? priorityEnemy(state, src.lane) : null) ?? frontEnemy(state, src.lane);
-      if (target) damageEnemy(state, ctx, target, scale(effect.amount), src.cardId);
+      if (!target) return;
+      const bonus = effect.vsSlowedPct && isSlowed(state, target) ? effect.vsSlowedPct : 100;
+      damageEnemy(state, ctx, target, (scale(effect.amount) * bonus) / 100, src.cardId);
+      return;
+    }
+    case 'slow':
+      for (const e of state.enemies) if (e.hp > 0 && e.depth >= 0 && (effect.scope === 'all' || inLane(e, src.lane))) slowEnemy(state, e, effect.pct, effect.beats);
+      return;
+    case 'heal': {
+      const before = state.crowd;
+      state.crowd = Math.min(state.maxCrowd, state.crowd + effect.amount);
+      if (state.crowd > before) ctx.events.push({ type: 'tourCrowd', amount: state.crowd - before });
       return;
     }
     case 'damageLane':
@@ -170,6 +184,8 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
       drawCards(state, effect.count, ctx.events);
       return;
     case 'loseCrowd':
+      // Riot's Anarchy: no Feedback cost while the chain is long.
+      if (evolvedInto(state, 'anarchy') && state.chain.links >= ANARCHY_CHAIN) return;
       state.crowd -= effect.amount;
       checkGameOver(state, ctx);
       return;
@@ -326,6 +342,10 @@ export function resolvePlay(state: EngineState, ctx: TickCtx, play: QueuedPlay):
   }
 
   if (def.onPlay) runEffects(state, ctx, def.onPlay, { cardId: def.id, lane: play.lane, multPct, unit: null });
+  // Aria's passive: her Tight riffs slow the enemies in their lane.
+  if (def.type === 'riff' && state.headliner.id === 'aria' && play.grade === 'tight') {
+    for (const e of state.enemies) if (e.hp > 0 && e.depth >= 0 && inLane(e, play.lane)) slowEnemy(state, e, ARIA_RIFF_SLOW_PCT, ARIA_RIFF_SLOW_BEATS);
+  }
 
   if (def.echo && !play.isEcho && state.phase !== 'over') {
     state.queue.push({ ...play, id: state.nextId++, resolveBeat: beat + 1, isEcho: true });

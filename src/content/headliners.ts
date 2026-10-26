@@ -56,4 +56,40 @@ export const HEADLINERS: Record<HeadlinerId, HeadlinerDef> = {
     sound: 'Junkyard percussion: cowbell, clanks, shakers.',
     style: 'Swarm. Flood the stage with Roadies and keep them busy.',
   },
+  aria: {
+    id: 'aria',
+    name: 'Aria',
+    title: 'the siren',
+    passive: 'Her Tight riffs slow the enemies in their lane to half speed for 2 beats.',
+    active: {
+      name: 'Hold',
+      text: 'For 2 beats, every enemy stops where it is.',
+      cooldownBeats: 16,
+      durationBeats: 2,
+    },
+    evolutions: [
+      { id: 'long-note', name: 'Long Note', text: 'Hold lasts twice as long.' },
+      { id: 'banshee', name: 'Banshee', text: 'Slowed enemies take 50% more damage.' },
+    ],
+    sound: 'Voices: oohs, aahs and one long held note.',
+    style: 'Control. Slow the horde down, hold it still, and win the crowd back.',
+  },
+  riot: {
+    id: 'riot',
+    name: 'Riot',
+    title: 'the punk drake',
+    passive: 'While your chain is 3 or longer, every 8 kills win back 1 crowd.',
+    active: {
+      name: 'Riot',
+      text: 'For 2 beats, all your damage is doubled.',
+      cooldownBeats: 16,
+      durationBeats: 2,
+    },
+    evolutions: [
+      { id: 'anarchy', name: 'Anarchy', text: 'Feedback costs no crowd while your chain is 5 or longer.' },
+      { id: 'comeback', name: 'Comeback', text: '+3% damage for every point of crowd you are missing, up to +60%.' },
+    ],
+    sound: 'Punk guitar: fuzzed power chords and crash cymbals.',
+    style: 'Aggression. Spend crowd on huge hits, then earn it back by clearing the horde.',
+  },
 };

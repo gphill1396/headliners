@@ -51,6 +51,7 @@ export const KEYWORD_TEXT: Record<Keyword, string> = {
   priority: 'Priority: goes for Breakers, Hexers and The Hush first.',
   speaker: 'Speaker: turns shots into the next lane over, from the side.',
   volume: 'Volume: a unit that keeps getting stronger, up to +20.',
+  slow: 'Slow: enemies move at part speed for a few beats.',
 };
 
 function fireRate(every: number): string {
@@ -75,6 +76,8 @@ function gateEffect(kind: NonNullable<CardDef['gate']>['kind'], amount: number):
       return 'A speaker: shots through it turn into the next lane over (from the middle, alternating left and right), and side shots get past Shieldbearers.';
     case 'lift':
       return 'Shots through it gain Anti-Air.';
+    case 'slow':
+      return 'Shots through it slow what they hit to half speed for 2 beats.';
   }
 }
 
@@ -113,6 +116,10 @@ function onlyAmountDiffers(then: readonly Effect[], otherwise: readonly Effect[]
 
 function effectText(e: Effect, onUnit: boolean): string {
   switch (e.do) {
+    case 'slow':
+      return `Slow ${e.scope === 'all' ? 'every enemy' : 'every enemy in this lane'} to ${e.pct}% speed for ${e.beats} beats`;
+    case 'heal':
+      return `Win back ${e.amount} crowd`;
     case 'damageFront':
       return e.prefer === 'priority'
         ? `Deal ${e.amount} to a Breaker, Hexer or The Hush in this lane, or else the enemy closest to the stage`
@@ -159,5 +166,5 @@ function effectText(e: Effect, onUnit: boolean): string {
 
 function lower(s: string): string {
   // Keep proper names (Roadie, Breaker, Encore…) capitalized: only lower a plain leading verb.
-  return /^(Deal|Gain|Draw|Put|Every gate|Every unit|Every Roadie|Gates|Units|Fire|It fires|Volume)\b/.test(s) ? s[0]!.toLowerCase() + s.slice(1) : s;
+  return /^(Deal|Gain|Draw|Put|Every gate|Every unit|Every Roadie|Gates|Units|Fire|It fires|Volume|Slow|Win)\b/.test(s) ? s[0]!.toLowerCase() + s.slice(1) : s;
 }

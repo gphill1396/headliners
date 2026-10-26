@@ -11,6 +11,8 @@
   --thrum: #f0773e;
   --lyra: #4fd1c5;
   --clatter: #e8d36a;
+  --aria: #f29cc3;
+  --riot: #9fe061;
   --miss: #e2574c;
   --px: 3px; /* one "pixel" of UI chrome */
   color-scheme: dark;
@@ -744,6 +746,14 @@ button:disabled {
 .hl-clatter {
   --hl: var(--clatter);
   --hl-dark: #7a6a1f;
+}
+.hl-aria {
+  --hl: var(--aria);
+  --hl-dark: #7a3d5b;
+}
+.hl-riot {
+  --hl: var(--riot);
+  --hl-dark: #3f6e1f;
 }
 
 .hl-picker {
@@ -1735,4 +1745,11 @@ button:disabled {
   flex: 1 1 40%;
   min-height: 40px;
   font-size: 14px;
+}
+
+/* Five headliners: the picker chips get a little smaller so they fit one row. */
+.hl-picker:not(.mode-picker):not(.deck-picker) .hl-chip {
+  min-width: 0;
+  padding: 0 2px;
+  font-size: 14.5px;
 }

@@ -8,9 +8,9 @@
 
 export type CardType = 'unit' | 'gate' | 'riff' | 'amp';
 
-export type Keyword = 'pierce' | 'splash' | 'echo' | 'downbeat' | 'encore' | 'feedback' | 'antiAir' | 'roadie' | 'shred' | 'priority' | 'speaker' | 'volume';
+export type Keyword = 'pierce' | 'splash' | 'echo' | 'downbeat' | 'encore' | 'feedback' | 'antiAir' | 'roadie' | 'shred' | 'priority' | 'speaker' | 'volume' | 'slow';
 
-export type HeadlinerId = 'thrum' | 'lyra' | 'clatter';
+export type HeadlinerId = 'thrum' | 'lyra' | 'clatter' | 'aria' | 'riot';
 
 /** 'token': created by other cards (e.g. Roadies), never drawn or offered. */
 export type Rarity = 'starter' | 'common' | 'rare' | 'token';
@@ -19,8 +19,12 @@ export type Scope = 'lane' | 'all';
 
 /** One step of something a card or trigger does. Amounts are base values before grade and chain multipliers. */
 export type Effect =
-  /** Hit the enemy closest to the stage in the lane. `prefer: 'priority'`: a Breaker, Hexer or boss in the lane if there is one. */
-  | { do: 'damageFront'; amount: number; prefer?: 'priority' }
+  /** Hit the enemy closest to the stage in the lane. `prefer: 'priority'`: a Breaker, Hexer or boss in the lane if there is one. `vsSlowedPct`: more damage to a slowed target. */
+  | { do: 'damageFront'; amount: number; prefer?: 'priority'; vsSlowedPct?: number }
+  /** Slow enemies in the lane (or everywhere): they move at `pct`% speed for `beats` beats. */
+  | { do: 'slow'; scope: Scope; pct: number; beats: number }
+  /** Win back crowd, up to your max. */
+  | { do: 'heal'; amount: number }
   /** Hit every enemy in the lane. */
   | { do: 'damageLane'; amount: number }
   /** Hit every enemy on the field (`only: 'flying'`: just flyers). */
@@ -83,6 +87,8 @@ export type GateKind =
   | 'shred'
   /** Shots gain Anti-Air. */
   | 'lift'
+  /** Shots slow whatever they hit (Aria). */
+  | 'slow'
   /** A speaker: shots turn into the next lane over (from the middle, alternating left and right). */
   | 'aim';
 
@@ -152,7 +158,7 @@ export interface EnemyDef {
   wide?: boolean;
 }
 
-export type EvolutionId = 'metronome' | 'polyrhythm' | 'crescendo' | 'harmony' | 'load-out' | 'mosh-pit';
+export type EvolutionId = 'metronome' | 'polyrhythm' | 'crescendo' | 'harmony' | 'load-out' | 'mosh-pit' | 'long-note' | 'banshee' | 'anarchy' | 'comeback';
 
 export interface EvolutionDef {
   id: EvolutionId;

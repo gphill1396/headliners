@@ -22,7 +22,7 @@ export interface RunResult {
   choices: number[];
 }
 
-const ROTATION: HeadlinerId[] = ['thrum', 'lyra', 'clatter'];
+const ROTATION: HeadlinerId[] = ['thrum', 'lyra', 'clatter', 'aria', 'riot'];
 const seedIndex = (seed: string): number => {
   const m = /(\d+)$/.exec(seed);
   return m ? Number(m[1]) : 0;

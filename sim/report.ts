@@ -84,7 +84,7 @@ export function evaluate(byBot: Record<string, RunResult[]>, runsPerBot: number)
   const T = THRESHOLDS;
   const random = byBot['random'] ?? [];
   const thrum = byBot['thrum'] ?? [];
-  const archetypes = (['thrum', 'lyra', 'clatter'] as const).filter((h) => (byBot[h] ?? []).length > 0);
+  const archetypes = (['thrum', 'lyra', 'clatter', 'aria', 'riot'] as const).filter((h) => (byBot[h] ?? []).length > 0);
   const sharp = byBot['thrum-sharp'] ?? [];
   const sloppy = byBot['thrum-sloppy'] ?? [];
   const skilled = [...(byBot['greedy'] ?? []), ...archetypes.flatMap((h) => byBot[h]!), ...sharp, ...sloppy];

@@ -6,7 +6,7 @@ import { ENEMIES } from '../src/content/enemies';
 import { cardText } from '../src/content/text';
 import { addEnemy, nextBeat, noWaves, playOnBeat, runTicks, testState, toBeatEdge, giveCard } from './helpers';
 
-const HEADLINERS = ['thrum', 'lyra', 'clatter'] as const;
+const HEADLINERS = ['thrum', 'lyra', 'clatter', 'aria', 'riot'] as const;
 
 test('the full Phase 1 set: about 40 cards, 9 signature cards per headliner, 12-card starter decks', () => {
   const real = CARDS.filter((c) => c.rarity !== 'token');

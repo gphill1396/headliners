@@ -30,6 +30,16 @@ interface LaneBus {
 
 const LANE_PAN = [-0.6, 0, 0.6];
 
+const PUNK_CURVE = (() => {
+  const n = 512;
+  const c = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1;
+    c[i] = Math.max(-0.6, Math.min(0.6, x * 4)) / 0.6;
+  }
+  return c;
+})();
+
 export function midiToHz(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
@@ -338,6 +348,61 @@ export class Synth {
     src.connect(hp).connect(gain).connect(dest);
     src.start(t, (t * 2.3) % 0.8);
     src.stop(t + 0.11);
+  }
+
+  // ---------------------------------------------------------------- Aria's voices, Riot's guitar
+
+  /** A sung vowel (Aria): a saw through two formant band-passes, with a soft attack. 'oo' is dark, 'ah' is open. */
+  voice(t: number, midi: number, dur: number, level = 1, dest: AudioNode = this.master, vowel: 'oo' | 'ah' = 'oo'): void {
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = midiToHz(midi);
+    const vib = this.ctx.createOscillator();
+    const vibAmt = this.ctx.createGain();
+    vib.frequency.value = 5.5;
+    vibAmt.gain.value = 6;
+    vib.connect(vibAmt).connect(osc.detune);
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.18 * level, t + Math.min(0.08, dur / 3));
+    gain.gain.setValueAtTime(0.18 * level, t + dur * 0.7);
+    gain.gain.linearRampToValueAtTime(0.0001, t + dur);
+    for (const [f, q] of vowel === 'oo' ? [[350, 6], [800, 8]] : [[750, 6], [1200, 8]]) {
+      const bp = this.ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = f!;
+      bp.Q.value = q!;
+      osc.connect(bp).connect(gain);
+    }
+    gain.connect(dest);
+    osc.start(t);
+    vib.start(t);
+    osc.stop(t + dur + 0.02);
+    vib.stop(t + dur + 0.02);
+  }
+
+  /** A fuzzed power chord (Riot): detuned saws, hard-clipped, through a low-pass. `muted` is a short palm-muted chug. */
+  punk(t: number, root: number, dur: number, level = 1, dest: AudioNode = this.master, muted = false): void {
+    const shaper = this.ctx.createWaveShaper();
+    shaper.curve = PUNK_CURVE;
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = muted ? 1_200 : 3_200;
+    const gain = this.ctx.createGain();
+    const len = muted ? Math.min(dur, 0.12) : dur;
+    gain.gain.setValueAtTime(0.09 * level, t);
+    gain.gain.setValueAtTime(0.09 * level, t + len * 0.6);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + len);
+    shaper.connect(lp).connect(gain).connect(dest);
+    for (const [midi, detune] of [[root, -8], [root, 8], [root + 7, 0], [root + 12, 5]] as const) {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = midiToHz(midi);
+      osc.detune.value = detune;
+      osc.connect(shaper);
+      osc.start(t);
+      osc.stop(t + len + 0.02);
+    }
   }
 
   // ---------------------------------------------------------------- pitched band

@@ -24,6 +24,9 @@ function fakeSynth(): { synth: Synth; calls: Call[]; fx: Map<number, { drive: nu
     cowbell: (t: number, level = 1, dest = 'master') => calls.push({ voice: 'cowbell', t, level, dest }),
     clank: (t: number, level = 1, dest = 'master') => calls.push({ voice: 'clank', t, level, dest }),
     shaker: (t: number, level = 1, dest = 'master') => calls.push({ voice: 'shaker', t, level, dest }),
+    voice: (t: number, note: number, _d: number, level = 1, dest = 'master') => calls.push({ voice: 'voice', t, note, level, dest }),
+    punk: (t: number, note: number, _d: number, level = 1, dest = 'master') => calls.push({ voice: 'punk', t, note, level, dest }),
+    crash: (t: number) => calls.push({ voice: 'crash', t }),
   };
   return { synth: fake as unknown as Synth, calls, fx };
 }
@@ -191,4 +194,15 @@ test('The Hush mutes the beat: no drums or band while hushed, just a held chord 
   const b = bar(mix);
   assert.equal(b.count('kick') + b.count('snare') + b.count('hat'), 0);
   assert.equal(b.count('pad'), 1);
+});
+
+test('Aria sings and Riot plays punk guitar', () => {
+  const aria = emptyMix();
+  aria.headliner = 'aria';
+  aria.groups = [{ cardId: 'backup-singer', lane: 0, count: 1, fireEvery: 2 }];
+  assert.ok(bar(aria).count('voice') >= 3);
+  const riot = emptyMix();
+  riot.headliner = 'riot';
+  riot.groups = [{ cardId: 'skater', lane: 1, count: 1, fireEvery: 2 }];
+  assert.equal(bar(riot).count('punk'), 4); // one chug each time it fires (every beat)
 });

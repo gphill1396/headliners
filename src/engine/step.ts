@@ -1,6 +1,6 @@
 import { accuracyPct, advanceClock, beatInBar, chainStepPct, gradeInput, inPocket, isDownbeat, setTempo, type Grade } from './clock';
 import { moveEnemies, moveProjectiles, smashGates, sweepDead } from './combat';
-import { BEAT_UNITS, BEATS_PER_BAR, CHAIN_STEP_GOOD_PCT, CYCLE_COST, LANES, MAX_ENERGY, METRONOME_WIDEN_PCT, POCKET_MAX, SUBTICK } from './constants';
+import { ABILITY_RETRY_BEATS, BEAT_UNITS, BEATS_PER_BAR, CHAIN_STEP_GOOD_PCT, CYCLE_COST, LANES, MAX_ENERGY, METRONOME_WIDEN_PCT, POCKET_MAX, SUBTICK } from './constants';
 import { evolvedInto } from './evolution';
 import { createCtx, flushDamage, type TickCtx } from './context';
 import { addCardToDeck, drawCards, refillHand } from './deck';
@@ -120,7 +120,7 @@ function applyInput(state: EngineState, ctx: TickCtx, input: Input): void {
       commit(state, ctx, input);
       return;
     case 'activate':
-      activate(state, ctx);
+      activate(state, ctx, input.permille);
       return;
     case 'evolve':
       evolve(state, ctx, input.index);
@@ -262,7 +262,12 @@ function updatePocket(state: EngineState, ctx: TickCtx, grade: Grade, offsetMill
   if (p.depth !== before) ctx.events.push({ type: 'pocket', depth: p.depth, delta: p.depth - before });
 }
 
-function activate(state: EngineState, ctx: TickCtx): void {
+/**
+ * A headliner's ability lands on the beat like a card (Phase 2c): Tight gets
+ * the full effect, Good a beat less (Clatter: Roadies in the two outer lanes),
+ * and Off fizzles, with a short wait before you can try again.
+ */
+function activate(state: EngineState, ctx: TickCtx, permille: number): void {
   const def = HEADLINERS[state.headliner.id];
   if (!def || state.phase !== 'playing') return;
   const beat = state.clock.beat;
@@ -270,11 +275,23 @@ function activate(state: EngineState, ctx: TickCtx): void {
     ctx.events.push({ type: 'rejected', iid: -1, reason: 'cooldown' });
     return;
   }
-  state.headliner.activeUntilBeat = beat + def.active.durationBeats;
+  const widen = evolvedInto(state, 'metronome') ? METRONOME_WIDEN_PCT : 100;
+  const timing = gradeInput(state.clock, clampPermille(permille), state.settings.relaxedTiming, widen);
+  if (timing.grade === 'off') {
+    state.headliner.readyBeat = beat + ABILITY_RETRY_BEATS;
+    ctx.events.push({ type: 'fill', untilBeat: beat, headliner: state.headliner.id, grade: 'off' });
+    return;
+  }
+  // Aria's Long Note: Hold lasts twice as long.
+  const full = def.active.durationBeats * (evolvedInto(state, 'long-note') ? 2 : 1);
+  const duration = timing.grade === 'tight' || full === 0 ? full : Math.max(1, full - 1);
+  state.headliner.activeUntilBeat = timing.resolveBeat + duration;
   state.headliner.readyBeat = beat + def.active.cooldownBeats;
-  // Clatter's All Hands: a Roadie in every lane, right now.
-  if (state.headliner.id === 'clatter') for (let lane = 0; lane < LANES; lane++) createToken(state, ctx, 'roadie', lane);
-  ctx.events.push({ type: 'fill', untilBeat: state.headliner.activeUntilBeat, headliner: state.headliner.id });
+  // Clatter's All Hands: a Roadie in every lane (Good: the two outer lanes).
+  if (state.headliner.id === 'clatter') {
+    for (let lane = 0; lane < LANES; lane++) if (timing.grade === 'tight' || lane !== 1) createToken(state, ctx, 'roadie', lane);
+  }
+  ctx.events.push({ type: 'fill', untilBeat: state.headliner.activeUntilBeat, headliner: state.headliner.id, grade: timing.grade });
 }
 
 /** Discard-cycle (SPEC §4.3): pay 1 energy, discard a card from hand, draw a fresh one. The fresh one can't be cycled again this bar. */

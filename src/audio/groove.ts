@@ -101,6 +101,9 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
   } else if (mix.groups.length > 0 || onBeat) {
     tick(t, onBeat);
   }
+  // Aria's band: a soft "ooh" on the chord root every bar. Riot's: a crash to open every other bar.
+  if (mix.headliner === 'aria' && onBeat && inBar === 0) synth.voice(t, chord.root + 24, eighthSec * 7, chill ? 0.4 : 0.6);
+  if (mix.headliner === 'riot' && onBeat && inBar === 0 && beat % 8 === 0 && !chill) synth.crash(t);
   // Lyra's band keeps a soft low chord tone on 1 under everything.
   if (mix.headliner === 'lyra' && onBeat && inBar === 0) synth.keys(t, chord.root + 24, eighthSec * 3, chill ? 0.5 : 0.7);
   // Swell: the keys shimmer up the chord on every sixteenth.
@@ -186,6 +189,30 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
         if (chill && !onBeat) break;
         synth.clank(t, 0.45 * v, dest, 1.5);
         break;
+      case 'backup-singer':
+        // Oohs on 2 and 4, a chord tone above the root.
+        if (onBeat && inBar % 2 === 1) synth.voice(t, chord.notes[1]! + 12, eighthSec * 1.8, 0.6 * v, dest);
+        if (copy && !chill && onBeat && inBar % 2 === 1) synth.voice(t, chord.notes[2]! + 12, eighthSec * 1.8, 0.35 * v, dest);
+        break;
+      case 'soprano':
+        if (chill && inBar % 2 === 1) break;
+        if (onBeat) synth.voice(t, chord.notes[(inBar + 2) % 4]! + 24, eighthSec * 1.6, 0.5 * v, dest, 'ah');
+        break;
+      case 'skater':
+        // Palm-muted eighths on the root.
+        if (chill && !onBeat) break;
+        synth.punk(t, chord.root + 12, eighthSec, 0.7 * v, dest, true);
+        break;
+      case 'bottle-rocket':
+        if (chill && !onBeat) break;
+        synth.hat(t, true, true, dest);
+        synth.punk(t, chord.root + 24, eighthSec * 0.5, 0.4 * v, dest, true);
+        break;
+      case 'bouncer':
+        if (chill && inBar % 2 === 1) break;
+        synth.kick(t, 0.6 * v, dest);
+        synth.punk(t, chord.root + 12, eighthSec * 1.5, 0.5 * v, dest);
+        break;
       case 'pyro':
         // A sizzle and a pop, like a firework going up.
         if (chill && !onBeat) break;
@@ -269,6 +296,39 @@ export function playRiff(synth: Synth, cardId: string, lane: number, beat: numbe
     case 'crew-call':
       synth.cowbell(t, 0.8 * level, dest);
       synth.cowbell(t + sixteenth, 0.6 * level, dest);
+      break;
+    case 'lullaby':
+      synth.voice(t, chord.notes[0]! + 12, 1.1, 0.6 * level, dest);
+      synth.voice(t + 0.25, chord.notes[2]!, 0.9, 0.5 * level, dest);
+      break;
+    case 'high-note':
+      synth.voice(t, chord.notes[3]! + 24, 0.6, 0.8 * level, dest, 'ah');
+      break;
+    case 'ballad':
+      chord.notes.forEach((m, i) => synth.voice(t + i * 0.03, m + 12, 1.4, 0.4 * level, dest, 'ah'));
+      break;
+    case 'siren-call':
+      for (let i = 0; i < 4; i++) synth.voice(t + i * sixteenth * 2, chord.notes[3 - i]! + 24, 0.5, 0.6 * level, dest, 'ah');
+      break;
+    case 'shatter':
+      synth.voice(t, chord.notes[2]! + 36, 0.25, 0.7 * level, dest, 'ah');
+      synth.crash(t + 0.05);
+      break;
+    case 'power-slide':
+      synth.punk(t, chord.root + 24, 0.4, level, dest);
+      synth.punk(t + 2 * sixteenth, chord.root + 19, 0.5, level, dest);
+      break;
+    case 'smash-the-guitar':
+      synth.punk(t, chord.root + 12, 0.9, 1.2 * level, dest);
+      synth.crash(t);
+      synth.kick(t, level, dest);
+      break;
+    case 'anthem':
+      for (let i = 0; i < 4; i++) synth.punk(t + i * sixteenth, chord.root + 12, sixteenth * 0.9, 0.8 * level, dest, i < 3);
+      break;
+    case 'crowd-surf':
+      synth.crash(t);
+      synth.punk(t, chord.root + 24, 0.5, 0.7 * level, dest);
       break;
     case 'sustain-pedal':
       // A held chord on the keys.

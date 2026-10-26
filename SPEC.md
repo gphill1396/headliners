@@ -575,6 +575,15 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 - End-of-run screens show XP gained, level-ups and new unlocks.
 - The simulator still plays starter decks, so D1–D8 are unchanged (all pass).
 
+**Phase 2c, part 1 — two new headliners, as built:**
+- **Aria, the siren (control).** Passive: her *Tight* riffs slow the enemies in their lane to half speed for 2 beats. Ability **Hold**: every enemy stops for 2 beats. Evolutions: **Long Note** (Hold lasts twice as long) / **Banshee** (slowed enemies take 50% more damage). Cards: Backup Singer, Lullaby, Vibrato (gate: shots slow), Soprano (Priority), Shatter (hits all flyers), High Note (double vs slowed), Power Ballad (win back crowd), Siren Call, Chorus Line (amp). Band: sung "ooh/aah" voices.
+- **Riot, the punk drake (aggression).** Passive: while your chain is 3+, every 8 kills win back 1 crowd. Ability **Riot**: all damage doubled for 2 beats. Evolutions: **Anarchy** (no Feedback cost on a 5+ chain) / **Comeback** (+3% damage per missing crowd, up to +60%). Cards: Skater (Splash), Power Slide, Cranked (+8 gate, fragile), Bottle Rocket (Anti-Air), Bouncer (Priority), Smash the Guitar, Anthem, Crowd Surf, Wall of Death (amp). Band: fuzzed punk power chords.
+- New effect parts: slow (lane or all), heal, "more damage vs slowed", and a Vibrato gate (shots slow what they hit). 61 cards in all.
+- **Abilities now land on the beat, for every headliner** *(change from §4.7, flagged to Grant)*: Tight = full effect, Good = a beat shorter (Clatter: Roadies in the two outer lanes only), Off = fizzles and you can retry after 4 beats. Without it, random play as Aria reached wave 8 just by mashing Hold, which pulled skill-vs-random (D1) below 3×.
+- Balance passes: Aria's passive needs Tight riffs; Lullaby and Backup Singer slow less; Riot's crowd-back needs a 3+ chain.
+- **Results** at 200 runs per bot (5 headliners): median wave Thrum 20, Lyra 19, Clatter 18, Aria 20, Riot 19, random 6. All D1–D8 pass: D1 3.00× (Clatter), D2 5.9×, D3 1.11×, D4 36.4%, D5 19.5%, D6 6.5%, D7 3.0, D8 0.2%. Random play as Aria still reaches wave 8 (as Clatter 7), so her skill gap is the narrowest.
+- Tour (80 runs): Thrum 94%, Aria 93%, Lyra 71%, Riot 71%, Clatter 66%.
+
 **S2.2 Collection & Workshop**
 *As Grant, I want to tinker with decks the way I tune Commander decks, with real stats.*
 - [x] Deck builder enforces 20–30 cards, max 2 copies, and limits signature cards to your active headliners.

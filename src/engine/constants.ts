@@ -102,6 +102,27 @@ export const VOLUME_MAX = 20;
 /** Discard-cycle a card in hand: costs this much energy (SPEC §4.3). */
 export const CYCLE_COST = 1;
 
+// ---------------------------------------------------------------- Aria and Riot (Phase 2c)
+/** Aria's passive: riffs slow the enemies in their lane to this % speed for this many beats. */
+export const ARIA_RIFF_SLOW_PCT = 50;
+export const ARIA_RIFF_SLOW_BEATS = 2;
+/** Banshee: slowed enemies take this % damage. */
+export const BANSHEE_PCT = 150;
+/** Vibrato gate: what a slowing shot does. */
+export const SLOW_SHOT_PCT = 50;
+export const SLOW_SHOT_BEATS = 2;
+/** Riot's passive: this many kills win back 1 crowd. */
+export const RIOT_KILLS_PER_CROWD = 8;
+/** Riot's ability: all damage ×this % while it's on. */
+export const RIOT_DAMAGE_PCT = 200;
+/** Comeback: +this % damage per point of crowd you're missing, up to the cap. */
+export const COMEBACK_PCT_PER_CROWD = 3;
+export const COMEBACK_MAX_PCT = 60;
+/** Anarchy: Feedback costs no crowd while the chain is at least this long. */
+export const ANARCHY_CHAIN = 5;
+/** An ability tapped Off the beat fizzles; you can try again after this many beats. */
+export const ABILITY_RETRY_BEATS = 4;
+
 // ---------------------------------------------------------------- Tour (SPEC S2.1)
 export const TOUR_ACTS = 3;
 /** Stops per act before the boss. */

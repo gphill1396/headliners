@@ -16,6 +16,7 @@ export const GATE_COLORS: Record<GateKind, string> = {
   shred: '#a69cc0',
   aim: '#8fd3ff',
   lift: '#f6d38a',
+  slow: '#f29cc3',
 };
 const HEX_COLOR = '#c06bd6';
 
@@ -157,6 +158,15 @@ export function drawField(
       ctx.globalAlpha = 1;
     }
     drawSprite(ctx, sprite, x, y, scale);
+    // Slowed (Aria): a pink band at the feet; held still: pink all round.
+    const held = state.headliner.id === 'aria' && state.clock.beat < state.headliner.activeUntilBeat;
+    if (held || (e.slowUntilBeat ?? -1) > state.clock.beat) {
+      ctx.fillStyle = PALETTE.aria;
+      ctx.globalAlpha = held ? 0.8 : 0.6;
+      ctx.fillRect(x, y + sh * scale - 1, sw * scale, 2);
+      if (held) ctx.fillRect(x, y - 2, sw * scale, 1);
+      ctx.globalAlpha = 1;
+    }
     // The Hush, phase 1: everyone else wears a pale shield.
     if (state.boss?.phase === 1 && !wide) {
       ctx.fillStyle = '#d6caef';

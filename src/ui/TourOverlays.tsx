@@ -30,11 +30,11 @@ function useArmed(): boolean {
 }
 
 const STOP_LABEL: Record<TourNodeKind, string> = {
-  fight: 'Gig',
-  elite: 'Big gig',
+  fight: 'Show',
+  elite: 'Tournament',
   draft: 'Draft',
-  rest: 'Rest',
-  shop: 'Shop',
+  rest: 'Inn',
+  shop: 'Market',
   event: 'Event',
   boss: 'Boss',
 };
@@ -52,7 +52,7 @@ function TourStatus({ state }: { state: EngineState }) {
         Crowd <b>{state.crowd}</b>/{state.maxCrowd}
       </span>
       <span>
-        Merch <b>{tour.merch}</b>
+        Coin <b>{tour.merch}</b>
       </span>
       <span>
         Deck <b>{deckCards(state).length + state.units.filter((u) => !u.token).length + state.gates.length + state.amps.length}</b>
@@ -140,9 +140,9 @@ export function RestOverlay({ state, onRest }: { state: EngineState; onRest: (ch
   const armed = useArmed();
   const [cutting, setCutting] = useState(false);
   return (
-    <div className={`overlay${armed ? '' : ' arming'}`} role="dialog" aria-modal="true" aria-label="Rest stop">
+    <div className={`overlay${armed ? '' : ' arming'}`} role="dialog" aria-modal="true" aria-label="Inn">
       <div className="overlay-top">
-        <h2 className="title small">Rest stop</h2>
+        <h2 className="title small">The inn</h2>
         <TourStatus state={state} />
         <p className="lede">{cutting ? 'Which card leaves the band?' : 'A quiet night. Recover, or tighten up the set.'}</p>
       </div>
@@ -178,9 +178,9 @@ export function ShopOverlay({
   const [removing, setRemoving] = useState(false);
   const item = chosen === null ? null : shop.cards[chosen];
   return (
-    <div className={`overlay${armed ? '' : ' arming'}`} role="dialog" aria-modal="true" aria-label="Merch table">
+    <div className={`overlay${armed ? '' : ' arming'}`} role="dialog" aria-modal="true" aria-label="Market">
       <div className="overlay-top">
-        <h2 className="title small">Merch table</h2>
+        <h2 className="title small">Market</h2>
         <TourStatus state={state} />
       </div>
       <div className="overlay-controls">
@@ -214,7 +214,7 @@ export function ShopOverlay({
                 setChosen(null);
               }}
             >
-              {item && !item.sold ? (tour.merch < item.price ? `Need ${item.price} merch` : `Buy ${getCard(item.cardId).name} for ${item.price}`) : 'Choose a card'}
+              {item && !item.sold ? (tour.merch < item.price ? `Need ${item.price} coin` : `Buy ${getCard(item.cardId).name} for ${item.price}`) : 'Choose a card'}
             </button>
             <div className="shop-extras">
               <button className="secondary-btn" disabled={!armed || shop.removed || tour.merch < TOUR_SHOP_REMOVE_PRICE} onClick={() => setRemoving(true)}>
@@ -263,7 +263,7 @@ export function TourEndOverlay({ state, onAgain, progress }: { state: EngineStat
   return (
     <div className="overlay over" role="dialog" aria-modal="true" aria-label={won ? 'Tour complete' : 'Tour over'}>
       <div className="overlay-top">
-        <h2 className="title small">{won ? 'Tour complete!' : 'The tour bus broke down'}</h2>
+        <h2 className="title small">{won ? 'Tour complete!' : 'The wagon broke an axle'}</h2>
         <p className="lede">
           {won ? `${h.name} played all ${TOUR_ACTS} acts and beat every boss.` : `${h.name} made it to act ${tour.act}.`}
         </p>

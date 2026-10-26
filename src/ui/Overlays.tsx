@@ -1,8 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { drawAnim, PORTRAITS } from '../render/portraits';
 import { getCard, HEADLINERS, type EngineState, type HeadlinerId } from '../engine';
 import { CardTile } from './CardTile';
 import { formatNumber } from './format';
 import type { Bests, GameMode, Settings } from './storage';
+
+/** A headliner's animated portrait (only those drawn at the new art bar so far). Plays its frames at a steady 120 bpm. */
+function Portrait({ headliner }: { headliner: HeadlinerId }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const art = PORTRAITS[headliner];
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx || !art) return;
+    let frame = 0;
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawAnim(ctx, art, frame, 0, 0, 1);
+      frame += 1;
+    };
+    draw();
+    const id = window.setInterval(draw, 250);
+    return () => window.clearInterval(id);
+  }, [art]);
+  if (!art) return null;
+  const rows = art.frames[0]!;
+  return <canvas ref={ref} className="portrait" width={rows[0]!.length} height={rows.length} aria-hidden="true" />;
+}
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
   return (
@@ -73,9 +97,10 @@ export function TitleOverlay({
         <p className="lede">
           {tutorialDone
             ? 'Tap a card, then tap a lane on the beat. Units shoot up their lane, gates multiply the shots, and plays on back-to-back beats chain together.'
-            : 'A card game played to the beat. Hold back the horde and keep your crowd. New here? The soundcheck teaches it in about two minutes.'}
+            : 'Your ren faire band fell through a portal into a land of monsters. Play to the beat, hold back the horde, keep your crowd. New here? The soundcheck teaches it in about two minutes.'}
         </p>
         <div className={`headliner hl-${headliner}`}>
+          <Portrait headliner={headliner} />
           <p className="headliner-name">
             {h.name}, {h.title}
           </p>
@@ -93,7 +118,7 @@ export function TitleOverlay({
         )}
         {mode === 'tour' && (
           <p className="muted">
-            Tour: 3 acts of gigs, shops and rest stops, with a boss at the end of each. Your crowd carries the whole way.
+            Tour: 3 acts of shows, markets and inns across the realm, with a boss at the end of each. Your crowd carries the whole way.
             {(bests.tours ?? 0) > 0 ? ` Tours won: ${bests.toursWon ?? 0} of ${bests.tours}.` : ''}
           </p>
         )}

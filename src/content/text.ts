@@ -14,7 +14,7 @@ export function cardText(def: CardDef): string {
       if (u.pierce) s += ` Pierce ${u.pierce}.`;
       if (u.splash) s += ' Splash.';
       if (u.antiAir) s += ' Anti-Air: its shots hit flyers.';
-      if (u.priority) s += ' Priority: its shots fly past other enemies to hit Breakers, Hexers and The Hush first.';
+      if (u.priority) s += ' Priority: its shots fly past other enemies to hit Trolls, Hags, Shamans and bosses first.';
       if (u.lifespanBeats) s += ` Leaves after ${u.lifespanBeats} beats.`;
       parts.push(s);
       break;
@@ -45,11 +45,11 @@ export const KEYWORD_TEXT: Record<Keyword, string> = {
   downbeat: 'Downbeat: something extra on beat 1 of the bar.',
   encore: 'Encore: a bonus while your chain is 3 or longer.',
   feedback: 'Feedback: strong, but costs you crowd.',
-  antiAir: 'Anti-Air: hits Bats and other flyers.',
-  roadie: 'Roadie: a small unit that leaves after 8 beats.',
-  shred: 'Toolbox: shots ignore armor and get past shields.',
-  priority: 'Priority: goes for Breakers, Hexers and The Hush first.',
-  speaker: 'Speaker: turns shots into the next lane over, from the side.',
+  antiAir: 'Anti-Air: hits Harpies and other flyers.',
+  roadie: 'Squire: a small unit that leaves after 8 beats.',
+  shred: 'Tinker: shots ignore armor and get past shields.',
+  priority: 'Priority: goes for Trolls, Hags, Shamans and bosses first.',
+  speaker: 'Horn: turns shots into the next lane over, from the side.',
   volume: 'Volume: a unit that keeps getting stronger, up to +20.',
   slow: 'Slow: enemies move at part speed for a few beats.',
 };
@@ -71,9 +71,9 @@ function gateEffect(kind: NonNullable<CardDef['gate']>['kind'], amount: number):
     case 'pierce':
       return `Shots through it gain Pierce ${amount}.`;
     case 'shred':
-      return 'Shots through it ignore armor and get past Shieldbearers’ shields.';
+      return 'Shots through it ignore armor and get past Hobgoblin shields.';
     case 'aim':
-      return 'A speaker: shots through it turn into the next lane over (from the middle, alternating left and right), and side shots get past Shieldbearers.';
+      return 'A horn: shots through it turn into the next lane over (from the middle, alternating left and right), and side shots get past Hobgoblin shields.';
     case 'lift':
       return 'Shots through it gain Anti-Air.';
     case 'slow':
@@ -122,19 +122,19 @@ function effectText(e: Effect, onUnit: boolean): string {
       return `Win back ${e.amount} crowd`;
     case 'damageFront':
       return e.prefer === 'priority'
-        ? `Deal ${e.amount} to a Breaker, Hexer or The Hush in this lane, or else the enemy closest to the stage`
+        ? `Deal ${e.amount} to a Troll, Hag, Shaman or boss in this lane, or else the enemy closest to the stage`
         : `Deal ${e.amount} to the enemy closest to the stage in this lane`;
     case 'damageLane':
       return `Deal ${e.amount} to every enemy in this lane`;
     case 'damageAll':
       return `Deal ${e.amount} to every ${e.only === 'flying' ? 'flying enemy' : 'enemy'}`;
     case 'volley': {
-      const who = e.tokensOnly ? 'Every Roadie' : e.scope === 'lane' ? 'Units in this lane' : 'Every unit';
+      const who = e.tokensOnly ? 'Every Squire' : e.scope === 'lane' ? 'Units in this lane' : 'Every unit';
       const fire = e.tokensOnly || e.scope !== 'lane' ? 'fires' : 'fire';
       return `${who} ${fire} ${e.shots === 1 ? 'an extra shot' : `${e.shots} extra shots`}`;
     }
     case 'roadie':
-      return `Put ${e.count === 1 ? 'a Roadie' : `${e.count} Roadies`} on stage ${e.scope === 'all' ? 'in every lane' : 'in this lane'}`;
+      return `Put ${e.count === 1 ? 'a Squire' : `${e.count} Squires`} on stage ${e.scope === 'all' ? 'in every lane' : 'in this lane'}`;
     case 'repairGates':
       return e.scope === 'all' ? `Every gate regains ${e.amount} durability` : `Gates in this lane regain ${e.amount} durability`;
     case 'selfFire':
@@ -166,5 +166,5 @@ function effectText(e: Effect, onUnit: boolean): string {
 
 function lower(s: string): string {
   // Keep proper names (Roadie, Breaker, Encore…) capitalized: only lower a plain leading verb.
-  return /^(Deal|Gain|Draw|Put|Every gate|Every unit|Every Roadie|Gates|Units|Fire|It fires|Volume|Slow|Win)\b/.test(s) ? s[0]!.toLowerCase() + s.slice(1) : s;
+  return /^(Deal|Gain|Draw|Put|Every gate|Every unit|Every Squire|Gates|Units|Fire|It fires|Volume|Slow|Win)\b/.test(s) ? s[0]!.toLowerCase() + s.slice(1) : s;
 }

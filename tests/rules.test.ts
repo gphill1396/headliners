@@ -237,7 +237,7 @@ test('Echo repeats on the next beat as a second link, and the card is discarded 
   assert.ok(ofType(events, 'resolved').some((r) => r.cardId === 'snare-roll' && !r.isEcho));
   const next = nextBeat(s);
   assert.ok(ofType(next, 'resolved').some((r) => r.cardId === 'snare-roll' && r.isEcho));
-  assert.ok(ofType(next, 'link').some((l) => l.label === 'Snare Roll echoes'));
+  assert.ok(ofType(next, 'link').some((l) => l.label === 'Tabor Roll echoes'));
   assert.equal(s.discard.filter((c) => c.cardId === 'snare-roll').length, 1);
 });
 

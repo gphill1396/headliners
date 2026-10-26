@@ -154,6 +154,8 @@ export interface WaveState {
   spawns: { beatOffset: number; kind: EnemyKind }[];
   nextSpawn: number;
   kinds: EnemyKind[];
+  /** stats.leaks when the wave began (a wave with none is a clean set). Missing in old saves. */
+  leaksAtStart?: number;
 }
 
 export interface HeadlinerState {

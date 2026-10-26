@@ -30,16 +30,6 @@ interface LaneBus {
 
 const LANE_PAN = [-0.6, 0, 0.6];
 
-const PUNK_CURVE = (() => {
-  const n = 512;
-  const c = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    const x = (i / (n - 1)) * 2 - 1;
-    c[i] = Math.max(-0.6, Math.min(0.6, x * 4)) / 0.6;
-  }
-  return c;
-})();
-
 export function midiToHz(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
@@ -209,20 +199,6 @@ export class Synth {
     body.stop(t + 0.1);
   }
 
-  hat(t: number, accent = false, open = false, dest: AudioNode = this.master): void {
-    const src = this.noiseSource();
-    const hp = this.ctx.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = 7500;
-    const gain = this.ctx.createGain();
-    const len = open ? 0.22 : accent ? 0.06 : 0.035;
-    gain.gain.setValueAtTime(open ? 0.16 : accent ? 0.2 : 0.11, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + len);
-    src.connect(hp).connect(gain).connect(dest);
-    src.start(t, (t * 3.1) % 0.8);
-    src.stop(t + len + 0.02);
-  }
-
   tom(t: number, midi: number, level = 1, dest: AudioNode = this.master): void {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
@@ -285,28 +261,7 @@ export class Synth {
     src.stop(t + 1.5);
   }
 
-  // ---------------------------------------------------------------- Clatter's junkyard
-
-  /** Cowbell: two detuned squares through a band-pass (the classic drum-machine recipe). */
-  cowbell(t: number, level = 1, dest: AudioNode = this.master): void {
-    const bp = this.ctx.createBiquadFilter();
-    bp.type = 'bandpass';
-    bp.frequency.value = 800;
-    bp.Q.value = 2.5;
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0.22 * level, t);
-    gain.gain.exponentialRampToValueAtTime(0.06 * level, t + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
-    bp.connect(gain).connect(dest);
-    for (const f of [540, 800]) {
-      const osc = this.ctx.createOscillator();
-      osc.type = 'square';
-      osc.frequency.value = f;
-      osc.connect(bp);
-      osc.start(t);
-      osc.stop(t + 0.34);
-    }
-  }
+  // ---------------------------------------------------------------- Clatter's pots and shaker
 
   /** Clank: a struck bit of scrap metal. Inharmonic partials plus a noisy hit. */
   clank(t: number, level = 1, dest: AudioNode = this.master, pitch = 1): void {
@@ -350,7 +305,7 @@ export class Synth {
     src.stop(t + 0.11);
   }
 
-  // ---------------------------------------------------------------- Aria's voices, Riot's guitar
+  // ---------------------------------------------------------------- Aria's voices, Riot's pipes
 
   /** A sung vowel (Aria): a saw through two formant band-passes, with a soft attack. 'oo' is dark, 'ah' is open. */
   voice(t: number, midi: number, dur: number, level = 1, dest: AudioNode = this.master, vowel: 'oo' | 'ah' = 'oo'): void {
@@ -381,59 +336,234 @@ export class Synth {
     vib.stop(t + dur + 0.02);
   }
 
-  /** A fuzzed power chord (Riot): detuned saws, hard-clipped, through a low-pass. `muted` is a short palm-muted chug. */
+  /** Riot's band (was a fuzzed punk guitar): now bagpipes. `muted` is a short, clipped note. */
   punk(t: number, root: number, dur: number, level = 1, dest: AudioNode = this.master, muted = false): void {
-    const shaper = this.ctx.createWaveShaper();
-    shaper.curve = PUNK_CURVE;
+    this.pipes(t, root, dur, level, dest, muted);
+  }
+
+  // ---------------------------------------------------------------- the ren faire band
+
+  /** Lute (Lyra, and every strum): a plucked string. Saw + triangle through a low-pass that closes fast, plus a pick click. */
+  lute(t: number, midi: number, dur: number, level = 1, dest: AudioNode = this.master): void {
+    const f = midiToHz(midi);
+    const ring = Math.max(0.35, dur * 1.3);
     const lp = this.ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.value = muted ? 1_200 : 3_200;
+    lp.Q.value = 1.5;
+    lp.frequency.setValueAtTime(Math.min(6_000, f * 8), t);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(300, f * 1.5), t + 0.25);
     const gain = this.ctx.createGain();
-    const len = muted ? Math.min(dur, 0.12) : dur;
-    gain.gain.setValueAtTime(0.09 * level, t);
-    gain.gain.setValueAtTime(0.09 * level, t + len * 0.6);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + len);
-    shaper.connect(lp).connect(gain).connect(dest);
-    for (const [midi, detune] of [[root, -8], [root, 8], [root + 7, 0], [root + 12, 5]] as const) {
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.15 * level, t + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + ring);
+    lp.connect(gain).connect(dest);
+    for (const [type, detune] of [['sawtooth', 0], ['triangle', 5]] as const) {
       const osc = this.ctx.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.value = midiToHz(midi);
+      osc.type = type;
+      osc.frequency.value = f;
       osc.detune.value = detune;
-      osc.connect(shaper);
+      osc.connect(lp);
       osc.start(t);
-      osc.stop(t + len + 0.02);
+      osc.stop(t + ring + 0.02);
+    }
+    const pick = this.noiseSource();
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 2_800;
+    bp.Q.value = 2;
+    const pg = this.ctx.createGain();
+    pg.gain.setValueAtTime(0.06 * level, t);
+    pg.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
+    pick.connect(bp).connect(pg).connect(dest);
+    pick.start(t, (t * 5.1) % 0.8);
+    pick.stop(t + 0.02);
+  }
+
+  /** A lute strum: the notes plucked a hair apart, low to high. */
+  strum(t: number, notes: number[], dur: number, level = 1, dest: AudioNode = this.master): void {
+    notes.forEach((m, i) => this.lute(t + i * 0.018, m, dur, 0.75 * level, dest));
+  }
+
+  /** Tambourine: a slap of jingles. Keeps time for most of the band. */
+  jingle(t: number, accent = false, dest: AudioNode = this.master): void {
+    const src = this.noiseSource();
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 7_000;
+    bp.Q.value = 1.2;
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(accent ? 0.16 : 0.09, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + (accent ? 0.13 : 0.08));
+    src.connect(bp).connect(gain).connect(dest);
+    src.start(t, (t * 3.7) % 0.8);
+    src.stop(t + 0.15);
+    for (const f of [5_400, 7_900]) {
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = f;
+      g.gain.setValueAtTime(accent ? 0.012 : 0.007, t);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.12);
+      osc.connect(g).connect(dest);
+      osc.start(t);
+      osc.stop(t + 0.13);
     }
   }
 
-  // ---------------------------------------------------------------- pitched band
+  /** War drum (Thrum's kick, and the 1 of every bar): a big low boom with a skin slap. */
+  boom(t: number, level = 1, dest: AudioNode = this.master): void {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(115, t);
+    osc.frequency.exponentialRampToValueAtTime(38, t + 0.25);
+    gain.gain.setValueAtTime(0.95 * level, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+    osc.connect(gain).connect(dest);
+    osc.start(t);
+    osc.stop(t + 0.57);
+    const src = this.noiseSource();
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 900;
+    const ng = this.ctx.createGain();
+    ng.gain.setValueAtTime(0.3 * level, t);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    src.connect(lp).connect(ng).connect(dest);
+    src.start(t, (t * 4.3) % 0.8);
+    src.stop(t + 0.06);
+  }
 
-  /** Electric piano (Lyra): a sine body plus a bright "tine" that fades fast. */
-  keys(t: number, midi: number, dur: number, level = 1, dest: AudioNode = this.master): void {
+  /** Bagpipes (Riot): a reedy chanter with a quick grace note, over a low drone unless it's a short `clipped` note. */
+  pipes(t: number, root: number, dur: number, level = 1, dest: AudioNode = this.master, clipped = false): void {
+    const len = clipped ? Math.min(dur, 0.12) : dur;
+    const chanter = root + 12;
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1_300;
+    bp.Q.value = 1.2;
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.09 * level, t + 0.01);
+    gain.gain.setValueAtTime(0.09 * level, t + len * 0.8);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + len);
+    bp.connect(gain).connect(dest);
+    for (const [type, detune] of [['sawtooth', 0], ['square', 4]] as const) {
+      const osc = this.ctx.createOscillator();
+      osc.type = type;
+      osc.detune.value = detune;
+      // A grace note a fifth up, then the melody note: the pipes' signature flick.
+      osc.frequency.setValueAtTime(midiToHz(chanter + 7), t);
+      osc.frequency.setValueAtTime(midiToHz(chanter), t + 0.035);
+      osc.connect(bp);
+      osc.start(t);
+      osc.stop(t + len + 0.02);
+    }
+    if (!clipped) this.drone(t, len, 0.6 * level, dest);
+  }
+
+  /** The pipes' (or the hurdy-gurdy's) drone: D and A, low and steady, whatever the chord. */
+  drone(t: number, dur: number, level = 1, dest: AudioNode = this.master, buzz = false): void {
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = buzz ? 1_800 : 900;
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.05 * level, t + 0.06);
+    gain.gain.setValueAtTime(0.05 * level, t + dur * 0.85);
+    gain.gain.linearRampToValueAtTime(0.0001, t + dur);
+    lp.connect(gain).connect(dest);
+    for (const midi of [38, 45]) {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = midiToHz(midi);
+      osc.connect(lp);
+      osc.start(t);
+      osc.stop(t + dur + 0.02);
+    }
+  }
+
+  /** Hurdy-gurdy (Clatter): a cranked, bowed note over a drone, with the buzzing "dog" kicking in at the front. */
+  gurdy(t: number, midi: number, dur: number, level = 1, dest: AudioNode = this.master): void {
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 2_400;
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.08 * level, t + 0.03);
+    gain.gain.setValueAtTime(0.08 * level, t + dur * 0.8);
+    gain.gain.linearRampToValueAtTime(0.0001, t + dur);
+    // The dog: a fast rattle on the volume for the first moment of the note.
+    const dog = this.ctx.createGain();
+    dog.gain.value = 0.6;
+    const lfo = this.ctx.createOscillator();
+    const lfoAmt = this.ctx.createGain();
+    lfo.type = 'square';
+    lfo.frequency.value = 28;
+    lfoAmt.gain.setValueAtTime(0.4, t);
+    lfoAmt.gain.setValueAtTime(0, t + Math.min(0.16, dur * 0.5));
+    lfo.connect(lfoAmt).connect(dog.gain);
+    lp.connect(dog).connect(gain).connect(dest);
+    for (const [m, d] of [[midi, 0], [midi, 6], [midi - 12, 0]] as const) {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = midiToHz(m);
+      osc.detune.value = d;
+      osc.connect(lp);
+      osc.start(t);
+      osc.stop(t + dur + 0.02);
+    }
+    lfo.start(t);
+    lfo.stop(t + dur + 0.02);
+  }
+
+  /** Recorder / fife (Aria's high parts and the chain's lead line): breathy, nearly pure, a little vibrato. */
+  recorder(t: number, midi: number, dur: number, level = 1, dest: AudioNode = this.master): void {
     const f = midiToHz(midi);
-    const body = this.ctx.createGain();
-    body.gain.setValueAtTime(0.0001, t);
-    body.gain.linearRampToValueAtTime(0.14 * level, t + 0.006);
-    body.gain.exponentialRampToValueAtTime(0.001, t + Math.max(0.25, dur));
-    body.connect(dest);
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.1 * level, t + Math.min(0.03, dur / 3));
+    gain.gain.setValueAtTime(0.1 * level, t + dur * 0.75);
+    gain.gain.linearRampToValueAtTime(0.0001, t + dur);
+    gain.connect(dest);
     const osc = this.ctx.createOscillator();
     osc.type = 'sine';
     osc.frequency.value = f;
-    osc.connect(body);
-    osc.start(t);
-    osc.stop(t + Math.max(0.25, dur) + 0.02);
-    const tine = this.ctx.createGain();
-    tine.gain.setValueAtTime(0.06 * level, t);
-    tine.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-    tine.connect(dest);
-    const bell = this.ctx.createOscillator();
-    bell.type = 'triangle';
-    bell.frequency.value = f * 4;
-    bell.connect(tine);
-    bell.start(t);
-    bell.stop(t + 0.14);
+    const vib = this.ctx.createOscillator();
+    const vibAmt = this.ctx.createGain();
+    vib.frequency.value = 5;
+    vibAmt.gain.setValueAtTime(0, t);
+    vibAmt.gain.linearRampToValueAtTime(10, t + Math.min(0.25, dur));
+    vib.connect(vibAmt).connect(osc.detune);
+    osc.connect(gain);
+    const over = this.ctx.createOscillator();
+    const og = this.ctx.createGain();
+    over.type = 'triangle';
+    over.frequency.value = f * 2;
+    og.gain.value = 0.15;
+    over.connect(og).connect(gain);
+    const breath = this.noiseSource();
+    const hp = this.ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 2_500;
+    const bg = this.ctx.createGain();
+    bg.gain.setValueAtTime(0.012 * level, t);
+    bg.gain.exponentialRampToValueAtTime(0.002 * level, t + 0.08);
+    breath.connect(hp).connect(bg).connect(gain);
+    for (const o of [osc, over, vib]) {
+      o.start(t);
+      o.stop(t + dur + 0.02);
+    }
+    breath.start(t, (t * 6.1) % 0.8);
+    breath.stop(t + dur + 0.02);
   }
 
-  /** Bass note: saw through a closing low-pass, a little pluck. */
+  /** Lyra's plucked strings (was an electric piano). Kept as `keys` so the groove reads the same. */
+  keys(t: number, midi: number, dur: number, level = 1, dest: AudioNode = this.master): void {
+    this.lute(t, midi, dur, level, dest);
+  }
+
+  /** Bass viol: a bowed saw through a closing low-pass, with a soft bow attack. */
   bass(t: number, midi: number, dur: number, level = 1, dest: AudioNode = this.master): void {
     const osc = this.ctx.createOscillator();
     const lp = this.ctx.createBiquadFilter();
@@ -443,7 +573,8 @@ export class Synth {
     lp.type = 'lowpass';
     lp.frequency.setValueAtTime(1_400, t);
     lp.frequency.exponentialRampToValueAtTime(260, t + dur);
-    gain.gain.setValueAtTime(0.32 * level, t);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.32 * level, t + Math.min(0.04, dur / 4));
     gain.gain.setValueAtTime(0.32 * level, t + dur * 0.7);
     gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
     osc.connect(lp).connect(gain).connect(dest);
@@ -451,22 +582,9 @@ export class Synth {
     osc.stop(t + dur + 0.02);
   }
 
-  /** Guitar-ish stab: a few detuned saws, short. */
+  /** A short chord stab: now a lute strum. */
   stab(t: number, notes: number[], dur: number, level = 1, dest: AudioNode = this.master): void {
-    for (const midi of notes) {
-      for (const detune of [-7, 7]) {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(midiToHz(midi), t);
-        osc.detune.value = detune;
-        gain.gain.setValueAtTime(0.05 * level, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-        osc.connect(gain).connect(dest);
-        osc.start(t);
-        osc.stop(t + dur + 0.02);
-      }
-    }
+    this.strum(t, notes, dur, 1.2 * level, dest);
   }
 
   /** Soft sustained chord pad. */
@@ -486,9 +604,9 @@ export class Synth {
     }
   }
 
-  /** Bright lead note for the arpeggio layer. */
+  /** Lead note for the chain's arpeggio layer: a fife. */
   lead(t: number, midi: number, dur: number, level = 1): void {
-    this.tone(t, midiToHz(midi), dur, 'square', 0.05 * level);
+    this.recorder(t, midi, Math.max(dur, 0.06), 0.55 * level);
   }
 
   // ---------------------------------------------------------------- game sounds

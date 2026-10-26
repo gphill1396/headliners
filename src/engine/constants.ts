@@ -159,3 +159,11 @@ export const BOSS_SHIELD_PCT = 50;
 /** Beating The Hush wins back this much crowd. */
 export const BOSS_CROWD_REWARD = 5;
 export const PICK_OPTIONS = 3;
+
+// ---- Winning crowd back ----
+/** Every this many links in one chain, the crowd sings along... */
+export const SINGALONG_LINKS = 15;
+/** ...and this much crowd comes back. */
+export const SINGALONG_CROWD = 1;
+/** A wave (or Tour fight wave) with nothing getting through wins back this much. */
+export const CLEAN_SET_CROWD = 1;

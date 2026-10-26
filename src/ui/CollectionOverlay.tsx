@@ -1,3 +1,5 @@
+import { KEYWORD_TEXT } from '../content/text';
+import type { Keyword } from '../engine/types';
 import { useRef, useState } from 'react';
 import { CARDS, getCard, HEADLINERS, type HeadlinerId } from '../engine';
 import {
@@ -205,7 +207,7 @@ function DeckEditor({
               .slice(0, 4)
               .map(([k, n]) => (
                 <span key={k} className="muted">
-                  {k === 'antiAir' ? 'Anti-Air' : k[0]!.toUpperCase() + k.slice(1)} {n}
+                  {(KEYWORD_TEXT[k as Keyword] ?? k).split(':')[0]} {n}
                 </span>
               ))}
           </div>

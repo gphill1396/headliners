@@ -14,6 +14,7 @@ export interface RunResult {
   capped: boolean;
   bestChain: number;
   showstopper: boolean;
+  showstopperWaves: number[];
   timing: { tight: number; good: number; off: number };
   picks: string[];
   damageBySource: Record<string, number>;
@@ -37,12 +38,15 @@ export function runOne(config: BotConfig, seed: string, maxTicks = DEFAULT_MAX_T
   const bot = createBot(config, createRng(`bot:${config.name}:${seed}`));
   const crowdLost: Partial<Record<EnemyKind, number>> = {};
   const picks: string[] = [];
+  /** Waves where the 50-link cap went off (negative: during a boss). */
+  const showstopperWaves: number[] = [];
   while (s.phase !== 'over' && s.tick < maxTicks) {
     const events = step(s, bot.act(s));
     for (const e of events) {
       // A Nest's hatchlings are the Nest's doing.
       if (e.type === 'leaked') crowdLost[e.hatchedBy ?? e.kind] = (crowdLost[e.hatchedBy ?? e.kind] ?? 0) + e.crowdDamage;
       else if (e.type === 'picked' && e.cardId) picks.push(e.cardId);
+      else if (e.type === 'showstopper') showstopperWaves.push(s.boss ? -s.wave.index : s.wave.index);
     }
   }
   let lossCause: EnemyKind | null = null;
@@ -60,6 +64,7 @@ export function runOne(config: BotConfig, seed: string, maxTicks = DEFAULT_MAX_T
     capped: s.phase !== 'over',
     bestChain: s.stats.bestChain,
     showstopper: s.stats.showstoppers > 0,
+    showstopperWaves,
     timing: { tight: s.stats.tight, good: s.stats.good, off: s.stats.off },
     picks,
     damageBySource: { ...s.stats.damageBySource },

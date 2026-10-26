@@ -251,7 +251,7 @@ function tags(def: CardDef): { gives: Set<string>; wants: Set<string> } {
 const WHY: Record<string, string> = {
   shots: 'its shots go through the gate',
   'many-shots': 'fast shots multiply',
-  roadies: 'more Roadies to work with',
+  roadies: 'more Squires to work with',
   gates: 'keeps the gates going',
   links: 'chain links power it',
   units: 'more units, more shots',

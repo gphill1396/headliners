@@ -87,10 +87,10 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
     return;
   }
 
-  // Time-keeping: an empty stage is just a quarter-note hat and a kick on 1. It fills in as the band grows.
-  // Clatter's crew keeps time on a shaker instead of a hi-hat.
+  // Time-keeping: an empty stage is just a quarter-note tambourine and a war drum on 1. It fills in as the band grows.
+  // Clatter's crew keeps time on a shaker instead.
   const shaker = mix.headliner === 'clatter';
-  const tick = (at: number, accent: boolean, open = false) => (shaker ? synth.shaker(at, accent ? 1 : 0.7) : synth.hat(at, accent, open));
+  const tick = (at: number, accent: boolean, open = false) => (shaker ? synth.shaker(at, accent ? 1 : 0.7) : synth.jingle(at, accent || open));
   if (chill) {
     if (onBeat) tick(t, false);
   } else if (mix.blast) {
@@ -101,17 +101,22 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
   } else if (mix.groups.length > 0 || onBeat) {
     tick(t, onBeat);
   }
-  // Aria's band: a soft "ooh" on the chord root every bar. Riot's: a crash to open every other bar.
+  // Aria's band: a soft "ooh" on the chord root every bar. Riot's: the pipes' drone, with a crash every other bar.
+  // Clatter's: the hurdy-gurdy's drone, cranked a bar at a time.
   if (mix.headliner === 'aria' && onBeat && inBar === 0) synth.voice(t, chord.root + 24, eighthSec * 7, chill ? 0.4 : 0.6);
-  if (mix.headliner === 'riot' && onBeat && inBar === 0 && beat % 8 === 0 && !chill) synth.crash(t);
+  if (mix.headliner === 'riot' && onBeat && inBar === 0) {
+    synth.drone(t, eighthSec * 7.9, chill ? 0.5 : 0.8);
+    if (beat % 8 === 0 && !chill) synth.crash(t);
+  }
+  if (mix.headliner === 'clatter' && onBeat && inBar === 0) synth.drone(t, eighthSec * 7.6, chill ? 0.45 : 0.7, undefined, true);
   // Lyra's band keeps a soft low chord tone on 1 under everything.
   if (mix.headliner === 'lyra' && onBeat && inBar === 0) synth.keys(t, chord.root + 24, eighthSec * 3, chill ? 0.5 : 0.7);
-  // Swell: the keys shimmer up the chord on every sixteenth.
+  // Swell: the lute ripples up the chord on every sixteenth.
   if (mix.swellUntil !== undefined && beat < mix.swellUntil) {
     for (let k = 0; k < 2; k++) synth.keys(t + k * sixteenth, chord.notes[(eighth * 2 + k) % 4]! + 24, sixteenth * 2, 0.45);
   }
   const hasKick = mix.groups.some((g) => g.cardId === 'kick-drum');
-  if (!hasKick && onBeat && inBar === 0) synth.kick(t, 0.7);
+  if (!hasKick && onBeat && inBar === 0) synth.boom(t, 0.7);
   if (filling && (!chill || onBeat)) synth.snare(t, onBeat ? 0.8 : 0.55);
 
   // The band: each unit plays when it fires.
@@ -130,9 +135,9 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
         break;
       }
       case 'kick-drum':
-        synth.kick(t, v, dest);
+        // War Drum: a big boom, with its downbeat burst as a 16th-note pickup.
+        synth.boom(t, v, dest);
         if (onBeat && inBar === 0 && !filling && !chill) {
-          // Its downbeat burst, as a 16th-note pickup.
           synth.kick(t + sixteenth, 0.55 * v, dest);
           synth.kick(t + 2 * sixteenth, 0.65 * v, dest);
         }
@@ -153,9 +158,10 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
         break;
       }
       case 'crew-chief':
+        // Quartermaster: the hurdy-gurdy's melody string, a chord tone a beat at a time.
         if (chill && inBar % 2 === 1) break;
-        synth.cowbell(t, (inBar === 0 && onBeat ? 1 : 0.7) * v, dest);
-        if (copy && !chill) synth.cowbell(t + sixteenth, 0.35 * v, dest);
+        if (onBeat) synth.gurdy(t, chord.notes[inBar % 4]! + 12, eighthSec * 1.8, (inBar === 0 ? 1 : 0.75) * v, dest);
+        if (copy && !chill && onBeat) synth.gurdy(t, chord.notes[(inBar + 2) % 4]! + 12, eighthSec * 1.8, 0.4 * v, dest);
         break;
       case 'roadie': {
         // A pile of Roadies is a pile of scrap: each lane's crew clanks at its own pitch.
@@ -169,13 +175,14 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
         if (onBeat && inBar % 2 === 1) synth.snare(t, 0.5 * v, dest);
         break;
       case 'double-kick':
+        // Kettle Drums: low and tuned, alternating root and fifth.
         if (chill && !onBeat) break;
-        synth.kick(t, (onBeat ? 0.7 : 0.45) * v, dest);
+        synth.tom(t, onBeat ? 40 : 47, (onBeat ? 0.8 : 0.55) * v, dest);
         break;
       case 'tuning-fork':
         // A pure high tone, a fifth above the chord root.
         if (chill && !onBeat) break;
-        synth.keys(t, chord.root + 43, eighthSec * 0.9, 0.35 * v, dest);
+        synth.recorder(t, chord.root + 43, eighthSec * 0.9, 0.4 * v, dest);
         break;
       case 'guitar-tech':
         if (chill && inBar % 2 === 1) break;
@@ -197,6 +204,7 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
       case 'soprano':
         if (chill && inBar % 2 === 1) break;
         if (onBeat) synth.voice(t, chord.notes[(inBar + 2) % 4]! + 24, eighthSec * 1.6, 0.5 * v, dest, 'ah');
+        if (onBeat && copy && !chill) synth.recorder(t, chord.notes[(inBar + 3) % 4]! + 24, eighthSec * 1.6, 0.4 * v, dest);
         break;
       case 'skater':
         // Palm-muted eighths on the root.
@@ -205,7 +213,7 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
         break;
       case 'bottle-rocket':
         if (chill && !onBeat) break;
-        synth.hat(t, true, true, dest);
+        synth.jingle(t, true, dest);
         synth.punk(t, chord.root + 24, eighthSec * 0.5, 0.4 * v, dest, true);
         break;
       case 'bouncer':
@@ -214,9 +222,9 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
         synth.punk(t, chord.root + 12, eighthSec * 1.5, 0.5 * v, dest);
         break;
       case 'pyro':
-        // A sizzle and a pop, like a firework going up.
+        // A sizzle and a pop, like a torch being twirled.
         if (chill && !onBeat) break;
-        synth.hat(t, false, true, dest);
+        synth.jingle(t, false, dest);
         synth.tom(t, 60, 0.45 * v, dest);
         break;
       case 'spotlight':
@@ -294,8 +302,8 @@ export function playRiff(synth: Synth, cardId: string, lane: number, beat: numbe
       for (let i = 0; i < 3; i++) synth.clank(t + i * sixteenth, 0.7 * level, dest, 0.8 + i * 0.2);
       break;
     case 'crew-call':
-      synth.cowbell(t, 0.8 * level, dest);
-      synth.cowbell(t + sixteenth, 0.6 * level, dest);
+      synth.gurdy(t, chord.root + 24, 0.5, 0.9 * level, dest);
+      synth.clank(t + sixteenth, 0.6 * level, dest, 1.2);
       break;
     case 'lullaby':
       synth.voice(t, chord.notes[0]! + 12, 1.1, 0.6 * level, dest);
@@ -331,14 +339,14 @@ export function playRiff(synth: Synth, cardId: string, lane: number, beat: numbe
       synth.punk(t, chord.root + 24, 0.5, 0.7 * level, dest);
       break;
     case 'sustain-pedal':
-      // A held chord on the keys.
+      // Let It Ring: a slow lute strum, left to ring.
       chord.notes.forEach((m, i) => synth.keys(t + i * 0.012, m, 1.2, 0.55 * level, dest));
       break;
     case 'load-in':
-      // Clank, clank, cowbell: gear hitting the stage.
+      // Clank, clank, crank: gear hitting the stage and the hurdy-gurdy starting up.
       synth.clank(t, 0.8 * level, dest, 0.9);
       synth.clank(t + sixteenth, 0.7 * level, dest, 1.1);
-      synth.cowbell(t + 2 * sixteenth, 0.6 * level, dest);
+      synth.gurdy(t + 2 * sixteenth, chord.root + 24, 0.35, 0.6 * level, dest);
       break;
     default:
       synth.stab(t, [chord.root + 24, chord.root + 31], 0.25, 0.7 * level, dest);

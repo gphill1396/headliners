@@ -12,8 +12,9 @@ function fake() {
   const synth = {
     audioTimeAt: (ms: number) => ms / 1000,
     metronome: (t: number, accent: boolean, level = 1) => calls.push({ k: 'metronome', t, accent, level }),
-    hat: (t: number) => calls.push({ k: 'hat', t }),
+    jingle: (t: number) => calls.push({ k: 'jingle', t }),
     kick: (t: number) => calls.push({ k: 'kick', t }),
+    boom: (t: number) => calls.push({ k: 'boom', t }),
     snare: () => {},
     setLaneFx: () => {},
     setMuffle: () => calls.push({ k: 'muffle', t: 0 }),
@@ -56,8 +57,8 @@ test('game over: the band fades for two bars, then only the metronome', () => {
   run(c, synth, 0, 7_000);
   assert.equal(c.mode, 'metronome');
   assert.ok(calls.some((x) => x.k === 'fade'));
-  const lastHat = Math.max(...calls.filter((x) => x.k === 'hat').map((x) => x.t));
-  assert.ok(lastHat < 4.8, 'band stops after two bars');
+  const lastJingle = Math.max(...calls.filter((x) => x.k === 'jingle').map((x) => x.t));
+  assert.ok(lastJingle < 4.8, 'band stops after two bars');
   const metronomes = calls.filter((x) => x.k === 'metronome').map((x) => x.t);
   assert.ok(metronomes.some((t) => t > 6));
 });

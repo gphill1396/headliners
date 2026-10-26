@@ -16,10 +16,11 @@ import {
   WAVE_BEATS,
 } from './constants';
 import type { TickCtx } from './context';
+import { gainCrowd } from './effects';
 import { addCardToDeck, refillHand } from './deck';
 import { nextFloat, nextInt, shuffleInPlace } from './rng';
 import { emptyChain, type CardInstance, type EngineState, type TourNode, type TourNodeKind, type TourState } from './state';
-import { BOSS_ORDER, bossCalls, spawnDue, startWave } from './waves';
+import { BOSS_ORDER, bossCalls, cleanSet, spawnDue, startWave } from './waves';
 import { getCard, pickPool } from '../content/cards';
 import { TOUR_EVENTS, type TourEffect } from '../content/events';
 
@@ -208,11 +209,12 @@ export function onBeatTour(state: EngineState, ctx: TickCtx): void {
   }
   if (state.phase !== 'playing') return;
   spawnDue(state);
-  bossCalls(state);
+  bossCalls(state, ctx);
 }
 
 function nextFightWave(state: EngineState, ctx: TickCtx): void {
   const fight = state.tour!.fight!;
+  if (fight.wave >= 0) cleanSet(state, ctx);
   fight.wave += 1;
   const last = fight.wave === fight.waves.length - 1;
   // Each act has its own boss: The Hush, then The Critic, then Dead Air.
@@ -220,6 +222,7 @@ function nextFightWave(state: EngineState, ctx: TickCtx): void {
 }
 
 function fightWon(state: EngineState, ctx: TickCtx): void {
+  cleanSet(state, ctx);
   const tour = state.tour!;
   const fight = tour.fight!;
   const merch = TOUR_MERCH[fight.kind];
@@ -301,9 +304,7 @@ export function afterTourChoice(state: EngineState, ctx: TickCtx): void {
 export function rest(state: EngineState, ctx: TickCtx, choice: 'heal' | 'cut', iid?: number): void {
   if (state.phase !== 'rest') return;
   if (choice === 'heal') {
-    const before = state.crowd;
-    state.crowd = Math.min(state.maxCrowd, state.crowd + TOUR_REST_HEAL);
-    ctx.events.push({ type: 'tourCrowd', amount: state.crowd - before });
+    gainCrowd(state, ctx, TOUR_REST_HEAL, 'tour');
   } else if (!removeCard(state, iid)) return;
   state.phase = 'map';
 }
@@ -356,9 +357,7 @@ export function shop(state: EngineState, ctx: TickCtx, a: ShopAction): void {
       if (shop.healed || tour.merch < TOUR_SHOP_HEAL_PRICE || state.crowd >= state.maxCrowd) return;
       tour.merch -= TOUR_SHOP_HEAL_PRICE;
       shop.healed = true;
-      const before = state.crowd;
-      state.crowd = Math.min(state.maxCrowd, state.crowd + TOUR_SHOP_HEAL);
-      ctx.events.push({ type: 'tourCrowd', amount: state.crowd - before });
+      gainCrowd(state, ctx, TOUR_SHOP_HEAL, 'tour');
       return;
     }
     case 'leave':
@@ -391,9 +390,8 @@ function applyTourEffect(state: EngineState, ctx: TickCtx, effect: TourEffect): 
       tour.merch = Math.max(0, tour.merch + effect.amount);
       return;
     case 'crowd': {
-      const before = state.crowd;
-      state.crowd = Math.min(state.maxCrowd, state.crowd + effect.amount);
-      ctx.events.push({ type: 'tourCrowd', amount: state.crowd - before });
+      if (effect.amount > 0) gainCrowd(state, ctx, effect.amount, 'tour');
+      else state.crowd = Math.max(0, state.crowd + effect.amount);
       return;
     }
     case 'addCard': {

@@ -303,6 +303,7 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
       if (s.amps.length >= 2) return 1;
       if (def.id === 'mosh-pit') return 4 + s.units.filter((u) => u.token).length * 4;
       if (def.id === 'soundboard') return 8;
+      if (def.id === 'tavern-chorus') return 3 + Math.min(s.maxCrowd - s.crowd, 10) * 0.8;
       if (def.id === 'chorus-line') return 4 + s.enemies.filter((e) => e.depth >= 0).length * 1.5;
       if (def.id === 'wall-of-death') return 4 + s.enemies.length * 0.8;
       if (def.id === 'four-on-the-floor') return 4 + s.units.length * 2.5;

@@ -3,6 +3,9 @@ import type { TourNodeKind } from './state';
 import type { EnemyKind, EvolutionId, HeadlinerId } from './types';
 
 /** What happened during a tick, for rendering, audio and haptics. Never fed back into the engine. */
+/** Why crowd came back: a clean wave, a 10-link sing-along, a card, Riot's passive, a beaten boss, or a Tour stop. */
+export type CrowdGainReason = 'clean' | 'singalong' | 'card' | 'riot' | 'boss' | 'tour';
+
 export type EngineEvent =
   | { type: 'beat'; beat: number; beatInBar: number; downbeat: boolean }
   | { type: 'graded'; id: number; iid: number; cardId: string; lane: number; grade: Grade; offsetMilli: number; accuracyPct: number; resolveBeat: number }
@@ -55,7 +58,8 @@ export type EngineEvent =
   | { type: 'actStart'; act: number }
   | { type: 'tourWon'; merch: number; cleared: number }
   /** Tour: crowd changed outside a fight (rest, shop, event). */
-  | { type: 'tourCrowd'; amount: number }
+  /** Crowd won back, and why (shown as a green pop). */
+  | { type: 'crowdGain'; amount: number; reason: CrowdGainReason }
   /** Your headliner is ready to evolve: choose one of its two evolutions. */
   | { type: 'evolveOffered' }
   | { type: 'evolved'; headliner: HeadlinerId; evolution: EvolutionId }

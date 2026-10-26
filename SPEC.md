@@ -8,9 +8,9 @@ You play as a fantasy band on tour. You pick three headliners (dragon-like creat
 - **Use:** personal, hosted on GitHub Pages
 - **Status:** v0.1 spec
 
-> **Direction from Grant (Oct 26), to apply next:**
-> - **Theme:** you're a ren faire band transported to a fantasy world, protecting the crowd from monsters. Retheme pass right after Phase 2c part 2 (before teams of 3): headliner, card, enemy and boss names, flavor text, and instruments (lute, bagpipes, hurdy-gurdy, drums and so on).
-> - **Art bar:** at minimum the level of *Metroid Fusion* (detailed, shaded GBA-style pixel sprites with animation frames). Claude hand-draws palette-indexed sprites; one character first so Grant can judge the bar before the rest. The current sprites are placeholders.
+> **Direction from Grant (Oct 26):**
+> - **Theme (applied):** you're a ren faire band pulled through a portal into a fantasy world, protecting the crowd from monsters. Names, flavor text and instruments are rethemed (see "Ren faire retheme" under Phase 2). Code ids are unchanged, so saves and the simulator carry over.
+> - **Art bar:** at minimum the level of *Metroid Fusion* (detailed, shaded GBA-style pixel sprites with animation frames). Claude draws palette-indexed sprites; Thrum's portrait (title screen) is the first sample for Grant to judge before the rest. Everything else is still placeholder art. The playfield is 144 px wide today; the art pass will likely need it wider (GBA is 240) for that level of detail.
 
 ---
 
@@ -621,6 +621,21 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
   - The Critic's phase 2 holds the chain instead of only freezing the multiplier; long boss fights were letting the sharpest bot hit the 50-link cap (D8).
 - **Results** at 200 runs per bot: median wave Thrum 19, Lyra 17, Clatter 17, Aria 18.5, Riot 18, random 5. All D1–D8 pass: D1 3.40× (Lyra), D2 5.0×, D3 1.12×, D4 36.0%, D5 19.6%, D6 5.6% (Swarmling), D7 3.0, D8 0.7%. Loss causes: Brute 15%, Nest 10%, Ghost 10%, Medic 9%, Splitter 8%, Hexer 8%, Breaker 8%, Shieldbearer 7%, the rest 6%.
 - Tour (80 runs): Thrum 78%, Aria 74%, Riot 60%, Lyra 51%, Clatter 44% (was 94/93/71/71/66). Act 3 is now the wall: Dead Air plus the new enemies. No D-threshold covers Tour; flagged.
+
+**Ren faire retheme and winning crowd back, as built (after 2c part 2):**
+- **Theme:** headliners are the band, changed on the way through the portal. Thrum, the war-drum drake (war drums, tabor, kettle drums). Lyra, the serpent lutenist (lute, harp). Clatter, the kobold tinker (hurdy-gurdy; Roadies are now **Squires**). Aria, the siren (voice, recorder). Riot, the piper drake (bagpipes).
+- **Monsters:** Shambler → Ghoul, Brute → Ogre, Swarmlings → Spiderlings, Bats → Harpies, Splitter → Slime, Shieldbearer → Hobgoblin, Hexer → Hag, Breaker → Troll, Charger → Warg, Medic → Shaman, Nest → Brood Mother, Ghost → Wisp. Bosses: The Hush (kept), The Critic → The Black Knight, Dead Air → The Bone Wyrm.
+- **Cards:** renamed where the old name was modern gear (Stagehand → Page, Kick Drum → War Drum, Overdrive → Bellows, Fuzz Box → Rattle, Side Fill → Ram's Horn, Mic Drop → Gong, Soundboard → Songbook, Feedback Loop → Cacophony, Smash the Guitar → Smash the Lute, and so on); flavor text rewritten. Keywords stay musical (Echo, Downbeat, Encore, Feedback); the speaker keyword reads "Horn" and Toolbox reads "Tinker".
+- **Tour:** gigs are Shows, big gigs are Tournaments, the merch table is the Market, rest stops are Inns, merch is coin, and the van is a wagon. Events rewritten.
+- **Sound:** new voices: lute (plucked string, also every strum), tambourine (keeps time), war drum (the 1 of every bar), bagpipes with a drone, hurdy-gurdy with its buzzing "dog", recorder/fife (the chain's lead line). Bass is a bowed viol.
+- **Winning crowd back** (Grant asked for more ways; before this only Ballad, Crowd Surf, Riot's passive, beating a boss and Tour stops did it):
+  - **Clean set:** a wave where nothing gets through, ended with the band in the pocket, wins back 1 crowd. *(The pocket condition keeps it a skill reward: without it, random play gained enough to tie D1.)*
+  - **Sing-along:** every 15 links in one chain wins back 1.
+  - **Tavern Chorus** (new neutral amp, cost 3): on beat 1 with a 5+ chain, win back 1.
+  - Every gain shows as a green "+1 crowd" pop. Feedback costs show as "−1 crowd · Feedback".
+- **Balance pass that came with it:** surviving longer, the sharpest bot ran a single chain to the 50-link cap in long boss fights (D8 2.4%), so **a boss fight banks the chain every 36 beats**, like the end of a wave. The horde now grows late (one more Ghoul per pack every 6 waves after 6; two more Spiderlings every 6 after 9), and the Warg is tougher (health 40, crowd 5).
+- **Results** at 200 runs per bot: median wave Thrum 19, Lyra 17, Clatter 18, Aria 18, Riot 18, random 5. All D1–D8 pass: D1 3.40× (Lyra), D2 6.6×, D3 1.12×, D4 36.0%, D5 19.2%, D6 5.5% (Spiderlings), D7 3.0, D8 0.1%.
+- Tour (80 runs): Thrum 90%, Aria 71%, Clatter 55%, Lyra 51%, Riot 38%. The spread between headliners in Tour is wide; flagged, no threshold covers it.
 
 **S2.3 Content expansion**
 - [x] 2 new headliners, 4 new enemies and 2 bosses are added, all following §4 and §6.

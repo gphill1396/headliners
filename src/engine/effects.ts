@@ -16,11 +16,14 @@ import {
   MAX_ENERGY,
   UNIT_SLOTS,
   VOLUME_MAX,
+  SINGALONG_CROWD,
+  SINGALONG_LINKS,
 } from './constants';
 import { isDownbeat } from './clock';
 import { evolvedInto } from './evolution';
 import { chainFrozen } from './waves';
 import type { TickCtx } from './context';
+import type { CrowdGainReason } from './events';
 import { drawCards } from './deck';
 import { emptyChain, type EngineState, type QueuedPlay, type Unit } from './state';
 import type { Effect } from './types';
@@ -47,6 +50,16 @@ export function boostPct(state: EngineState): number {
  * Add a link to the chain (SPEC §4.6). Fires 'chainGrow' triggers, and
  * converts the chain into a Showstopper when it hits the cap.
  */
+/** Win back crowd (never above the max) and say so. Returns how much came back. */
+export function gainCrowd(state: EngineState, ctx: TickCtx, amount: number, reason: CrowdGainReason): number {
+  if (state.mode === 'tutorial') return 0;
+  const before = state.crowd;
+  state.crowd = Math.min(state.maxCrowd, state.crowd + amount);
+  const gained = state.crowd - before;
+  if (gained > 0) ctx.events.push({ type: 'crowdGain', amount: gained, reason });
+  return gained;
+}
+
 export function addLink(state: EngineState, ctx: TickCtx, cardId: string, label: string, lane: number, stepPct: number): void {
   const chain = state.chain;
   // The Critic, phase 2: unimpressed. Plays keep your chain alive, but it doesn't grow.
@@ -61,6 +74,8 @@ export function addLink(state: EngineState, ctx: TickCtx, cardId: string, label:
   chain.multPct += stepPct;
   if (chain.links > state.stats.bestChain) state.stats.bestChain = chain.links;
   ctx.events.push({ type: 'link', links: chain.links, multPct: chain.multPct, cardId, label, lane });
+  // Sing-along: every 10 links, the crowd joins in and some who left come back.
+  if (chain.links % SINGALONG_LINKS === 0 && chain.links < CHAIN_CAP) gainCrowd(state, ctx, SINGALONG_CROWD, 'singalong');
 
   if (chain.links >= CHAIN_CAP) {
     showstopper(state, ctx);
@@ -132,9 +147,7 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
       for (const e of state.enemies) if (e.hp > 0 && e.depth >= 0 && (effect.scope === 'all' || inLane(e, src.lane))) slowEnemy(state, e, effect.pct, effect.beats);
       return;
     case 'heal': {
-      const before = state.crowd;
-      state.crowd = Math.min(state.maxCrowd, state.crowd + effect.amount);
-      if (state.crowd > before) ctx.events.push({ type: 'tourCrowd', amount: state.crowd - before });
+      gainCrowd(state, ctx, effect.amount, 'card');
       return;
     }
     case 'damageLane':

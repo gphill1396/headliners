@@ -63,7 +63,7 @@ export const TUTORIAL: readonly TutorialStep[] = [
   {
     id: 'unit',
     title: 'Cards are your band',
-    body: 'A shambler is walking down the middle lane. Tap the Stagehand card, then tap Mid on the beat.',
+    body: 'A ghoul is shuffling down the middle lane. Tap the Page card, then tap Mid on the beat.',
     targets: (sel) => (sel === 'stagehand' ? ['lane-1'] : ['card:stagehand']),
     setup: [
       { type: 'grant', cardIds: ['stagehand'], energy: 10 },
@@ -75,7 +75,7 @@ export const TUTORIAL: readonly TutorialStep[] = [
   {
     id: 'unit-watch',
     title: 'Units shoot up their lane',
-    body: 'Your Stagehand stands on the stage and fires every beat. Watch it take down the shambler.',
+    body: 'Your Page stands on the stage and fires every beat. Watch it take down the ghoul.',
     targets: () => [],
     done: (_e, _s, p) => p.kills >= 1 || p.beats >= 10,
   },
@@ -109,7 +109,7 @@ export const TUTORIAL: readonly TutorialStep[] = [
   {
     id: 'chain',
     title: 'Chain plays together',
-    body: 'Cards played on back-to-back beats build a chain. The closer to the beat each one lands, the more it multiplies your damage. Play both Power Chords on two beats in a row, any lane.',
+    body: 'Cards played on back-to-back beats build a chain. The closer to the beat each one lands, the more it multiplies your damage. Play both Mighty Strums on two beats in a row, any lane.',
     targets: (sel) => (sel === 'power-chord' ? ['lanes', 'chain'] : ['card:power-chord', 'chain']),
     setup: [
       { type: 'grant', cardIds: ['power-chord', 'power-chord'], energy: 10 },
@@ -133,14 +133,14 @@ export const TUTORIAL: readonly TutorialStep[] = [
   {
     id: 'crowd',
     title: 'Protect your crowd',
-    body: 'Enemies walk toward the stage. Each one that gets there costs crowd, the red bar at the top. Lose all your crowd and the show is over.',
+    body: 'Monsters walk toward the stage. Each one that gets there costs crowd, the red bar at the top. Lose all your crowd and the show is over. A clean wave, played in the pocket, wins a little back.',
     targets: () => ['crowd'],
     button: 'Got it',
   },
   {
     id: 'fill',
     title: 'Thrum’s Fill',
-    body: 'Your headliner, Thrum the drum drake, has Fill: for 2 beats every unit goes rapid-fire. Save it for a crowded lane. And stay in time: off-beat plays break your chain.',
+    body: 'Your headliner, Thrum the war-drum drake, has Fill: for 2 beats every unit goes rapid-fire. Save it for a crowded lane. And stay in time: off-beat plays break your chain.',
     targets: () => ['fill'],
     button: 'Start the show',
   },

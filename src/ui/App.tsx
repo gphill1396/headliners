@@ -12,6 +12,7 @@ import {
   LANES,
   MAX_ENERGY,
   milliToMs,
+  type CrowdGainReason,
   type EnemyKind,
   type EngineEvent,
   type EngineState,
@@ -89,7 +90,7 @@ const REJECT_TEXT = {
 const ACTIVE_BANNER: Record<HeadlinerId, string> = {
   thrum: 'Every unit fires on every eighth note',
   lyra: 'Every gate works twice as hard',
-  clatter: 'A Roadie in every lane',
+  clatter: 'A Squire in every lane',
   aria: 'Every enemy holds still',
   riot: 'All damage doubled',
 };
@@ -171,20 +172,30 @@ function newRun(settings: Settings, headliner: HeadlinerId, mode: GameMode = 'en
 
 /** Phases where a menu is up and the band plays on, muffled, behind it. */
 const MENU_PHASES: EngineState['phase'][] = ['picking', 'evolving', 'map', 'shop', 'rest', 'event'];
-const FIGHT_LABEL = { fight: 'Gig', elite: 'Big gig', boss: 'Boss' } as const;
+const FIGHT_LABEL = { fight: 'Show', elite: 'Tournament', boss: 'Boss' } as const;
+
+/** A short reason after "+1 crowd" (kept to a word or two). */
+const GAIN_LABEL: Record<CrowdGainReason, string> = {
+  clean: ' · Clean set',
+  singalong: ' · Sing-along',
+  card: '',
+  riot: '',
+  boss: '',
+  tour: '',
+};
 
 /** Each boss's phase 2 and phase 3 banners: [title, one short line]. */
 const BOSS_PHASE_BANNER: Partial<Record<EnemyKind, [[string, string], [string, string]]>> = {
   hush: [
     ['Hushed', 'The beat goes quiet. No timing bonuses.'],
-    ['Brutes!', 'The Hush calls for backup'],
+    ['Ogres!', 'The Hush calls for backup'],
   ],
   critic: [
     ['Unimpressed', 'Armor off, but your chain stops growing'],
-    ['Medics!', 'The Critic calls for Medics'],
+    ['Shamans!', 'The Black Knight calls for Shamans'],
   ],
   'dead-air': [
-    ['It landed', 'Every shot hits now. Ghosts are coming.'],
+    ['It landed', 'Every shot hits now. Wisps are coming.'],
     ['Rush!', 'Everything else runs at the stage'],
   ],
 };
@@ -192,7 +203,7 @@ const BOSS_PHASE_BANNER: Partial<Record<EnemyKind, [[string, string], [string, s
 function gateLabel(kind: Hud['gates'][number]['kind'], amount: number, lane: number): string {
   switch (kind) {
     case 'aim':
-      return lane === 0 ? 'Speaker →' : lane === LANES - 1 ? '← Speaker' : '← Speaker →';
+      return lane === 0 ? 'Horn →' : lane === LANES - 1 ? '← Horn' : '← Horn →';
     case 'copy':
       return `×${amount}`;
     case 'damage':
@@ -202,7 +213,7 @@ function gateLabel(kind: Hud['gates'][number]['kind'], amount: number, lane: num
     case 'pierce':
       return `Pierce +${amount}`;
     case 'shred':
-      return 'Toolbox';
+      return 'Tinker';
     case 'slow':
       return 'Vibrato';
     case 'lift':
@@ -479,6 +490,11 @@ export function App() {
             fx.laneMiss[e.lane] = 1;
             pop(`-${e.crowdDamage} crowd`, e.lane, 88_000, 'pop-leak');
             break;
+          case 'crowdGain':
+            // Crowd coming back gets the same spot as crowd leaving, in green. (Boss and Tour stops have their own banners.)
+            if (e.reason === 'boss' || e.reason === 'tour') break;
+            pop(`+${e.amount} crowd${GAIN_LABEL[e.reason]}`, 1, 84_000, 'pop-gain');
+            break;
           case 'crowdCost':
             // Feedback cards cost crowd; say so where the leaks show, so it never looks like a mystery leak.
             pop(`-${e.amount} crowd · Feedback`, e.lane, 88_000, 'pop-leak');
@@ -540,7 +556,7 @@ export function App() {
             break;
           case 'fightWon':
             lastReward.current = { kind: e.kind, merch: e.merch };
-            showBanner(e.kind === 'boss' ? 'Boss beaten' : "Show's over", `+${e.merch} merch`);
+            showBanner(e.kind === 'boss' ? 'Boss beaten' : "Show's over", `+${e.merch} coin`);
             break;
           case 'actStart':
           case 'tourStop':
@@ -1289,7 +1305,7 @@ export function App() {
           lede={
             runner.state.mode === 'tour'
               ? lastReward.current
-                ? `+${lastReward.current.merch} merch. Pick a card for your deck, or skip to keep it lean.`
+                ? `+${lastReward.current.merch} coin. Pick a card for your deck, or skip to keep it lean.`
                 : 'Pick a card for your deck, or skip to keep it lean.'
               : undefined
           }

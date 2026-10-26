@@ -3,6 +3,7 @@ import {
   BEAT_UNITS,
   BOSS_BRUTE_EVERY_BEATS,
   BOSS_EVERY_WAVES,
+  CLEAN_SET_CROWD,
   EVOLVE_AFTER_WAVE,
   LANES,
   PICK_EVERY_WAVES,
@@ -17,6 +18,7 @@ import {
   TOUR_ELITE_HP,
 } from './constants';
 import type { TickCtx } from './context';
+import { gainCrowd } from './effects';
 import { nextInt, shuffleInPlace } from './rng';
 import { emptyChain, type EngineState } from './state';
 import type { EnemyKind } from './types';
@@ -67,6 +69,7 @@ export function onBeatWaves(state: EngineState, ctx: TickCtx): void {
     if (beat >= FIRST_WAVE_BEAT) startWave(state, ctx, 1);
   } else if (beat >= wave.startBeat + WAVE_BEATS && !state.boss) {
     // A boss wave lasts until The Hush is beaten or reaches the stage.
+    cleanSet(state, ctx);
     const preset = state.headliner.presetEvolution;
     if (wave.index === EVOLVE_AFTER_WAVE && (state.headliner.evolution ?? null) === null && (preset === 0 || preset === 1)) {
       // The Collection's permanent evolution: no need to ask.
@@ -81,14 +84,26 @@ export function onBeatWaves(state: EngineState, ctx: TickCtx): void {
   }
   if (state.phase !== 'playing') return;
   spawnDue(state);
-  bossCalls(state);
+  bossCalls(state, ctx);
+}
+
+/**
+ * A clean set wins back a little crowd: nothing got through this wave and the band
+ * ended it in the pocket. Call once, as the wave ends.
+ */
+export function cleanSet(state: EngineState, ctx: TickCtx): void {
+  const start = state.wave.leaksAtStart;
+  if (start === undefined || state.wave.index < 1 || state.stats.leaks > start || state.pocket.depth < 1) return;
+  gainCrowd(state, ctx, CLEAN_SET_CROWD, 'clean');
+  delete state.wave.leaksAtStart; // never twice for one wave
 }
 
 /**
  * Bosses call in help: The Hush brings Brutes in phase 3, The Critic brings
  * Medics in phase 3, Dead Air brings Ghosts from phase 2. Once per beat.
  */
-export function bossCalls(state: EngineState): void {
+export function bossCalls(state: EngineState, ctx?: TickCtx): void {
+  if (ctx) bossVerse(state, ctx);
   const boss = state.boss;
   if (!boss || state.clock.beat < boss.nextBruteBeat) return;
   const kind = bossKind(state);
@@ -97,6 +112,17 @@ export function bossCalls(state: EngineState): void {
   if (!call) return;
   spawnGroup(state, call);
   boss.nextBruteBeat = state.clock.beat + BOSS_BRUTE_EVERY_BEATS;
+}
+
+/**
+ * A boss fight is several songs: every wave-length of beats the chain is banked
+ * and a new one starts, as between waves (so a long fight can't run one chain to the cap).
+ */
+function bossVerse(state: EngineState, ctx: TickCtx): void {
+  const into = state.clock.beat - state.wave.startBeat;
+  if (!state.boss || into <= 0 || into % WAVE_BEATS !== 0 || state.chain.links === 0) return;
+  ctx.events.push({ type: 'chainEnd', links: state.chain.links, dropped: false, songEnd: true });
+  state.chain = emptyChain();
 }
 
 /** Keep The Hush's phase in step with its health. Call every tick. */
@@ -188,7 +214,7 @@ export function startWave(state: EngineState, ctx: TickCtx, index: number, opts:
     ctx.events.push({ type: 'chainEnd', links: state.chain.links, dropped: false, songEnd: true });
     state.chain = emptyChain();
   }
-  state.wave = { index, startBeat: state.clock.beat, hpMult, spawns, nextSpawn: 0, kinds };
+  state.wave = { index, startBeat: state.clock.beat, hpMult, spawns, nextSpawn: 0, kinds, leaksAtStart: state.stats.leaks };
   setTempo(state.clock, Math.min(WAVE_MAX_BPM, START_BPM + WAVE_TEMPO_STEP * (index - 1)));
   // "New:" banners for enemies you haven't met this run.
   const seen = state.seenKinds ?? [];
@@ -222,7 +248,7 @@ export function spawnGroup(state: EngineState, kind: EnemyKind, lane = nextInt(s
   // Walk to the stage in `travelBeats` beats at the current tempo. The first waves walk slower.
   const beats = travelBeats ?? (state.wave.index <= 2 ? def.travelBeats + 4 : def.travelBeats);
   const speed = Math.max(1, Math.floor((STAGE_LINE * state.clock.bpm) / (beats * BEAT_UNITS)));
-  for (let i = 0; i < (count ?? def.packSize); i++) {
+  for (let i = 0; i < (count ?? def.packSize + hordeGrowth(kind, state.wave.index)); i++) {
     state.enemies.push({
       id: state.nextId++,
       kind,
@@ -269,6 +295,13 @@ export function enemyAbilities(state: EngineState, ctx: TickCtx): void {
       ctx.events.push({ type: 'hatched', lane: m.lane, depth: m.depth, count: def.hatches.count });
     }
   }
+}
+
+/** The horde grows as the show goes on: one more Shambler per pack every 6 waves after wave 6, two more Swarmlings every 6 after wave 9. */
+export function hordeGrowth(kind: EnemyKind, wave: number): number {
+  if (kind === 'shambler') return Math.max(0, Math.floor((wave - 6) / 6));
+  if (kind === 'swarmling') return Math.max(0, Math.floor((wave - 9) / 6)) * 2;
+  return 0;
 }
 
 /**

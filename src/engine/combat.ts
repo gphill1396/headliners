@@ -22,6 +22,7 @@ import {
 import type { TickCtx } from './context';
 import { beatInBar } from './clock';
 import { evolvedInto } from './evolution';
+import { gainCrowd } from './effects';
 import type { EngineState, Enemy, Gate, Projectile, Unit } from './state';
 
 /** Enemies are hit at their leading (stage-side) edge. */
@@ -392,7 +393,7 @@ export function sweepDead(state: EngineState, ctx: TickCtx): void {
     }
     if (e.id === state.boss?.enemyId) {
       // The Hush is gone: beaten, or it reached the stage.
-      if (!e.leaked) state.crowd = Math.min(state.maxCrowd, state.crowd + BOSS_CROWD_REWARD);
+      if (!e.leaked) gainCrowd(state, ctx, BOSS_CROWD_REWARD, 'boss');
       ctx.events.push({ type: 'bossEnd', boss: e.kind, defeated: !e.leaked, crowd: e.leaked ? -e.crowdDamage : BOSS_CROWD_REWARD });
       state.boss = null;
     }
@@ -403,10 +404,7 @@ export function sweepDead(state: EngineState, ctx: TickCtx): void {
       state.headliner.kills = (state.headliner.kills ?? 0) + 1;
       if (state.headliner.kills >= RIOT_KILLS_PER_CROWD) {
         state.headliner.kills = 0;
-        if (state.crowd < state.maxCrowd) {
-          state.crowd += 1;
-          ctx.events.push({ type: 'tourCrowd', amount: 1 });
-        }
+        gainCrowd(state, ctx, 1, 'riot');
       }
     }
     ctx.events.push({ type: 'killed', enemyId: e.id, kind: e.kind, lane: e.lane, depth: e.depth });

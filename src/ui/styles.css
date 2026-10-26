@@ -193,6 +193,11 @@ button:disabled {
   color: var(--dim);
 }
 
+.pop-gain {
+  font-size: 14px;
+  color: #8fe07a;
+}
+
 .pop-energy {
   font-size: 13px;
   color: var(--amber);
@@ -1766,4 +1771,14 @@ button:disabled {
   border-radius: 6px;
   color: #fff;
   background: #c8443a;
+}
+
+/* Headliner portrait (new art bar): crisp pixels, three times size, floated beside the blurb. */
+.portrait {
+  float: right;
+  width: 144px;
+  height: 144px;
+  margin: -8px -4px 0 8px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }

@@ -179,7 +179,7 @@ export const CLEAN_SET_CROWD = 1;
 export const HEAT_START_CROWD = 25;
 /** Heat 2: monster health. Heat 3: Tournaments on top. Heat 6: bosses. */
 export const HEAT_HP = 1.15;
-export const HEAT_ELITE_HP = 1.4;
+export const HEAT_ELITE_HP = 1.5;
 export const HEAT_BOSS_HP = 1.35;
 /** Heat 5: what an Inn wins back. */
 export const HEAT_REST_HEAL = 5;

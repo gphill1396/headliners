@@ -1,5 +1,5 @@
 /**
- * Tour targets (SPEC §9, Tour balance): npm run sim:tour [-- --runs 80 --per-team 10]
+ * Tour targets (SPEC §9, Tour balance): npm run sim:tour [-- --runs 80 --per-team 30]
  *
  * T1 No solved Tour headliner: solo win rates at Heat 0, best ÷ worst ≤ 1.5×.
  * T2 Heat climbs: a skilled band of 3 wins 60–85% at Heat 0, 35–60% at Heat 5, 10–30% at Heat 10.
@@ -18,7 +18,8 @@ const arg = (name: string, fallback: string) => {
   return i >= 0 && args[i + 1] ? args[i + 1]! : fallback;
 };
 const runs = Number(arg('runs', '80'));
-const perTeam = Number(arg('per-team', '10'));
+// 30 per team: at 10, Heat win rates swung by ±5 points between near-identical builds (SPEC S4.3).
+const perTeam = Number(arg('per-team', '30'));
 const part = arg('part', '');
 
 const SOLO: HeadlinerId[] = ['thrum', 'lyra', 'clatter', 'aria', 'riot'];

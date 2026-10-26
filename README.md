@@ -21,7 +21,7 @@ npm test           # engine tests (node:test via tsx)
 npm run typecheck  # app, tests, and the engine purity check
 npm run build      # production build into dist/
 npm run sim        # depth simulator: bots play the real engine, checks D1–D8 (SPEC §9)
-npm run sim:tour   # Tour targets T1–T3 (about 4 minutes)
+npm run sim:tour   # Tour targets T1–T3 (about 12 minutes)
 ```
 
 Pushing to `main` runs typecheck, tests and build, then deploys to GitHub Pages.

@@ -129,7 +129,8 @@ export function evaluate(byBot: Record<string, RunResult[]>, runsPerBot: number)
   const losses = skilled.filter((r) => !r.capped && r.lossCause);
   const lossCauses: Record<string, number> = Object.fromEntries(Object.keys(ENEMIES).map((k) => [k, 0]));
   for (const r of losses) lossCauses[r.lossCause!] = (lossCauses[r.lossCause!] ?? 0) + 1 / losses.length;
-  const [minKind, minShare] = Object.entries(lossCauses).sort((a, b) => a[1] - b[1])[0] ?? ['-', 0];
+  // Bosses are counted in the losses but aren't one of the 8 enemy types D6 is about.
+  const [minKind, minShare] = Object.entries(lossCauses).filter(([k]) => !ENEMIES[k as keyof typeof ENEMIES].boss).sort((a, b) => a[1] - b[1])[0] ?? ['-', 0];
   checks.push({ id: 'D6', name: 'Every enemy matters (top cause of losses)', pass: minShare >= T.D6_enemyLossShare, value: `${minKind} ${pct(minShare)}`, target: `each ≥ ${pct(T.D6_enemyLossShare)}` });
 
   // D7 — real choices.

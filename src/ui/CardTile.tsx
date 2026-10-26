@@ -53,7 +53,8 @@ export function CardTile({ def, selected = false, affordable = true, large = fal
       <span className="card-cost">{def.cost}</span>
       {def.headliner && <span className={`card-sig hl-${def.headliner}`} title={`${HEADLINERS[def.headliner].name} signature card`} />}
       <span className="card-name">{def.name}</span>
-      {large ? <span className="card-text">{def.text}</span> : <span className="card-short">{def.short}</span>}
+      {/* In hand, just the name: what it does shows above the hand when you select it. */}
+      {large && <span className="card-text">{def.text}</span>}
       {large && <span className="card-type">{TYPE_LABEL[def.type]}</span>}
     </button>
   );

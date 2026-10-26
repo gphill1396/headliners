@@ -235,6 +235,11 @@ Each enemy type exists to demand a different answer.
 - Phase 2: mutes the beat. Timing bonuses are disabled and the beat bar goes dim.
 - Phase 3: a periodic wave of Brutes.
 - *Why:* it punishes decks that rely on only one thing.
+- *As built in Phase 1b:*
+  - It spans all three lanes, so shots and riffs from any lane hit it (Spotlight treats it as a priority target). It sinks toward the stage over 72 beats; reaching the stage costs 15 crowd. Beating it wins back 5.
+  - 1200 health × the wave's health growth. Its phase follows its health: above 2/3, phase 1; above 1/3, phase 2; then phase 3.
+  - Phase 1: other enemies take half damage. Phase 2: plays can't earn more than ×1.0 or a Good-sized chain step, the pocket doesn't grow, and Tight-hit passives pause (Off plays still cost you). The drums drop out of the music, leaving a held chord. Phase 3: a Brute every 6 beats.
+  - The boss wave brings half the usual escort, and lasts until The Hush is gone.
 
 ### 4.9 Waves and scaling
 
@@ -426,6 +431,12 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
   - D1 3.00× (Lyra and Clatter; Thrum 3.5×), D2 8.5×, D3 1.17×, D5 23.8%, D6 7.1% (Hexer is the lowest; Brute is the highest at 25%), D7 3.0, D8 0% — all pass. D1 sits right on the line.
   - D4 fails as expected: Pyro is in every top deck because it's the only Anti-Air card. The full card set needs a second answer for each enemy.
 
+**Phase 1b progress — The Hush, and simpler cards** (done):
+- The Hush as described in §4.8, with a health bar notched at its phase changes, a banner for each phase, and tests for all three phases.
+- Tuning: at 420 health bots killed it in 3–6 beats, before its phases mattered; at 1200 a fight lasts about 10–35 beats.
+- **Simpler cards** (Cass found the screen overstimulating): cards in hand show only cost and name. What a card does appears above the hand when you select it, and in full on card picks.
+- **Results** at 200 runs per bot: median wave Thrum 22, Lyra 19, Clatter 18, random 6. D1 3.00× (Clatter; Lyra 3.17×, Thrum 3.67×), D2 7.7×, D3 1.22×, D5 24.5%, D6 6.2% (Shamblers lowest), D7 3.0, D8 0.1% — all pass. D4 still waits on the full card set. The Hush itself rarely ends a run, but it costs crowd along the way.
+
 **Phase 1b — Fill out.** Adds the simulator and the D1–D8 report, then tunes the slice against it. Then adds Lyra and Clatter, the other 5 enemy types, The Hush, the full ~40 cards, evolutions, the remaining keywords, audio, discard-cycle and drag-to-play.
 
 **S1.1 Play a card into a lane**
@@ -466,7 +477,7 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
 - [x] All 8 enemy types are implemented with their traits, each with a unit test. *(The Hush is separate.)*
 - [x] From wave 3 onward, every wave mixes at least 2 traits.
 - [ ] Long-press an enemy to see its trait.
-- [ ] The Hush boss arrives every 10th wave, with 3 phases.
+- [x] The Hush boss arrives every 10th wave, with 3 phases.
 
 **S1.7 Encore mode**
 *As a player, I want endless waves that escalate into huge numbers, so I can chase a high score.*

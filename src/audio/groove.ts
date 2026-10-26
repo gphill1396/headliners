@@ -32,6 +32,8 @@ export interface BoardMix {
   headliner?: HeadlinerId;
   /** Beat until which Swell (Lyra) is active. */
   swellUntil?: number;
+  /** The Hush, phase 2: the beat is muted. Drums drop out; only a quiet chord remains. */
+  hushed?: boolean;
 }
 
 export function mixFrom(s: EngineState): BoardMix {
@@ -55,6 +57,7 @@ export function mixFrom(s: EngineState): BoardMix {
     fillUntil: s.headliner.id === 'thrum' ? s.headliner.activeUntilBeat : -1,
     headliner: s.headliner.id,
     swellUntil: s.headliner.id === 'lyra' ? s.headliner.activeUntilBeat : -1,
+    hushed: s.boss?.phase === 2,
   };
 }
 
@@ -77,6 +80,12 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
   const level = (count: number) => Math.min(1.25, 0.75 + 0.25 * (count - 1));
 
   mix.lanes.forEach((l, lane) => synth.setLaneFx(lane, { drive: l.drive ? (chill ? 0.25 : 0.55) : 0, fuzz: l.fuzz, aim: l.aim ?? null }, t));
+
+  // Hushed: no drums, no band. Just a soft held chord each bar, so you have to keep the beat yourself.
+  if (mix.hushed) {
+    if (onBeat && inBar === 0) synth.pad(t, [...chord.notes], eighthSec * 7.5, 0.6);
+    return;
+  }
 
   // Time-keeping: an empty stage is just a quarter-note hat and a kick on 1. It fills in as the band grows.
   // Clatter's crew keeps time on a shaker instead of a hi-hat.

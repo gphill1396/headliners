@@ -1,6 +1,8 @@
 import { setTempo } from './clock';
 import {
   BEAT_UNITS,
+  BOSS_BRUTE_EVERY_BEATS,
+  BOSS_EVERY_WAVES,
   LANES,
   PICK_EVERY_WAVES,
   PICK_OPTIONS,
@@ -29,8 +31,10 @@ export const DEBUT_WAVE: Record<EnemyKind, number> = {
   hexer: 6,
   shieldbearer: 7,
   breaker: 8,
+  hush: BOSS_EVERY_WAVES,
 };
-const ALL_KINDS = Object.keys(DEBUT_WAVE) as EnemyKind[];
+/** Kinds that turn up in normal waves (bosses have their own rule). */
+const ALL_KINDS = (Object.keys(DEBUT_WAVE) as EnemyKind[]).filter((k) => !ENEMIES[k].boss);
 /** Two bars to get a first card down before wave 1. */
 const FIRST_WAVE_BEAT = 8;
 
@@ -40,12 +44,36 @@ export function onBeatWaves(state: EngineState, ctx: TickCtx): void {
   const wave = state.wave;
   if (wave.index === 0) {
     if (beat >= FIRST_WAVE_BEAT) startWave(state, ctx, 1);
-  } else if (beat >= wave.startBeat + WAVE_BEATS) {
+  } else if (beat >= wave.startBeat + WAVE_BEATS && !state.boss) {
+    // A boss wave lasts until The Hush is beaten or reaches the stage.
     if (wave.index % PICK_EVERY_WAVES === 0) offerPick(state, ctx);
     else startWave(state, ctx, wave.index + 1);
   }
   if (state.phase !== 'playing') return;
   spawnDue(state);
+  // The Hush, phase 3: a Brute every few beats.
+  if (state.boss?.phase === 3 && beat >= state.boss.nextBruteBeat) {
+    spawnGroup(state, 'brute');
+    state.boss.nextBruteBeat = beat + BOSS_BRUTE_EVERY_BEATS;
+  }
+}
+
+/** Keep The Hush's phase in step with its health. Call every tick. */
+export function updateBoss(state: EngineState, ctx: TickCtx): void {
+  const boss = state.boss;
+  if (!boss) return;
+  const hush = state.enemies.find((e) => e.id === boss.enemyId);
+  if (!hush || hush.hp <= 0) return;
+  const phase: 1 | 2 | 3 = hush.hp * 3 > hush.maxHp * 2 ? 1 : hush.hp * 3 > hush.maxHp ? 2 : 3;
+  if (phase <= boss.phase) return;
+  boss.phase = phase;
+  if (phase === 3) boss.nextBruteBeat = state.clock.beat + 1;
+  ctx.events.push({ type: 'bossPhase', phase });
+}
+
+/** The Hush, phase 2: the beat is muted and timing bonuses are off. */
+export function beatMuted(state: EngineState): boolean {
+  return state.boss?.phase === 2;
 }
 
 /**
@@ -69,15 +97,17 @@ export function waveKinds(state: EngineState, index: number): EnemyKind[] {
 
 /** Enemy kinds appearing for the first time in this wave. */
 export function debutKinds(index: number): EnemyKind[] {
-  return ALL_KINDS.filter((k) => DEBUT_WAVE[k] === index);
+  return (Object.keys(DEBUT_WAVE) as EnemyKind[]).filter((k) => DEBUT_WAVE[k] === index);
 }
 
 export function startWave(state: EngineState, ctx: TickCtx, index: number): void {
   let hpMult = state.wave.hpMult;
   for (let i = Math.max(1, state.wave.index); i < index; i++) hpMult *= WAVE_HP_GROWTH;
   const kinds = waveKinds(state, index);
-  // Waves 1–2 are a gentle start.
-  const groups = index === 1 ? 3 : index === 2 ? 4 : Math.min(22, 4 + Math.floor((index * 2) / 3));
+  const bossWave = index % BOSS_EVERY_WAVES === 0;
+  // Waves 1–2 are a gentle start. A boss wave brings half the usual crowd with it.
+  const full = index === 1 ? 3 : index === 2 ? 4 : Math.min(22, 4 + Math.floor((index * 2) / 3));
+  const groups = bossWave ? Math.ceil(full / 2) : full;
   // Every kind appears at least once; the rest are random from the wave's kinds.
   const order: EnemyKind[] = [...kinds];
   while (order.length < groups) order.push(kinds[nextInt(state.rng, 0, kinds.length)]!);
@@ -92,7 +122,16 @@ export function startWave(state: EngineState, ctx: TickCtx, index: number): void
   state.wave = { index, startBeat: state.clock.beat, hpMult, spawns, nextSpawn: 0, kinds };
   setTempo(state.clock, Math.min(WAVE_MAX_BPM, START_BPM + WAVE_TEMPO_STEP * (index - 1)));
   const debut = debutKinds(index);
-  ctx.events.push({ type: 'waveStart', index, kinds, ...(debut.length > 0 ? { debut } : {}) });
+  if (bossWave) spawnBoss(state);
+  ctx.events.push({ type: 'waveStart', index, kinds, ...(debut.length > 0 ? { debut } : {}), ...(bossWave ? { boss: true } : {}) });
+  if (bossWave) ctx.events.push({ type: 'bossPhase', phase: 1 });
+}
+
+function spawnBoss(state: EngineState): void {
+  spawnGroup(state, 'hush', 1);
+  const hush = state.enemies[state.enemies.length - 1]!;
+  hush.depth = 0;
+  state.boss = { enemyId: hush.id, phase: 1, nextBruteBeat: 0 };
 }
 
 function spawnDue(state: EngineState): void {

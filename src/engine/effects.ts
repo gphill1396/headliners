@@ -1,4 +1,4 @@
-import { damageEnemy, fireUnit, frontEnemy, gateDepth } from './combat';
+import { damageEnemy, fireUnit, frontEnemy, gateDepth, inLane } from './combat';
 import {
   BIG_CHAIN,
   CHAIN_BASE_PCT,
@@ -112,7 +112,7 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
       return;
     }
     case 'damageLane':
-      for (const e of state.enemies) if (e.lane === src.lane && e.depth >= 0) damageEnemy(state, ctx, e, scale(effect.amount), src.cardId);
+      for (const e of state.enemies) if (inLane(e, src.lane) && e.depth >= 0) damageEnemy(state, ctx, e, scale(effect.amount), src.cardId);
       return;
     case 'damageAll':
       for (const e of state.enemies) if (e.depth >= 0) damageEnemy(state, ctx, e, scale(effect.amount), src.cardId);

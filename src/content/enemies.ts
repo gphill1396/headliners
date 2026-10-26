@@ -101,4 +101,18 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     priority: true,
     answers: ['spotlight'],
   },
+  hush: {
+    kind: 'hush',
+    name: 'The Hush',
+    trait: 'The boss, every 10th wave. Spans all three lanes and sinks toward the stage. First it shields the other enemies, then it mutes the beat (no timing bonuses), then it calls in Brutes. Reaching the stage costs 15 crowd.',
+    tip: 'Shields the others, mutes the beat, then calls Brutes. Hit it from every lane.',
+    hp: 1200,
+    armor: 0,
+    travelBeats: 72,
+    crowdDamage: 15,
+    packSize: 1,
+    boss: true,
+    wide: true,
+    priority: true,
+  },
 };

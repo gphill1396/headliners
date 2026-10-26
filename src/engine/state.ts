@@ -180,6 +180,14 @@ export type Mode = 'encore' | 'tutorial';
  * Entire game state. Must stay plain JSON-safe data so it snapshots, hashes
  * and restores exactly (SPEC §2, §7).
  */
+/** The Hush while it's on the field (SPEC §4.8). Phase follows its health: 1 above 2/3, 2 above 1/3, then 3. */
+export interface BossState {
+  enemyId: number;
+  phase: 1 | 2 | 3;
+  /** Phase 3: next beat a Brute is called in. */
+  nextBruteBeat: number;
+}
+
 export interface EngineState {
   version: number;
   mode: Mode;
@@ -195,6 +203,8 @@ export interface EngineState {
   energy: number;
   crowd: number;
   maxCrowd: number;
+  /** The boss on the field, if any. Missing in older saves = none. */
+  boss?: BossState | null;
   score: number;
   draw: CardInstance[];
   hand: CardInstance[];
@@ -248,6 +258,7 @@ export function createState(opts: CreateOptions): EngineState {
     energy: START_ENERGY,
     crowd: START_CROWD,
     maxCrowd: START_CROWD,
+    boss: null,
     score: 0,
     draw: deck,
     hand,

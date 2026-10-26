@@ -27,7 +27,11 @@ export type EngineEvent =
   | { type: 'energy'; amount: number; reason: 'tight' | 'card' }
   | { type: 'drew'; count: number }
   /** `debut`: enemy kinds appearing for the first time this run. */
-  | { type: 'waveStart'; index: number; kinds: EnemyKind[]; debut?: EnemyKind[] }
+  | { type: 'waveStart'; index: number; kinds: EnemyKind[]; debut?: EnemyKind[]; boss?: boolean }
+  /** The Hush moved to a new phase. */
+  | { type: 'bossPhase'; phase: 1 | 2 | 3 }
+  /** The Hush is gone: beaten (crowd won back) or it reached the stage. */
+  | { type: 'bossEnd'; defeated: boolean; crowd: number }
   /** A Splitter burst into pieces. */
   | { type: 'split'; lane: number; depth: number; count: number }
   /** A Breaker hit a gate. */

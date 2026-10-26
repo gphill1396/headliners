@@ -97,4 +97,12 @@ export const WAVE_TEMPO_STEP = 2;
 export const WAVE_MAX_BPM = 150;
 /** Card pick every N waves (Phase 1a addition, SPEC §10). */
 export const PICK_EVERY_WAVES = 3;
+/** The Hush, the Phase 1 boss, plays every 10th wave (SPEC §4.8). */
+export const BOSS_EVERY_WAVES = 10;
+/** Phase 3: The Hush calls in a Brute this often. */
+export const BOSS_BRUTE_EVERY_BEATS = 6;
+/** Phase 1: other enemies take this much of normal damage while The Hush shields them. */
+export const BOSS_SHIELD_PCT = 50;
+/** Beating The Hush wins back this much crowd. */
+export const BOSS_CROWD_REWARD = 5;
 export const PICK_OPTIONS = 3;

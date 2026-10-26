@@ -73,6 +73,8 @@ interface Hud {
   mult: number;
   pocket: number;
   headliner: HeadlinerId;
+  /** The Hush's phase, 0 when it isn't here. */
+  bossPhase: 0 | 1 | 2 | 3;
   fillIn: number;
   filling: boolean;
   phase: EngineState['phase'];
@@ -94,6 +96,7 @@ function sampleHud(s: EngineState): Hud {
     mult: s.chain.links > 0 ? s.chain.multPct : 100,
     pocket: s.pocket.depth,
     headliner: s.headliner.id,
+    bossPhase: s.boss?.phase ?? 0,
     fillIn: Math.max(0, s.headliner.readyBeat - s.clock.beat),
     filling,
     phase: s.phase,
@@ -386,6 +389,13 @@ export function App() {
           case 'blocked':
             pop(e.broke ? 'Shield broke' : 'Blocked', e.lane, e.depth + 4_000, 'pop-note');
             break;
+          case 'bossPhase':
+            if (e.phase === 2) showBanner('Hushed', 'The beat goes quiet. No timing bonuses.');
+            else if (e.phase === 3) showBanner('Brutes!', 'The Hush calls for backup');
+            break;
+          case 'bossEnd':
+            showBanner(e.defeated ? 'Hush broken' : 'It got through', e.defeated ? `+${e.crowd} crowd` : `${e.crowd} crowd`);
+            break;
           case 'split':
             pop('Split!', e.lane, e.depth, 'pop-note');
             break;
@@ -393,7 +403,8 @@ export function App() {
             const names = e.kinds.map((k) => ENEMIES[k].name);
             const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0] ?? '';
             const fresh = e.debut?.find((k) => k !== 'shambler');
-            if (fresh) showBanner(`Wave ${e.index}`, `New: ${ENEMIES[fresh].name}`, ENEMIES[fresh].tip);
+            if (e.boss) showBanner(`Wave ${e.index}`, ENEMIES.hush.name, e.index === 10 ? ENEMIES.hush.tip : undefined);
+            else if (fresh) showBanner(`Wave ${e.index}`, `New: ${ENEMIES[fresh].name}`, ENEMIES[fresh].tip);
             else showBanner(`Wave ${e.index}`, list);
             break;
           }
@@ -525,7 +536,8 @@ export function App() {
     const def = getCard(card.cardId);
     window.clearTimeout(infoTimer.current);
     el.dataset.tone = 'card';
-    el.innerHTML = `<span>${def.text} <em>Now tap a lane on the beat.</em></span>`;
+    // The hint is only for the soundcheck; after that, just what the card does.
+    el.innerHTML = `<span>${def.text}${tutStepRef.current !== null ? ' <em>Now tap a lane on the beat.</em>' : ''}</span>`;
     el.classList.remove('show');
     void el.offsetWidth;
     el.classList.add('show');
@@ -818,7 +830,7 @@ export function App() {
 
       <section className="controls" aria-label="Controls">
         <div className="control-top">
-          <div className="beat-stack">
+          <div className={`beat-stack${hud.bossPhase === 2 ? ' hushed' : ''}`}>
             <div className={`pads${coached('pads')}`} aria-hidden="true">
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} ref={(el) => void (padRefs.current[i] = el)} className={i === 0 ? 'pad pad-down' : 'pad'} />

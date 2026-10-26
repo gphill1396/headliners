@@ -183,3 +183,12 @@ test('only Thrum\'s Fill makes the band fire on every eighth', () => {
   assert.equal(mix.fillUntil, -1);
   assert.equal(mix.swellUntil, s.clock.beat + 2);
 });
+
+test('The Hush mutes the beat: no drums or band while hushed, just a held chord each bar', () => {
+  const mix = emptyMix();
+  mix.groups = [{ cardId: 'kick-drum', lane: 0, count: 1, fireEvery: 4 }, { cardId: 'stagehand', lane: 1, count: 1, fireEvery: 2 }];
+  mix.hushed = true;
+  const b = bar(mix);
+  assert.equal(b.count('kick') + b.count('snare') + b.count('hat'), 0);
+  assert.equal(b.count('pad'), 1);
+});

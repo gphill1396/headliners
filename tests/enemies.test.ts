@@ -166,7 +166,7 @@ test('waves: one new enemy per wave from 3 to 8, Shamblers in every wave, 2+ tra
     assert.ok(kinds.includes('shambler'), `wave ${w}`);
     if (w >= 3) assert.ok(new Set(kinds).size >= 2, `wave ${w}: ${kinds}`);
     for (const k of kinds) assert.ok(DEBUT_WAVE[k] <= w, `${k} before its debut in wave ${w}`);
-    const debut = Object.entries(DEBUT_WAVE).filter(([, d]) => d === w).map(([k]) => k);
+    const debut = Object.entries(DEBUT_WAVE).filter(([k, d]) => d === w && !ENEMIES[k as keyof typeof ENEMIES].boss).map(([k]) => k);
     for (const k of debut) assert.ok(kinds.includes(k as never), `${k} debuts in wave ${w}`);
   }
 });
@@ -182,4 +182,79 @@ test('a card pick before a new enemy offers an answer to it if the deck has none
     if (s.pick.includes('pyro')) offered++;
   }
   assert.equal(offered, 20);
+});
+
+// ---------------------------------------------------------------- The Hush
+
+/** A field with The Hush on it, as wave 10 would start it. */
+function hushField(): { s: EngineState; hush: EngineState['enemies'][number] } {
+  const s = createState({ seed: 'hush' });
+  s.energy = 10;
+  s.wave.index = 9;
+  s.wave.startBeat = s.clock.beat - 100;
+  for (let t = 0; t < 400 && !s.boss; t++) step(s, s.phase === 'picking' ? [{ type: 'pick', index: null }] : []);
+  const hush = s.enemies.find((e) => e.kind === 'hush')!;
+  // Just The Hush: no other spawns getting in the way.
+  s.enemies = [hush];
+  s.wave.nextSpawn = s.wave.spawns.length;
+  return { s, hush };
+}
+
+test('The Hush arrives on wave 10, spans every lane, and the wave lasts until it is gone', () => {
+  const { s, hush } = hushField();
+  assert.equal(s.wave.index, 10);
+  assert.ok(s.boss && hush);
+  for (let lane = 0; lane < 3; lane++) {
+    const before = hush.hp;
+    shot(s, lane, { damage: 7 });
+    runTicks(s, 40);
+    assert.equal(hush.hp, before - 7, `lane ${lane}`);
+  }
+  // Long past the normal wave length, still wave 10 while it lives.
+  s.crowd = 999;
+  s.maxCrowd = 999;
+  for (let t = 0; t < 36 * 30 && s.boss; t++) step(s);
+  assert.equal(s.wave.index, 10);
+});
+
+test('The Hush phase 1 shields the others; phase 2 mutes timing bonuses; phase 3 calls Brutes', () => {
+  const { s, hush } = hushField();
+  assert.equal(s.boss!.phase, 1);
+  const other = addEnemy(s, { lane: 0, depth: 60_000, hp: 100, maxHp: 100 });
+  shot(s, 0, { damage: 10 });
+  runTicks(s, 20);
+  assert.equal(other.hp, 95);
+
+  hush.hp = hush.maxHp * 0.5;
+  const phases = ofType(runTicks(s, 1), 'bossPhase');
+  assert.deepEqual(phases.map((p) => p.phase), [2]);
+  const graded = ofType(playOnBeat(s, 'power-chord', 2), 'graded')[0]!;
+  assert.equal(graded.grade, 'tight');
+  assert.ok(graded.accuracyPct <= 100, `accuracy ${graded.accuracyPct}`);
+
+  hush.hp = hush.maxHp * 0.2;
+  runTicks(s, 1);
+  assert.equal(s.boss!.phase, 3);
+  const brutes = () => s.enemies.filter((e) => e.kind === 'brute').length;
+  const before = brutes();
+  for (let b = 0; b < 8; b++) nextBeat(s);
+  assert.ok(brutes() > before);
+});
+
+test('beating The Hush wins back crowd; letting it reach the stage costs 15', () => {
+  const { s, hush } = hushField();
+  s.crowd = 10;
+  hush.hp = 1;
+  shot(s, 1, { damage: 50 });
+  const end = ofType(runTicks(s, 40), 'bossEnd');
+  assert.equal(end[0]?.defeated, true);
+  assert.equal(s.crowd, 15);
+  assert.equal(s.boss, null);
+
+  const t = hushField();
+  t.s.crowd = 30;
+  t.hush.depth = STAGE_LINE - 10;
+  const left = ofType(runTicks(t.s, 3), 'bossEnd');
+  assert.equal(left[0]?.defeated, false);
+  assert.equal(t.s.crowd, 15);
 });

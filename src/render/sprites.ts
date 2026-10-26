@@ -32,6 +32,21 @@ export const SPRITES = {
     rows: ['#.#.#', '.###.', '#o#o#', '.#.#.'],
     colors: { '#': '#c06bd6', o: '#ffc94d' },
   },
+  hush: {
+    rows: [
+      '.......vvvvvvvvvv.......',
+      '....vvvvvvvvvvvvvvvv....',
+      '..vvvvvvvvvvvvvvvvvvvv..',
+      '.vvvvvovvvvvvvvvvovvvvv.',
+      'vvvvvvvvvvvvvvvvvvvvvvvv',
+      'vvvvvvvvvvv##vvvvvvvvvvv',
+      'vvvvvvvvvvv##vvvvvvvvvvv',
+      'vvvvvvvvvmm##mmvvvvvvvvv',
+      '.vv.vvv.vvvvvvvv.vvv.vv.',
+      '..v..v...vv..vv...v..v..',
+    ],
+    colors: { v: '#d6caef', o: '#211934', '#': '#f6ecd6', m: '#8f82a8' },
+  },
   bat: {
     rows: ['#.....#', '##...##', '###o###', '.#####.', '..#.#..'],
     colors: { '#': '#7d6aa8', o: '#ffc94d' },

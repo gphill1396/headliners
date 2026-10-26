@@ -139,12 +139,15 @@ export function drawField(
     if (e.depth < -1_000) continue;
     const sprite: Sprite = e.kind === 'shieldbearer' && !e.shieldLeft ? SPRITES['shieldbearer-bare'] : SPRITES[e.kind];
     const { w: sw, h: sh } = spriteSize(sprite);
-    const scale = e.child ? 1 : 2;
+    const wide = e.kind === 'hush';
+    const scale = e.child ? 1 : wide ? 3 : 2;
     const jitter = e.kind === 'swarmling' || e.child || e.kind === 'bat' ? ((e.id * 37) % 25) - 12 : 0;
     // Bats bob while they're up high.
     const bob = e.kind === 'bat' && e.depth < SWOOP_DEPTH ? (Math.floor(now / 120 + e.id) % 2) * 2 - 4 : 0;
-    const x = Math.round(e.lane * LANE_PX + LANE_PX / 2 - (sw * scale) / 2 + jitter);
-    const y = yOf(Math.min(STAGE_LINE, e.depth + e.speed * alpha)) - sh * scale + bob;
+    const x = wide ? Math.round(w / 2 - (sw * scale) / 2) : Math.round(e.lane * LANE_PX + LANE_PX / 2 - (sw * scale) / 2 + jitter);
+    const rawY = yOf(Math.min(STAGE_LINE, e.depth + e.speed * alpha)) - sh * scale + bob;
+    // The Hush looms in from the top: keep all of it on screen, under its health bar.
+    const y = wide ? Math.max(8, rawY) : rawY;
     if (e.kind === 'bat' && e.depth < SWOOP_DEPTH) {
       // A shadow on the floor: it's up in the air.
       ctx.globalAlpha = 0.35;
@@ -153,6 +156,12 @@ export function drawField(
       ctx.globalAlpha = 1;
     }
     drawSprite(ctx, sprite, x, y, scale);
+    // The Hush, phase 1: everyone else wears a pale shield.
+    if (state.boss?.phase === 1 && !wide) {
+      ctx.fillStyle = '#d6caef';
+      ctx.fillRect(x - 1, y - 5, sw * scale + 2, 1);
+    }
+    if (wide) continue; // its health is the bar across the top
     if (e.hp < e.maxHp) {
       const bw = sw * scale;
       ctx.fillStyle = PALETTE.night;
@@ -160,6 +169,18 @@ export function drawField(
       ctx.fillStyle = e.armor > 0 ? '#a69cc0' : PALETTE.miss;
       ctx.fillRect(x, y - 3, Math.max(1, Math.round((bw * e.hp) / e.maxHp)), 2);
     }
+  }
+
+  // The Hush's health: a bar across the top, notched where its phases change.
+  const boss = state.boss ? state.enemies.find((e) => e.id === state.boss!.enemyId) : undefined;
+  if (boss) {
+    ctx.fillStyle = PALETTE.night;
+    ctx.fillRect(4, 2, w - 8, 3);
+    ctx.fillStyle = '#d6caef';
+    ctx.fillRect(4, 2, Math.max(1, Math.round(((w - 8) * boss.hp) / boss.maxHp)), 3);
+    ctx.fillStyle = PALETTE.night;
+    ctx.fillRect(4 + Math.round((w - 8) / 3), 2, 1, 3);
+    ctx.fillRect(4 + Math.round(((w - 8) * 2) / 3), 2, 1, 3);
   }
 
   // Shots.

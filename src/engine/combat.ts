@@ -1,5 +1,7 @@
 import { ENEMIES } from '../content/enemies';
 import {
+  BOSS_CROWD_REWARD,
+  BOSS_SHIELD_PCT,
   GATE_DEPTHS,
   LANES,
   MAX_PROJECTILES,
@@ -41,6 +43,8 @@ export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct:
 /** Deal damage to one enemy, after armor. Returns damage actually dealt (overkill not counted). */
 export function damageEnemy(state: EngineState, ctx: TickCtx, enemy: Enemy, amount: number, sourceCardId: string, ignoreArmor = false): number {
   if (enemy.hp <= 0) return 0;
+  // The Hush, phase 1: it shields everyone else.
+  if (state.boss?.phase === 1 && enemy.id !== state.boss.enemyId) amount = (amount * BOSS_SHIELD_PCT) / 100;
   const raw = ignoreArmor ? amount : amount - enemy.armor;
   if (raw <= 0) return 0;
   if (raw >= enemy.hp) enemy.overkill = raw - enemy.hp;
@@ -53,20 +57,25 @@ export function damageEnemy(state: EngineState, ctx: TickCtx, enemy: Enemy, amou
   return dealt;
 }
 
+/** Is this enemy in this lane? Wide enemies (The Hush) are in all of them. */
+export function inLane(e: Enemy, lane: number): boolean {
+  return e.lane === lane || ENEMIES[e.kind].wide === true;
+}
+
 /** The living enemy closest to the stage in a lane. */
 export function frontEnemy(state: EngineState, lane: number): Enemy | null {
   let best: Enemy | null = null;
   for (const e of state.enemies) {
-    if (e.lane !== lane || e.hp <= 0 || e.depth < 0) continue;
+    if (!inLane(e, lane) || e.hp <= 0 || e.depth < 0) continue;
     if (!best || e.depth > best.depth || (e.depth === best.depth && e.id < best.id)) best = e;
   }
   return best;
 }
 
-function splash(state: EngineState, ctx: TickCtx, center: Enemy, damage: number, sourceCardId: string, antiAir: boolean): void {
+function splash(state: EngineState, ctx: TickCtx, center: Enemy, damage: number, sourceCardId: string, antiAir: boolean, lane: number): void {
   const amount = (damage * SPLASH_PCT) / 100;
   for (const e of state.enemies) {
-    if (e === center || e.lane !== center.lane || e.hp <= 0) continue;
+    if (e === center || !inLane(e, lane) || e.hp <= 0) continue;
     if (ENEMIES[e.kind].flying && !antiAir && e.depth < SWOOP_DEPTH) continue;
     const d = e.depth - center.depth;
     if (d <= SPLASH_RADIUS && d >= -SPLASH_RADIUS) damageEnemy(state, ctx, e, amount, sourceCardId);
@@ -159,7 +168,10 @@ export function moveProjectiles(state: EngineState, ctx: TickCtx): void {
   // Lanes with a living priority target (Breaker, Hexer) on the field.
   const priorityLane: boolean[] = [];
   for (let l = 0; l < LANES; l++) priorityLane.push(false);
-  for (const e of state.enemies) if (e.hp > 0 && e.depth >= 0 && ENEMIES[e.kind].priority) priorityLane[e.lane] = true;
+  for (const e of state.enemies) {
+    if (e.hp <= 0 || e.depth < 0 || !ENEMIES[e.kind].priority) continue;
+    for (let l = 0; l < LANES; l++) if (inLane(e, l)) priorityLane[l] = true;
+  }
 
   for (let i = 0; i < count; i++) {
     const p = state.projectiles[i]!;
@@ -174,7 +186,7 @@ export function moveProjectiles(state: EngineState, ctx: TickCtx): void {
       if (g.depth <= from && g.depth > to) path.push({ pos: g.depth, gate: g, enemy: null });
     }
     for (const e of state.enemies) {
-      if (e.lane !== p.lane || e.hp <= 0) continue;
+      if (!inLane(e, p.lane) || e.hp <= 0) continue;
       const def = ENEMIES[e.kind];
       if (def.flying && !p.antiAir && e.depth < SWOOP_DEPTH) continue; // shots pass under flyers until they swoop
       if (seeking && !def.priority) continue; // Priority shots fly past everything else
@@ -205,7 +217,7 @@ export function moveProjectiles(state: EngineState, ctx: TickCtx): void {
         break;
       }
       damageEnemy(state, ctx, e, p.damage, p.sourceCardId, p.shred === true);
-      if (p.splash) splash(state, ctx, e, p.damage, p.sourceCardId, p.antiAir === true);
+      if (p.splash) splash(state, ctx, e, p.damage, p.sourceCardId, p.antiAir === true, p.lane);
       if (p.pierceLeft > 0) {
         p.pierceLeft -= 1;
       } else {
@@ -288,6 +300,12 @@ export function sweepDead(state: EngineState, ctx: TickCtx): void {
     if (e.hp > 0) {
       kept.push(e);
       continue;
+    }
+    if (e.id === state.boss?.enemyId) {
+      // The Hush is gone: beaten, or it reached the stage.
+      if (!e.leaked) state.crowd = Math.min(state.maxCrowd, state.crowd + BOSS_CROWD_REWARD);
+      ctx.events.push({ type: 'bossEnd', defeated: !e.leaked, crowd: e.leaked ? -e.crowdDamage : BOSS_CROWD_REWARD });
+      state.boss = null;
     }
     if (e.leaked) continue;
     state.stats.kills += 1;

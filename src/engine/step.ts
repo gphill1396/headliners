@@ -1,13 +1,13 @@
 import { accuracyPct, advanceClock, beatInBar, chainStepPct, gradeInput, inPocket, isDownbeat, setTempo, type Grade } from './clock';
 import { moveEnemies, moveProjectiles, smashGates, sweepDead } from './combat';
-import { BEAT_UNITS, BEATS_PER_BAR, LANES, MAX_ENERGY, POCKET_MAX, SUBTICK } from './constants';
+import { BEAT_UNITS, BEATS_PER_BAR, CHAIN_STEP_GOOD_PCT, LANES, MAX_ENERGY, POCKET_MAX, SUBTICK } from './constants';
 import { createCtx, flushDamage, type TickCtx } from './context';
 import { addCardToDeck, refillHand } from './deck';
 import { checkChainEnd, checkGameOver, createToken, expireTokens, fireUnitsOnEighth, resolvePlay, runDownbeatTriggers } from './effects';
 import type { EngineEvent } from './events';
 import type { EngineState } from './state';
 import type { EnemyKind } from './types';
-import { onBeatWaves, spawnGroup, startWave } from './waves';
+import { beatMuted, onBeatWaves, spawnGroup, startWave, updateBoss } from './waves';
 import { getCard } from '../content/cards';
 import { HEADLINERS } from '../content/headliners';
 
@@ -71,6 +71,7 @@ export function step(state: EngineState, inputs: readonly Input[] = []): EngineE
     checkGameOver(state, ctx);
     moveProjectiles(state, ctx);
     sweepDead(state, ctx);
+    updateBoss(state, ctx);
   }
   flushDamage(ctx);
   state.tick += 1;
@@ -161,7 +162,12 @@ function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: nu
   state.hand.splice(handIndex, 1);
   const relaxed = state.settings.relaxedTiming;
   const timing = gradeInput(state.clock, clampPermille(input.permille), relaxed);
-  const accuracy = accuracyPct(timing.offsetMilli, state.clock.bpm, relaxed);
+  // The Hush, phase 2, mutes the beat: no timing bonuses (penalties for Off plays still apply).
+  const muted = beatMuted(state);
+  const fullAccuracy = accuracyPct(timing.offsetMilli, state.clock.bpm, relaxed);
+  const accuracy = muted ? Math.min(100, fullAccuracy) : fullAccuracy;
+  const fullStep = chainStepPct(timing.offsetMilli, state.clock.bpm, relaxed);
+  const chainStep = muted ? Math.min(CHAIN_STEP_GOOD_PCT, fullStep) : fullStep;
   state.stats[timing.grade] += 1;
   const id = state.nextId++;
   state.queue.push({
@@ -171,7 +177,7 @@ function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: nu
     grade: timing.grade,
     offsetMilli: timing.offsetMilli,
     accuracyPct: accuracy,
-    chainStepPct: chainStepPct(timing.offsetMilli, state.clock.bpm, relaxed),
+    chainStepPct: chainStep,
     resolveBeat: timing.resolveBeat,
     isEcho: false,
   });
@@ -186,11 +192,11 @@ function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: nu
     accuracyPct: accuracy,
     resolveBeat: timing.resolveBeat,
   });
-  updatePocket(state, ctx, timing.grade, timing.offsetMilli);
+  if (!muted || timing.grade !== 'tight') updatePocket(state, ctx, timing.grade, timing.offsetMilli);
 
-  // Passives that reward a Tight hit, once per bar.
+  // Passives that reward a Tight hit, once per bar (not while the beat is muted).
   // Thrum: refund 1 energy. Clatter: call a Roadie to that lane.
-  if (timing.grade === 'tight' && state.headliner.id !== 'lyra') {
+  if (timing.grade === 'tight' && !muted && state.headliner.id !== 'lyra') {
     const bar = Math.floor(timing.resolveBeat / BEATS_PER_BAR);
     if (state.headliner.lastTightBonusBar !== bar) {
       if (state.headliner.id === 'thrum' && state.energy < MAX_ENERGY) {

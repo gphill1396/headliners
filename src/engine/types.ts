@@ -110,7 +110,7 @@ export interface CardDef {
   flavor: string;
 }
 
-export type EnemyKind = 'shambler' | 'brute' | 'swarmling' | 'bat' | 'splitter' | 'shieldbearer' | 'hexer' | 'breaker';
+export type EnemyKind = 'shambler' | 'brute' | 'swarmling' | 'bat' | 'splitter' | 'shieldbearer' | 'hexer' | 'breaker' | 'hush';
 
 export interface EnemyDef {
   kind: EnemyKind;
@@ -140,6 +140,10 @@ export interface EnemyDef {
   smashPerBeat?: number;
   /** Priority targets for units with the Priority keyword. */
   priority?: boolean;
+  /** A boss: spawned by its own rule, never in a normal wave mix. */
+  boss?: boolean;
+  /** Spans every lane: shots and riffs from any lane can hit it. */
+  wide?: boolean;
 }
 
 export interface HeadlinerDef {

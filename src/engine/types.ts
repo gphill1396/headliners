@@ -109,8 +109,8 @@ export interface CardDef {
   triggers?: Trigger[];
   /** Echo: onPlay happens again on the next beat. */
   echo?: boolean;
-  /** Full rules text. */
-  text: string;
+  /** Rules text is generated from the data (content/text.ts). This adds a sentence the data can't say. */
+  note?: string;
   /** A few words shown on the card in hand: what it does at a glance. */
   short: string;
   flavor: string;

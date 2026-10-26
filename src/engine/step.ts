@@ -1,9 +1,9 @@
 import { accuracyPct, advanceClock, beatInBar, chainStepPct, gradeInput, inPocket, isDownbeat, setTempo, type Grade } from './clock';
 import { moveEnemies, moveProjectiles, smashGates, sweepDead } from './combat';
-import { BEAT_UNITS, BEATS_PER_BAR, CHAIN_STEP_GOOD_PCT, LANES, MAX_ENERGY, METRONOME_WIDEN_PCT, POCKET_MAX, SUBTICK } from './constants';
+import { BEAT_UNITS, BEATS_PER_BAR, CHAIN_STEP_GOOD_PCT, CYCLE_COST, LANES, MAX_ENERGY, METRONOME_WIDEN_PCT, POCKET_MAX, SUBTICK } from './constants';
 import { evolvedInto } from './evolution';
 import { createCtx, flushDamage, type TickCtx } from './context';
-import { addCardToDeck, refillHand } from './deck';
+import { addCardToDeck, drawCards, refillHand } from './deck';
 import { checkChainEnd, checkGameOver, createToken, expireTokens, fireUnitsOnEighth, resolvePlay, runDownbeatTriggers } from './effects';
 import type { EngineEvent } from './events';
 import type { EngineState } from './state';
@@ -24,6 +24,8 @@ export type Input =
   | { type: 'activate'; permille: number }
   /** Choose a card pick option by index, or null to skip. */
   | { type: 'pick'; index: number | null }
+  /** Discard-cycle: pay 1 energy to swap a card in hand for the next one (once per card per bar). */
+  | { type: 'cycle'; iid: number }
   /** Choose one of the headliner's two evolutions while phase === 'evolving'. */
   | { type: 'evolve'; index: 0 | 1 }
   /** Practice tap on a lane with no card: graded for timing, no other effect. */
@@ -112,6 +114,9 @@ function applyInput(state: EngineState, ctx: TickCtx, input: Input): void {
       return;
     case 'evolve':
       evolve(state, ctx, input.index);
+      return;
+    case 'cycle':
+      cycle(state, ctx, input.iid);
       return;
     case 'pick':
       pick(state, ctx, input.index);
@@ -248,6 +253,36 @@ function activate(state: EngineState, ctx: TickCtx): void {
   // Clatter's All Hands: a Roadie in every lane, right now.
   if (state.headliner.id === 'clatter') for (let lane = 0; lane < LANES; lane++) createToken(state, ctx, 'roadie', lane);
   ctx.events.push({ type: 'fill', untilBeat: state.headliner.activeUntilBeat, headliner: state.headliner.id });
+}
+
+/** Discard-cycle (SPEC §4.3): pay 1 energy, discard a card from hand, draw a fresh one. The fresh one can't be cycled again this bar. */
+function cycle(state: EngineState, ctx: TickCtx, iid: number): void {
+  if (state.phase !== 'playing') {
+    ctx.events.push({ type: 'rejected', iid, reason: 'not-playing' });
+    return;
+  }
+  const index = state.hand.findIndex((c) => c.iid === iid);
+  if (index === -1) {
+    ctx.events.push({ type: 'rejected', iid, reason: 'not-in-hand' });
+    return;
+  }
+  const bar = Math.floor(state.clock.beat / BEATS_PER_BAR);
+  if (!state.cycle || state.cycle.bar !== bar) state.cycle = { bar, locked: [] };
+  if (state.cycle.locked.includes(iid)) {
+    ctx.events.push({ type: 'rejected', iid, reason: 'cycled' });
+    return;
+  }
+  if (state.energy < CYCLE_COST) {
+    ctx.events.push({ type: 'rejected', iid, reason: 'energy' });
+    return;
+  }
+  state.energy -= CYCLE_COST;
+  const [card] = state.hand.splice(index, 1);
+  state.discard.push(card!);
+  const before = state.hand.length;
+  drawCards(state, 1, ctx.events);
+  for (const fresh of state.hand.slice(before)) state.cycle.locked.push(fresh.iid);
+  ctx.events.push({ type: 'cycled', iid, cardId: card!.cardId });
 }
 
 /** Choose the headliner's evolution (SPEC §4.7): 0 or 1. */

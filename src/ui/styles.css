@@ -1187,3 +1187,86 @@ button:disabled {
   line-height: 1.3;
   color: var(--lilac);
 }
+
+/* ---------- Drag to play, long-press inspect, swap ---------- */
+.hand .card {
+  /* A drag must not scroll the page or get cancelled by the browser. */
+  touch-action: none;
+}
+
+.drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 50;
+  margin: -44px 0 0 -40px;
+  padding: 10px 12px;
+  min-width: 80px;
+  background: var(--raised);
+  color: var(--cream);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0.92;
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--amber),
+    0 var(--px) 0 0 var(--amber),
+    calc(var(--px) * -1) 0 0 0 var(--amber),
+    var(--px) 0 0 0 var(--amber);
+}
+
+.lane-btn.drop {
+  --frame: var(--amber);
+  background: #3a2d58;
+}
+
+.inspect {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 14%;
+  z-index: 5;
+  padding: 12px 14px;
+  background: var(--panel);
+  pointer-events: none;
+  font-size: 14px;
+  line-height: 1.35;
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--line),
+    0 var(--px) 0 0 var(--line),
+    calc(var(--px) * -1) 0 0 0 var(--line),
+    var(--px) 0 0 0 var(--line),
+    6px 6px 0 #120d1d;
+}
+
+.inspect strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 16px;
+  color: var(--amber);
+}
+
+.inspect p {
+  margin: 0 0 4px;
+}
+
+.swap-btn {
+  --frame: var(--line);
+  flex: none;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--raised);
+  color: var(--lilac);
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--frame),
+    0 var(--px) 0 0 var(--frame),
+    calc(var(--px) * -1) 0 0 0 var(--frame),
+    var(--px) 0 0 0 var(--frame);
+}
+
+.swap-btn:disabled {
+  color: var(--dim);
+}

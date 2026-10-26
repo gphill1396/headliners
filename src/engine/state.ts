@@ -232,6 +232,8 @@ export interface EngineState {
   wave: WaveState;
   /** Card ids on offer while phase === 'picking'. */
   pick: string[];
+  /** Discard-cycle (SPEC §4.3): cards drawn by cycling can't be cycled again this bar. */
+  cycle?: { bar: number; locked: number[] };
   headliner: HeadlinerState;
   stats: EngineStats;
 }

@@ -384,10 +384,10 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
   - It ignores taps for 0.6 s after opening and only counts fresh taps.
   - It needs a tap on a card plus a confirm, so a play in progress can't pick by accident.
 - *Slice simplifications:*
-  - Card text is hand-written for now, not yet generated from effect data.
-  - No discard-cycle.
-  - No drag-to-play.
-  - No long-press: tapping a card shows its text.
+  - Card text is hand-written for now, not yet generated from effect data. *(Done in Phase 1b.)*
+  - No discard-cycle. *(Done in Phase 1b.)*
+  - No drag-to-play. *(Done in Phase 1b.)*
+  - No long-press: tapping a card shows its text. *(Done in Phase 1b.)*
   - Evolutions appear as a preview only.
 
 **Phase 1b balance pass (simulator-driven).** Every change was rerun through the depth report before it was kept.
@@ -465,12 +465,19 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
 - The sim's bots flip a coin for their evolution, and the report prints each one's median wave: Metronome 21, Polyrhythm 19, Crescendo 19, Harmony 18, Load Out 18, Mosh Pit 18.
 - **Results** at 200 runs per bot: median wave Thrum 20, Lyra 18, Clatter 18, random 6. **All eight checks pass**: D1 3.00× (Lyra and Clatter; Thrum 3.33×), D2 5.4×, D3 1.11×, D4 40.0% (Soundboard, right on the line), D5 22.0%, D6 7.2%, D7 3.0, D8 0.2%.
 
+**Phase 1b progress — the leftovers** (done):
+- **Card text is generated from the card data** (`src/content/text.ts`), so the numbers on a card always match what it does. A card's optional `note` adds a sentence the data can't say (e.g. Kick Drum: "Several Kick Drums add one link a bar between them."). Short taglines on cards stay hand-written.
+- **Drag-to-play:** drag a card from your hand onto a lane button; it plays when your finger lifts, timed like a tap. The lane under your finger lights up. Select-then-tap still works.
+- **Long-press** a card (in hand) for its full text, keyword definitions and flavor; long-press an enemy on the field for its trait. Both close when you let go. (Enemy long-press is information only, so it sits outside the bottom-38% play zone.)
+- **Discard-cycle (Swap):** select a card and a Swap button appears next to it: 1 energy to discard it and draw the next one. The card you get can't be swapped again that bar. The sim's bots don't use Swap yet, so the depth report doesn't measure it.
+- Sim unchanged (same seeds, same results): all D1–D8 pass.
+
 **Phase 1b — Fill out.** Adds the simulator and the D1–D8 report, then tunes the slice against it. Then adds Lyra and Clatter, the other 5 enemy types, The Hush, the full ~40 cards, evolutions, the remaining keywords, audio, discard-cycle and drag-to-play.
 
 **S1.1 Play a card into a lane**
 *As a player, I want to select a card and tap a lane with my two thumbs, so I can act fast without reaching up.*
 - [ ] Every play input is inside the bottom ~38% of the screen.
-- [ ] Two ways to play: select, then tap a lane; or drag the card onto a lane.
+- [x] Two ways to play: select, then tap a lane; or drag the card onto a lane.
 - [ ] The card is visibly queued and resolves on the next beat.
 - [ ] A card you can't afford, or a lane or slot that isn't valid, shows the reason without opening a dialog.
 
@@ -504,7 +511,7 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
 *As a player, I want enemies that need specific tools, so I have to think about my build.*
 - [x] All 8 enemy types are implemented with their traits, each with a unit test. *(The Hush is separate.)*
 - [x] From wave 3 onward, every wave mixes at least 2 traits.
-- [ ] Long-press an enemy to see its trait.
+- [x] Long-press an enemy to see its trait.
 - [x] The Hush boss arrives every 10th wave, with 3 phases.
 
 **S1.7 Encore mode**

@@ -99,6 +99,8 @@ export const WAVE_MAX_BPM = 150;
 export const PICK_EVERY_WAVES = 3;
 /** A unit can gain at most this many Volume counters. */
 export const VOLUME_MAX = 20;
+/** Discard-cycle a card in hand: costs this much energy (SPEC §4.3). */
+export const CYCLE_COST = 1;
 /** After this wave, your headliner evolves (SPEC §4.7, S1.5). */
 export const EVOLVE_AFTER_WAVE = 5;
 /** Metronome: timing windows this much wider, in percent. */

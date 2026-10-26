@@ -15,7 +15,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: [],
     unit: { damage: 3, fireEvery: 2 },
     short: 'Shoots every beat',
-    text: 'Unit. 3 damage, fires every beat.',
     flavor: 'Coils cables, throws punches.',
   },
   {
@@ -28,8 +27,8 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['downbeat'],
     unit: { damage: 4, fireEvery: 4 },
     triggers: [{ when: 'downbeat', link: true, effects: [{ do: 'selfFire', shots: 2 }] }],
+    note: 'Several Kick Drums add one link a bar between them.',
     short: 'Burst on beat 1',
-    text: 'Unit. 4 damage, fires every 2 beats. Downbeat: fires 2 extra shots and adds a chain link (one per bar, however many Kick Drums you have).',
     flavor: 'Four on the floor, through the floor.',
   },
   {
@@ -41,7 +40,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['pierce'],
     unit: { damage: 9, fireEvery: 4, pierce: 1 },
     short: 'Heavy shot, pierces',
-    text: 'Unit. 9 damage, fires every 2 beats. Pierce 1.',
     flavor: 'Felt more than heard.',
   },
   {
@@ -53,7 +51,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['antiAir'],
     unit: { damage: 3, fireEvery: 2, antiAir: true },
     short: 'Hits flyers',
-    text: 'Unit. 3 damage, fires every beat. Anti-Air: its shots hit Bats and other flyers.',
     flavor: 'Fire goes up. Bats come down.',
   },
   {
@@ -65,7 +62,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['priority'],
     unit: { damage: 5, fireEvery: 2, priority: true },
     short: 'Shoots Breakers first',
-    text: 'Unit. 5 damage, fires every beat. Priority: its shots fly past other enemies to hit Breakers and Hexers first.',
     flavor: 'There you are.',
   },
 
@@ -79,7 +75,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: [],
     gate: { kind: 'copy', amount: 2, durability: 40 },
     short: 'Doubles shots',
-    text: 'Gate. Each shot through it becomes 2. Lasts 40 shots.',
     flavor: 'Two strings, one bow, twice the trouble.',
   },
   {
@@ -91,7 +86,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: [],
     gate: { kind: 'damage', amount: 5, durability: 40 },
     short: '+5 per shot',
-    text: 'Gate. +5 damage to each shot through it. Lasts 40 shots.',
     flavor: 'Gets through armor. Gets through walls.',
   },
   {
@@ -103,7 +97,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['splash'],
     gate: { kind: 'splash', amount: 1, durability: 30 },
     short: 'Shots splash',
-    text: 'Gate. Shots through it gain Splash (half damage to nearby enemies). Lasts 30 shots.',
     flavor: 'Sounds like a swarm. Fixes swarms.',
   },
   {
@@ -115,7 +108,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['speaker'],
     gate: { kind: 'aim', amount: 1, durability: 36 },
     short: 'Aims shots next door',
-    text: 'Gate (speaker). Shots through it turn into the next lane over; from the middle lane they alternate left and right. Shots from the side get past Shieldbearers.',
     flavor: 'Point it at the problem.',
   },
 
@@ -129,7 +121,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: [],
     onPlay: [{ do: 'damageFront', amount: 30 }],
     short: 'Big hit, front enemy',
-    text: 'Riff. Deal 30 to the enemy closest to the stage in this lane.',
     flavor: 'Root, fifth, regret.',
   },
   {
@@ -144,7 +135,6 @@ export const CARDS: readonly CardDef[] = [
       { do: 'loseCrowd', amount: 1 },
     ],
     short: 'Hits whole lane',
-    text: 'Riff. Deal 12 to every enemy in this lane. Feedback: lose 1 crowd.',
     flavor: 'The crowd covers its ears. So do the zombies.',
   },
   {
@@ -158,7 +148,6 @@ export const CARDS: readonly CardDef[] = [
     onPlay: [{ do: 'volley', scope: 'lane', shots: 2 }],
     echo: true,
     short: 'Lane fires, twice',
-    text: 'Riff. Units in this lane fire 2 shots. Echo: happens again next beat.',
     flavor: 'Brrrrrrap.',
   },
   {
@@ -172,7 +161,6 @@ export const CARDS: readonly CardDef[] = [
     onPlay: [{ do: 'gainEnergy', amount: 1 }],
     echo: true,
     short: '+1 energy, twice',
-    text: 'Riff. Gain 1 energy. Echo: happens again next beat.',
     flavor: 'R L R R. L R L L. Repeat until enlightened.',
   },
   {
@@ -192,8 +180,8 @@ export const CARDS: readonly CardDef[] = [
         ],
       },
     ],
+    note: 'Does nothing on a shorter chain.',
     short: 'Chain 3+: hit all, draw',
-    text: 'Riff. Encore (chain 3+): deal 8 to every enemy and draw a card. Does nothing on a shorter chain.',
     flavor: 'One more song!',
   },
 
@@ -208,7 +196,6 @@ export const CARDS: readonly CardDef[] = [
     unit: { damage: 2, fireEvery: 2 },
     triggers: [{ when: 'downbeat', link: false, effects: [{ do: 'volume', amount: 1 }] }],
     short: 'Louder every bar',
-    text: 'Unit. 2 damage, fires every beat. Volume: +1 damage for good on every beat 1 (up to +20).',
     flavor: 'Make some noise! No, more!',
   },
   {
@@ -220,7 +207,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['antiAir'],
     gate: { kind: 'lift', amount: 1, durability: 36 },
     short: 'Shots hit flyers',
-    text: 'Gate. Shots through it gain Anti-Air: they hit Bats and other flyers. Lasts 36 shots.',
     flavor: 'Everything goes up from here.',
   },
   {
@@ -232,7 +218,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['priority'],
     onPlay: [{ do: 'damageFront', amount: 28, prefer: 'priority' }],
     short: 'Hits Breakers first',
-    text: 'Riff. Deal 28 to a Breaker, Hexer or The Hush in this lane, or else to the enemy closest to the stage.',
     flavor: 'Hey! You! Yeah, you with the hammer.',
   },
   {
@@ -244,7 +229,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['downbeat'],
     onPlay: [{ do: 'ifDownbeat', then: [{ do: 'damageFront', amount: 90 }], else: [{ do: 'damageFront', amount: 40 }] }],
     short: 'Huge hit on beat 1',
-    text: 'Riff. Deal 40 to the enemy closest to the stage. Downbeat: 90 instead if it lands on beat 1.',
     flavor: 'Thank you, goodnight.',
   },
   {
@@ -256,7 +240,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['downbeat'],
     triggers: [{ when: 'downbeat', link: false, effects: [{ do: 'draw', count: 1 }] }],
     short: 'Draw on beat 1',
-    text: 'Amp. On every beat 1, draw a card.',
     flavor: 'Every fader tells a story.',
   },
 
@@ -271,7 +254,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: [],
     triggers: [{ when: 'chainGrow', link: false, effects: [{ do: 'volley', scope: 'all', shots: 1 }] }],
     short: 'Chains fire all units',
-    text: 'Amp. Whenever the chain grows, every unit fires a shot.',
     flavor: 'Tempo: yes.',
   },
 
@@ -286,7 +268,6 @@ export const CARDS: readonly CardDef[] = [
     onPlay: [{ do: 'damageAll', amount: 10, only: 'flying' }],
     echo: true,
     short: 'Hits all flyers, twice',
-    text: 'Riff. Deal 10 to every flying enemy. Echo: happens again next beat.',
     flavor: 'Bats hate brass.',
   },
   {
@@ -299,7 +280,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: [],
     unit: { damage: 2, fireEvery: 1 },
     short: 'Fires every eighth',
-    text: 'Unit. 2 damage, fires on every eighth note.',
     flavor: 'Two pedals, zero mercy.',
   },
   {
@@ -314,7 +294,6 @@ export const CARDS: readonly CardDef[] = [
       { do: 'ifDownbeat', then: [{ do: 'damageFront', amount: 24, prefer: 'priority' }], else: [{ do: 'damageFront', amount: 6, prefer: 'priority' }] },
     ],
     short: 'Free. Big on beat 1',
-    text: 'Riff. Free. Deal 6 to a Breaker, Hexer or The Hush in this lane, or else the enemy closest to the stage. Downbeat: 24 instead if it lands on beat 1.',
     flavor: 'Ba-dum-tss.',
   },
   {
@@ -327,7 +306,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['downbeat'],
     triggers: [{ when: 'downbeat', link: true, effects: [{ do: 'volley', scope: 'all', shots: 1 }] }],
     short: 'All fire on beat 1',
-    text: 'Amp. On every beat 1, every unit fires an extra shot and the chain gains a link.',
     flavor: 'Boots on the ground. All of them.',
   },
   {
@@ -340,7 +318,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['encore'],
     onPlay: [{ do: 'ifChain', min: 3, then: [{ do: 'volley', scope: 'all', shots: 4 }], else: [{ do: 'volley', scope: 'all', shots: 2 }] }],
     short: 'All units fire 2 (4)',
-    text: 'Riff. Every unit fires 2 shots. Encore (chain 3+): 4 shots instead.',
     flavor: 'Everyone else leaves the stage. Nobody minds.',
   },
 
@@ -354,8 +331,8 @@ export const CARDS: readonly CardDef[] = [
     headliner: 'lyra',
     keywords: [],
     unit: { damage: 2, fireEvery: 1 },
+    note: 'Every one of those shots goes through your gates.',
     short: 'Tiny shots, every 8th',
-    text: 'Unit. 2 damage, fires every eighth note. Every one of those shots goes through your gates.',
     flavor: 'Up, down, up, down, forever.',
   },
   {
@@ -368,7 +345,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: [],
     gate: { kind: 'copy', amount: 3, durability: 24 },
     short: 'Shots become 3',
-    text: 'Gate. Each shot through it becomes 3. Lasts 24 shots.',
     flavor: 'Root, third, fifth. Lethal in all three.',
   },
   {
@@ -382,7 +358,6 @@ export const CARDS: readonly CardDef[] = [
     onPlay: [{ do: 'gainEnergy', amount: 1 }, { do: 'repairGates', scope: 'lane', amount: 10 }],
     echo: true,
     short: '+1 energy + fix, twice',
-    text: 'Riff. Gain 1 energy and gates in this lane regain 10 durability. Echo: happens again next beat.',
     flavor: 'Let it ring.',
   },
   {
@@ -395,7 +370,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: [],
     triggers: [{ when: 'chainGrow', link: false, effects: [{ do: 'repairGates', scope: 'all', amount: 3 }] }],
     short: 'Chains repair gates',
-    text: 'Amp. Whenever the chain grows, every gate regains 3 durability.',
     flavor: 'The room starts singing back.',
   },
 
@@ -412,7 +386,6 @@ export const CARDS: readonly CardDef[] = [
       { do: 'ifChain', min: 3, then: [{ do: 'gainEnergy', amount: 1 }] },
     ],
     short: 'Fix all gates',
-    text: 'Riff. Every gate regains 8 durability. Encore (chain 3+): also gain 1 energy.',
     flavor: 'All the way up, all the way down.',
   },
   {
@@ -424,8 +397,8 @@ export const CARDS: readonly CardDef[] = [
     headliner: 'lyra',
     keywords: [],
     onPlay: [{ do: 'volley', scope: 'lane', shots: 4 }],
+    note: 'Straight through your gates.',
     short: 'Lane fires 4',
-    text: 'Riff. Units in this lane fire 4 shots each, straight through your gates.',
     flavor: 'Unaccompanied. Unbothered.',
   },
   {
@@ -438,7 +411,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: [],
     gate: { kind: 'copy', amount: 4, durability: 16 },
     short: 'Shots become 4',
-    text: 'Gate. Each shot through it becomes 4. Fragile: lasts 16 shots.',
     flavor: 'Four parts. One target.',
   },
   {
@@ -451,7 +423,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['antiAir'],
     gate: { kind: 'lift', amount: 1, durability: 30 },
     short: 'Shots hit flyers',
-    text: 'Gate. Cheap. Shots through it gain Anti-Air: they hit Bats and other flyers. Lasts 30 shots.',
     flavor: 'High enough to reach the rafters.',
   },
   {
@@ -463,8 +434,8 @@ export const CARDS: readonly CardDef[] = [
     headliner: 'lyra',
     keywords: ['priority'],
     unit: { damage: 1, fireEvery: 1, priority: true },
+    note: 'Gates make it ring.',
     short: 'Seeks Breakers',
-    text: 'Unit. 1 damage, fires every eighth note. Priority: its shots fly past others to hit Breakers, Hexers and The Hush. Gates make it ring.',
     flavor: 'A perfect A, aimed.',
   },
 
@@ -479,8 +450,8 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['roadie', 'echo'],
     onPlay: [{ do: 'roadie', count: 1 }],
     echo: true,
+    note: 'Roadies are small units that leave after 8 beats.',
     short: 'Roadie here, twice',
-    text: 'Riff. Put a Roadie on stage in this lane. Echo: happens again next beat. Roadies are small units that leave after 8 beats.',
     flavor: 'Lift with your legs. Or your tail.',
   },
   {
@@ -494,7 +465,6 @@ export const CARDS: readonly CardDef[] = [
     unit: { damage: 3, fireEvery: 2 },
     triggers: [{ when: 'downbeat', link: true, effects: [{ do: 'roadie', count: 1 }] }],
     short: 'Roadie every bar',
-    text: 'Unit. 3 damage, fires every beat. Downbeat: puts a Roadie on stage in its lane and adds a chain link.',
     flavor: 'Has a clipboard. Has a whistle. Has opinions.',
   },
   {
@@ -507,7 +477,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['shred'],
     gate: { kind: 'shred', amount: 1, durability: 40 },
     short: 'Ignore armor & shields',
-    text: 'Gate. Shots through it ignore armor and pry past Shieldbearers\' shields. Lasts 40 shots.',
     flavor: 'Mostly wrenches. Some regrets.',
   },
   {
@@ -520,7 +489,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['downbeat'],
     triggers: [{ when: 'downbeat', link: true, effects: [{ do: 'volley', scope: 'all', shots: 2, tokensOnly: true }] }],
     short: 'Roadies burst on 1',
-    text: 'Amp. On beat 1, every Roadie fires 2 extra shots, and the chain gains a link.',
     flavor: 'Everyone in. Nobody out.',
   },
 
@@ -534,7 +502,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['roadie'],
     onPlay: [{ do: 'volley', scope: 'all', shots: 3, tokensOnly: true }],
     short: 'Roadies fire 3',
-    text: 'Riff. Every Roadie fires 3 shots.',
     flavor: 'Catch me! Anyone? Anyone!',
   },
   {
@@ -548,7 +515,6 @@ export const CARDS: readonly CardDef[] = [
     unit: { damage: 4, fireEvery: 2 },
     triggers: [{ when: 'downbeat', link: false, effects: [{ do: 'repairGates', scope: 'lane', amount: 10 }] }],
     short: 'Fixes gates on 1',
-    text: 'Unit. 4 damage, fires every beat. On every beat 1, gates in its lane regain 10 durability.',
     flavor: 'Has a spare for everything except patience.',
   },
   {
@@ -561,7 +527,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['priority'],
     unit: { damage: 4, fireEvery: 2, priority: true },
     short: 'Seeks Breakers',
-    text: 'Unit. 4 damage, fires every beat. Priority: its shots fly past others to hit Breakers, Hexers and The Hush.',
     flavor: "You're not on the list.",
   },
   {
@@ -574,7 +539,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['antiAir'],
     unit: { damage: 2, fireEvery: 1, antiAir: true },
     short: 'Hits flyers',
-    text: 'Unit. 2 damage, fires every eighth note. Anti-Air: up in the rigging, it hits Bats and other flyers.',
     flavor: 'Never looks down. Always looks up.',
   },
   {
@@ -587,7 +551,6 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['roadie'],
     onPlay: [{ do: 'roadie', count: 1, scope: 'all' }],
     short: 'Roadie in every lane',
-    text: 'Riff. Put a Roadie on stage in every lane.',
     flavor: 'Everybody up. Yes, you too.',
   },
 
@@ -601,8 +564,8 @@ export const CARDS: readonly CardDef[] = [
     headliner: 'clatter',
     keywords: [],
     unit: { damage: 3, fireEvery: 2, lifespanBeats: 8 },
+    note: 'A token: made by other cards, never in your deck.',
     short: 'Leaves after 8 beats',
-    text: 'Token unit. 3 damage, fires every beat, leaves after 8 beats.',
     flavor: 'Union break in 8.',
   },
 ];

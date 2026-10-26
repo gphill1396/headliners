@@ -26,6 +26,8 @@ export type EngineEvent =
   | { type: 'leaked'; enemyId: number; kind: EnemyKind; lane: number; crowdDamage: number }
   | { type: 'energy'; amount: number; reason: 'tight' | 'card' }
   | { type: 'drew'; count: number }
+  /** A card was discard-cycled for a fresh one. */
+  | { type: 'cycled'; iid: number; cardId: string }
   /** `debut`: enemy kinds appearing for the first time this run. */
   | { type: 'waveStart'; index: number; kinds: EnemyKind[]; debut?: EnemyKind[]; boss?: boolean }
   /** The Hush moved to a new phase. */
@@ -47,4 +49,4 @@ export type EngineEvent =
   | { type: 'fill'; untilBeat: number; headliner: HeadlinerId }
   | { type: 'gameOver'; wave: number; score: number };
 
-export type RejectReason = 'not-in-hand' | 'energy' | 'lane' | 'not-playing' | 'cooldown';
+export type RejectReason = 'not-in-hand' | 'energy' | 'lane' | 'not-playing' | 'cooldown' | 'cycled';

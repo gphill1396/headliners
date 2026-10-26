@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { CARDS, getCard, STAGE_LINE, step } from '../src/engine';
 import { pickPool, STARTER_DECKS } from '../src/content/cards';
 import { ENEMIES } from '../src/content/enemies';
+import { cardText } from '../src/content/text';
 import { addEnemy, nextBeat, noWaves, playOnBeat, runTicks, testState, toBeatEdge, giveCard } from './helpers';
 
 const HEADLINERS = ['thrum', 'lyra', 'clatter'] as const;
@@ -16,7 +17,7 @@ test('the full Phase 1 set: about 40 cards, 9 signature cards per headliner, 12-
     for (const id of STARTER_DECKS[h]) assert.ok(getCard(id), id);
   }
   // Every card has the text a player needs.
-  for (const c of real) assert.ok(c.text.length > 10 && c.short.length > 2 && c.flavor.length > 2, c.id);
+  for (const c of real) assert.ok(cardText(c).length > 10 && c.short.length > 2 && c.flavor.length > 2, c.id);
 });
 
 test('every enemy has at least two answers available to every headliner', () => {
@@ -100,4 +101,39 @@ test('Crew Call puts a Roadie in every lane; Riser and Falsetto give shots Anti-
     runTicks(t, 40);
     assert.ok(bat.hp < 100, gate);
   }
+});
+
+test('card text is generated from the card data', () => {
+  assert.equal(cardText(getCard('stagehand')), 'Unit. 3 damage, fires every beat.');
+  assert.equal(cardText(getCard('double-stop')), 'Gate. Each shot through it becomes 2. Lasts 40 shots.');
+  assert.equal(cardText(getCard('mic-drop')), 'Riff. Deal 40 to the enemy closest to the stage in this lane. Downbeat (on beat 1): 90 instead.');
+  assert.equal(cardText(getCard('sustain-pedal')), 'Riff. Gain 1 energy and gates in this lane regain 10 durability. Echo: happens again next beat.');
+  assert.equal(cardText(getCard('feedback-loop')), 'Riff. Deal 12 to every enemy in this lane. Feedback: lose 1 crowd.');
+  // Numbers on the card always match the data.
+  for (const c of CARDS) {
+    if (c.unit) assert.ok(cardText(c).includes(`${c.unit.damage} damage`), c.id);
+    if (c.gate) assert.ok(cardText(c).includes(`Lasts ${c.gate.durability} shots`), c.id);
+  }
+});
+
+test('discard-cycle: 1 energy swaps a card for the next one; the new card is locked for the bar', () => {
+  const s = testState('cycle');
+  noWaves(s);
+  s.energy = 3;
+  const first = s.hand[0]!;
+  const handBefore = s.hand.length;
+  const ev = step(s, [{ type: 'cycle', iid: first.iid }]);
+  assert.equal(ev.filter((e) => e.type === 'cycled').length, 1);
+  assert.equal(s.energy, 3 - 1 + (ev.some((e) => e.type === 'beat') ? 1 : 0));
+  assert.equal(s.hand.length, handBefore);
+  assert.ok(!s.hand.some((c) => c.iid === first.iid));
+  assert.ok(s.discard.some((c) => c.iid === first.iid));
+  const fresh = s.hand[s.hand.length - 1]!;
+  const again = step(s, [{ type: 'cycle', iid: fresh.iid }]);
+  assert.ok(again.some((e) => e.type === 'rejected' && e.reason === 'cycled'));
+  // Next bar it's fair game again.
+  for (let b = 0; b < 4; b++) nextBeat(s);
+  s.energy = 5;
+  const later = step(s, [{ type: 'cycle', iid: fresh.iid }]);
+  assert.ok(later.some((e) => e.type === 'cycled') || !s.hand.some((c) => c.iid === fresh.iid));
 });

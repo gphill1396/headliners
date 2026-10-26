@@ -1,4 +1,6 @@
+import type React from 'react';
 import { HEADLINERS, type CardDef } from '../engine';
+import { cardText } from '../content/text';
 import { GATE_COLORS } from '../render/field';
 import { PALETTE } from '../render/palette';
 
@@ -30,10 +32,12 @@ interface Props {
    */
   activateOn?: 'pointerdown' | 'click';
   onSelect?: () => void;
+  /** Hand only: the raw press, for drag-to-play and long-press. */
+  onPress?: (e: React.PointerEvent<HTMLButtonElement>) => void;
 }
 
 /** A card in the hand (compact) or in a card pick (large, with rules text). */
-export function CardTile({ def, selected = false, affordable = true, large = false, coach = false, activateOn = 'pointerdown', onSelect }: Props) {
+export function CardTile({ def, selected = false, affordable = true, large = false, coach = false, activateOn = 'pointerdown', onSelect, onPress }: Props) {
   return (
     <button
       type="button"
@@ -43,18 +47,19 @@ export function CardTile({ def, selected = false, affordable = true, large = fal
         if (activateOn !== 'pointerdown') return;
         e.preventDefault();
         onSelect?.();
+        onPress?.(e);
       }}
       onClick={() => {
         if (activateOn === 'click') onSelect?.();
       }}
       aria-pressed={selected}
-      aria-label={`${def.name}, costs ${def.cost}. ${def.text}`}
+      aria-label={`${def.name}, costs ${def.cost}. ${cardText(def)}`}
     >
       <span className="card-cost">{def.cost}</span>
       {def.headliner && <span className={`card-sig hl-${def.headliner}`} title={`${HEADLINERS[def.headliner].name} signature card`} />}
       <span className="card-name">{def.name}</span>
       {/* In hand, just the name: what it does shows above the hand when you select it. */}
-      {large && <span className="card-text">{def.text}</span>}
+      {large && <span className="card-text">{cardText(def)}</span>}
       {large && <span className="card-type">{TYPE_LABEL[def.type]}</span>}
     </button>
   );

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type React from 'react';
 import {
   BEAT_UNITS,
   beatInBar,
@@ -15,9 +16,10 @@ import {
   type Grade,
   type HeadlinerId,
 } from '../engine';
-import { addBurst, createFx, decayFx, depthToFraction, drawField, fitCanvas, GATE_COLORS } from '../render/field';
+import { addBurst, createFx, decayFx, depthToFraction, drawField, fitCanvas, GATE_COLORS, LANE_PX } from '../render/field';
 import { PALETTE } from '../render/palette';
 import { CardTile } from './CardTile';
+import { cardText, KEYWORD_TEXT } from '../content/text';
 import { formatNumber } from './format';
 import { EvolveOverlay, GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay } from './Overlays';
 import { GameRunner, type CountIn } from './runner';
@@ -42,6 +44,25 @@ import {
 } from './storage';
 
 const LANE_NAMES = ['Left', 'Mid', 'Right'] as const;
+/** Hold this long without moving to see a card's full text or an enemy's trait. */
+const LONG_PRESS_MS = 450;
+/** Move a card this far and it becomes a drag. */
+const DRAG_START_PX = 14;
+
+interface Inspect {
+  title: string;
+  body: string;
+  lines: string[];
+}
+
+function cardInspect(cardId: string): Inspect {
+  const def = getCard(cardId);
+  return {
+    title: `${def.name} · ${def.cost}`,
+    body: cardText(def),
+    lines: [...new Set(def.keywords)].map((k) => KEYWORD_TEXT[k]).concat(def.flavor ? [`“${def.flavor}”`] : []),
+  };
+}
 const LANE_KEYS: Record<string, number> = { j: 0, k: 1, l: 2, ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2 };
 const GRADE_LABEL: Record<Grade, string> = { tight: 'Tight', good: 'Good', off: 'Off' };
 const REJECT_TEXT = {
@@ -50,6 +71,7 @@ const REJECT_TEXT = {
   lane: 'Pick a lane.',
   'not-playing': 'Wait for the next wave.',
   cooldown: 'Your ability is still cooling down.',
+  cycled: 'That one just came in. Swap it next bar.',
 } as const;
 /** Short banner lines and in-use button labels for each headliner's ability. */
 const ACTIVE_BANNER: Record<HeadlinerId, string> = {
@@ -154,6 +176,7 @@ export function App() {
   const [pickSent, setPickSent] = useState(false);
   const [tutorialDone, setTutorialDone] = useState(loadTutorialDone);
   const [headliner, setHeadliner] = useState<HeadlinerId>(loadHeadliner);
+  const [inspect, setInspect] = useState<Inspect | null>(null);
   const [tutStep, setTutStep] = useState<number | null>(null);
   const [nudge, setNudge] = useState<string | null>(null);
   const [practiceHits, setPracticeHits] = useState(0);
@@ -545,7 +568,7 @@ export function App() {
     window.clearTimeout(infoTimer.current);
     el.dataset.tone = 'card';
     // The hint is only for the soundcheck; after that, just what the card does.
-    el.innerHTML = `<span>${def.text}${tutStepRef.current !== null ? ' <em>Now tap a lane on the beat.</em>' : ''}</span>`;
+    el.innerHTML = `<span>${cardText(def)}${tutStepRef.current !== null ? ' <em>Now tap a lane on the beat.</em>' : ''}</span>`;
     el.classList.remove('show');
     void el.offsetWidth;
     el.classList.add('show');
@@ -587,6 +610,125 @@ export function App() {
   );
 
   const activate = (timeStamp: number) => runner.send({ type: 'activate', permille: 0 }, timeStamp);
+
+  // ---------------------------------------------------------------- drag, long-press, swap
+
+  /** Which lane button (if any) is under a point on screen. */
+  const laneAt = (x: number, y: number): number | null => {
+    for (let lane = 0; lane < LANES; lane++) {
+      const r = laneRefs.current[lane]?.getBoundingClientRect();
+      if (r && x >= r.left && x <= r.right && y >= r.top - 12 && y <= r.bottom) return lane;
+    }
+    return null;
+  };
+
+  /** Drop a dragged card on a lane: a play, timed to when the finger lifts. */
+  const commitDrop = (iid: number, lane: number, timeStamp: number) => {
+    if (!runner.running || runner.state.phase !== 'playing') return;
+    runner.send({ type: 'commit', iid, lane, permille: 0 }, timeStamp);
+    setSelected(null);
+    showCardText(null);
+    const btn = laneRefs.current[lane];
+    if (btn) {
+      btn.classList.remove('hit');
+      void btn.offsetWidth;
+      btn.classList.add('hit');
+    }
+  };
+
+  /**
+   * A press on a card in hand. Move it more than a few pixels and it becomes a drag
+   * (drop on a lane to play); hold still and it opens the full card text.
+   */
+  const pressCard = (iid: number, cardId: string, e: React.PointerEvent) => {
+    const start = { x: e.clientX, y: e.clientY };
+    let dragging = false;
+    let ghost: HTMLDivElement | null = null;
+    const timer = window.setTimeout(() => {
+      if (!dragging) setInspect(cardInspect(cardId));
+    }, LONG_PRESS_MS);
+    const clearDrop = () => laneRefs.current.forEach((b) => b?.classList.remove('drop'));
+    const move = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      const dx = ev.clientX - start.x;
+      const dy = ev.clientY - start.y;
+      if (!dragging && dx * dx + dy * dy > DRAG_START_PX * DRAG_START_PX) {
+        dragging = true;
+        window.clearTimeout(timer);
+        setInspect(null);
+        ghost = document.createElement('div');
+        ghost.className = 'drag-ghost';
+        ghost.textContent = getCard(cardId).name;
+        document.body.appendChild(ghost);
+      }
+      if (dragging && ghost) {
+        ghost.style.transform = `translate(${ev.clientX}px, ${ev.clientY}px)`;
+        const lane = laneAt(ev.clientX, ev.clientY);
+        laneRefs.current.forEach((b, i) => b?.classList.toggle('drop', i === lane));
+      }
+    };
+    const up = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      window.clearTimeout(timer);
+      setInspect(null);
+      if (!dragging) return;
+      ghost?.remove();
+      clearDrop();
+      const lane = ev.type === 'pointerup' ? laneAt(ev.clientX, ev.clientY) : null;
+      if (lane !== null) commitDrop(iid, lane, ev.timeStamp);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
+
+  /** Long-press an enemy on the field to see what it does. */
+  const pressField = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = e.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const fx = ((e.clientX - rect.left) / rect.width) * canvas.width;
+    const fy = ((e.clientY - rect.top) / rect.height) * canvas.height;
+    const start = { x: e.clientX, y: e.clientY };
+    const timer = window.setTimeout(() => {
+      let best: { d: number; kind: keyof typeof ENEMIES } | null = null;
+      for (const en of runner.state.enemies) {
+        if (en.hp <= 0 || en.depth < 0) continue;
+        const wide = ENEMIES[en.kind].wide;
+        const ex = wide ? canvas.width / 2 : en.lane * LANE_PX + LANE_PX / 2;
+        const ey = depthToFraction(en.depth) * canvas.height - 8;
+        const d = (ex - fx) * (ex - fx) + (ey - fy) * (ey - fy) * (wide ? 0.2 : 1);
+        if (d < (wide ? 2_000 : 400) && (!best || d < best.d)) best = { d, kind: en.kind };
+      }
+      if (best) setInspect({ title: ENEMIES[best.kind].name, body: ENEMIES[best.kind].trait, lines: [] });
+    }, LONG_PRESS_MS);
+    const end = (ev: PointerEvent) => {
+      if (ev.type === 'pointermove') {
+        const dx = ev.clientX - start.x;
+        const dy = ev.clientY - start.y;
+        if (dx * dx + dy * dy < DRAG_START_PX * DRAG_START_PX) return;
+      }
+      window.clearTimeout(timer);
+      setInspect(null);
+      window.removeEventListener('pointermove', end);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+    window.addEventListener('pointermove', end);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+  };
+
+  /** Discard-cycle the selected card for 1 energy. */
+  const swapSelected = (timeStamp: number) => {
+    const iid = selectedRef.current;
+    if (iid === null) return;
+    runner.send({ type: 'cycle', iid }, timeStamp);
+    setSelected(null);
+    showCardText(null);
+  };
 
   // Keyboard for desktop testing: 1–5 select a card, J/K/L or arrows play it, F fills, Space pauses.
   useEffect(() => {
@@ -804,7 +946,18 @@ export function App() {
       </header>
 
       <main className="field">
-        <canvas ref={canvasRef} className="field-canvas" aria-label="Playfield: three lanes" />
+        <canvas ref={canvasRef} className="field-canvas" aria-label="Playfield: three lanes" onPointerDown={pressField} />
+        {inspect && (
+          <div className="inspect" role="status">
+            <strong>{inspect.title}</strong>
+            <p>{inspect.body}</p>
+            {inspect.lines.map((l) => (
+              <p key={l} className="muted">
+                {l}
+              </p>
+            ))}
+          </div>
+        )}
         <div className="field-layer" aria-hidden="true">
           {hud.gates.map((g) => (
             <span
@@ -900,6 +1053,7 @@ export function App() {
                 affordable={def.cost <= hud.energy}
                 coach={coachedCardIid === card.iid}
                 onSelect={() => selectCard(card.iid)}
+                onPress={(e) => pressCard(card.iid, card.cardId, e)}
               />
             );
           })}
@@ -907,6 +1061,19 @@ export function App() {
 
         <div className="info-row">
           <div ref={infoRef} className="info" aria-live="polite" />
+          {selected !== null && view === 'playing' && tutStep === null && (
+            <button
+              className="swap-btn"
+              disabled={hud.energy < 1}
+              aria-label="Swap this card for the next one, 1 energy"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                swapSelected(e.timeStamp);
+              }}
+            >
+              Swap
+            </button>
+          )}
           <div className={`energy${coached('energy')}`} aria-label={`Energy ${hud.energy} of ${MAX_ENERGY}`}>
             <span className="energy-label">
               Energy <b>{hud.energy}</b>

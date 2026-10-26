@@ -1,9 +1,16 @@
 import { airborne, ENEMIES, faded, LANES, PROJECTILE_SPEED, STAGE_LINE, SWOOP_DEPTH, type EngineState, type GateKind } from '../engine';
 import { PALETTE } from './palette';
 import { drawSprite, SPRITES, spriteSize, type Sprite } from './sprites';
+import { ART } from './art';
+import { drawAnim } from './portraits';
 
-/** Internal pixel width of the field. The canvas is scaled up with nearest-neighbour for a crisp pixel look. */
-export const FIELD_PX_WIDTH = 144;
+/**
+ * Internal pixel width of the field (the GBA's screen width, for the S4.2 art).
+ * The canvas is scaled up with nearest-neighbour for a crisp pixel look.
+ */
+export const FIELD_PX_WIDTH = 240;
+/** Old placeholder sprites were drawn for a 144 px field; they scale up by this much until they're redrawn. */
+const OLD_SCALE = 2;
 export const LANE_PX = FIELD_PX_WIDTH / LANES;
 /** Fraction of the canvas height where the stage starts. */
 export const STAGE_FRACTION = 0.88;
@@ -87,23 +94,23 @@ export function drawField(
   for (let lane = 0; lane < LANES; lane++) {
     const x = lane * LANE_PX;
     ctx.fillStyle = PALETTE.floor;
-    ctx.fillRect(x + 2, 0, LANE_PX - 4, stageY);
+    ctx.fillRect(x + 3, 0, LANE_PX - 6, stageY);
     ctx.fillStyle = PALETTE.floorLine;
-    const spacing = 12;
+    const spacing = 20;
     const offset = Math.floor(beatPhase * spacing);
-    for (let y = offset - spacing; y < stageY; y += spacing) if (y >= 0) ctx.fillRect(x + 2, y, LANE_PX - 4, 1);
+    for (let y = offset - spacing; y < stageY; y += spacing) if (y >= 0) ctx.fillRect(x + 3, y, LANE_PX - 6, 1);
     const flash = fx.laneFlash[lane] ?? 0;
     if (flash > 0.01) {
       ctx.globalAlpha = flash * 0.45;
       ctx.fillStyle = fx.flashColor[lane] ?? PALETTE.footlight;
-      ctx.fillRect(x + 2, 0, LANE_PX - 4, stageY);
+      ctx.fillRect(x + 3, 0, LANE_PX - 6, stageY);
       ctx.globalAlpha = 1;
     }
     const miss = fx.laneMiss[lane] ?? 0;
     if (miss > 0.01) {
       ctx.globalAlpha = miss * 0.7;
       ctx.fillStyle = PALETTE.miss;
-      ctx.fillRect(x + 2, stageY - 12, LANE_PX - 4, 12);
+      ctx.fillRect(x + 3, stageY - 16, LANE_PX - 6, 16);
       ctx.globalAlpha = 1;
     }
   }
@@ -112,9 +119,9 @@ export function drawField(
   const active = state.clock.beat < state.headliner.activeUntilBeat;
   const swelling = active && state.headliner.id === 'lyra';
   for (const g of state.gates) {
-    const x = g.lane * LANE_PX + 4;
+    const x = g.lane * LANE_PX + 6;
     const y = yOf(g.depth);
-    const width = LANE_PX - 8;
+    const width = LANE_PX - 12;
     if (g.hexed) {
       // Switched off by a Hexer: a dim, crossed-out bar.
       ctx.globalAlpha = 0.5;
@@ -139,18 +146,26 @@ export function drawField(
   // Enemies.
   for (const e of state.enemies) {
     if (e.depth < -1_000) continue;
+    const artKey = e.kind === 'shieldbearer' && !e.shieldLeft ? 'shieldbearer-bare' : e.child ? `${e.kind}-child` : e.kind;
+    const art = ART[artKey];
     const sprite: Sprite = e.kind === 'shieldbearer' && !e.shieldLeft ? SPRITES['shieldbearer-bare'] : SPRITES[e.kind];
-    const { w: sw, h: sh } = spriteSize(sprite);
     const wide = ENEMIES[e.kind].wide === true;
+    // New art is drawn at the field's own resolution; the old placeholders are scaled up.
+    const scale = art ? 1 : (e.child ? 1 : wide ? 3 : 2) * OLD_SCALE;
+    const size = art ? { w: art.frames[0]![0]!.length, h: art.frames[0]!.length } : spriteSize(sprite);
+    const sw = size.w;
+    const sh = size.h;
     const up = airborne(state, e);
-    const scale = e.child ? 1 : wide ? 3 : 2;
-    const jitter = e.kind === 'swarmling' || e.child || e.kind === 'bat' ? ((e.id * 37) % 25) - 12 : 0;
+    const jitter = e.kind === 'swarmling' || e.child || e.kind === 'bat' ? ((e.id * 37) % 41) - 20 : 0;
     // Bats bob while they're up high.
-    const bob = e.kind === 'bat' && e.depth < SWOOP_DEPTH ? (Math.floor(now / 120 + e.id) % 2) * 2 - 4 : 0;
+    const bob = e.kind === 'bat' && e.depth < SWOOP_DEPTH ? (Math.floor(now / 120 + e.id) % 2) * 3 - 6 : 0;
+    // Walk cycle: a step a beat (flyers flap and wisps flicker faster).
+    const fast = e.kind === 'bat' || e.kind === 'ghost' || e.kind === 'swarmling';
+    const frame = fast ? Math.floor(now / 140 + e.id) % 2 : (state.clock.beat + e.id) % 2;
     const x = wide ? Math.round(w / 2 - (sw * scale) / 2) : Math.round(e.lane * LANE_PX + LANE_PX / 2 - (sw * scale) / 2 + jitter);
     const rawY = yOf(Math.min(STAGE_LINE, e.depth + e.speed * alpha)) - sh * scale + bob;
     // The Hush looms in from the top: keep all of it on screen, under its health bar.
-    const y = wide ? Math.max(8, rawY) : rawY;
+    const y = wide ? Math.max(10, rawY) : rawY;
     if (up) {
       // A shadow on the floor: it's up in the air.
       ctx.globalAlpha = 0.35;
@@ -160,7 +175,8 @@ export function drawField(
     }
     // A Ghost on beats 2 and 4 is barely there (and can't be hit).
     if (faded(state, e)) ctx.globalAlpha = 0.25;
-    drawSprite(ctx, sprite, x, y, scale);
+    if (art) drawAnim(ctx, art, frame, x, y, 1);
+    else drawSprite(ctx, sprite, x, y, scale);
     ctx.globalAlpha = 1;
     // Slowed (Aria): a pink band at the feet; held still: pink all round.
     const held = state.headliner.id === 'aria' && state.clock.beat < state.headliner.activeUntilBeat;
@@ -203,7 +219,7 @@ export function drawField(
     const x = Math.round(p.lane * LANE_PX + 3 + (p.x / 1000) * (LANE_PX - 6));
     const y = yOf(p.depth - PROJECTILE_SPEED * alpha);
     ctx.fillStyle = p.splash ? PALETTE.clatter : p.gatesPassed ? PALETTE.footlight : PALETTE.cream;
-    ctx.fillRect(x, y, 1, 3);
+    ctx.fillRect(x, y, 1, 4);
   }
 
   // Kill bursts.
@@ -212,7 +228,7 @@ export function drawField(
     const r = Math.floor((now - b.born) / 50) + 1;
     ctx.fillStyle = b.color;
     for (const [dx, dy] of [[-r, 0], [r, 0], [0, -r], [0, r], [-r, -r], [r, r], [-r, r], [r, -r]] as const) {
-      ctx.fillRect(Math.round(b.x + dx * 1.5), Math.round(b.y + dy * 1.5), 1, 1);
+      ctx.fillRect(Math.round(b.x + dx * 2.5), Math.round(b.y + dy * 2.5), 2, 2);
     }
   }
 
@@ -225,7 +241,7 @@ export function drawField(
   for (let i = 0; i < 9; i++) {
     ctx.fillStyle = PALETTE.footlight;
     ctx.globalAlpha = 0.3 + glow * 0.7;
-    ctx.fillRect(6 + i * 16, h - 4, 4, 2);
+    ctx.fillRect(Math.round(((i + 0.5) * w) / 9) - 3, h - 5, 6, 3);
     ctx.globalAlpha = 1;
   }
 
@@ -235,15 +251,17 @@ export function drawField(
     // Tokens blink through their last two beats so you can see them about to leave.
     if (u.token && u.expiresBeat !== undefined && u.expiresBeat - state.clock.beat <= 2 && Math.floor(beatPhase * 4) % 2 === 1) continue;
     const sprite: Sprite = (SPRITES as Record<string, Sprite>)[u.cardId] ?? SPRITES.stagehand;
-    const { w: sw, h: sh } = spriteSize(sprite);
-    const cx = u.lane * LANE_PX + 8 + u.slot * 16;
+    const { w: sw0, h: sh0 } = spriteSize(sprite);
+    const sw = sw0 * OLD_SCALE;
+    const sh = sh0 * OLD_SCALE;
+    const cx = u.lane * LANE_PX + ((u.slot + 0.5) * LANE_PX) / 3;
     const x = Math.round(cx - sw / 2);
-    const y = stageY - sh + 3;
+    const y = stageY - sh + 5;
     if (filling && beatPhase < 0.5) {
       ctx.fillStyle = PALETTE.footlight;
       ctx.fillRect(x - 1, y - 1, sw + 2, sh + 2);
     }
-    drawSprite(ctx, sprite, x, y, 1);
+    drawSprite(ctx, sprite, x, y, OLD_SCALE);
   }
 
   if (fx.bigFlash > 0.01) {

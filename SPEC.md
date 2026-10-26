@@ -688,6 +688,8 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 - [ ] Each sprite reads at a glance: a clear silhouette, a dark outline, and lit from the top left.
 - [ ] Calmer flashes and the light on-screen text rule still hold.
 
+*Progress:* the pipeline is in `art/` (shapes → shading → outline → hand touches, regenerated with `python3 art/build.py`). **Batch 1 (done):** the playfield is now 240 px wide (the GBA's width), and all 12 monsters, the shieldless Hobgoblin, the small Slime and the three bosses are redrawn with two frames each (a step every beat; Harpies flap, Wisps flicker, Spiderlings scurry). Units on stage are still the old placeholders, scaled 2× until **batch 2** (units, then the other four headliner portraits).
+
 ---
 
 ### Phase 5 — Release (buy once, the full game)

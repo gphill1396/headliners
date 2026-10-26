@@ -106,6 +106,17 @@ test("Riot: kills win back crowd while the chain is 3+; his ability doubles dama
   for (let i = 0; i < 3; i++) shot(s, i, { pierceLeft: 5 });
   runTicks(s, 40);
   assert.equal(s.crowd, 21);
+  // Up to 2 a wave: 20 more kills this wave win back only 1 more.
+  for (let i = 0; i < 20; i++) addEnemy(s, { lane: i % 3, depth: 20_000, hp: 0.5, maxHp: 1 });
+  for (let i = 0; i < 3; i++) shot(s, i, { pierceLeft: 10 });
+  runTicks(s, 40);
+  assert.equal(s.crowd, 22);
+  // A new wave starts the count again.
+  s.wave.startBeat += 1;
+  for (let i = 0; i < 5; i++) addEnemy(s, { lane: 0, depth: 20_000, hp: 0.5, maxHp: 1 });
+  shot(s, 0, { pierceLeft: 10 });
+  runTicks(s, 40);
+  assert.equal(s.crowd, 23);
 
   const dmg = (rioting: boolean) => {
     const t = as('riot', null, `riot-${rioting}`);

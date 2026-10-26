@@ -6,6 +6,7 @@ import {
   RIOT_DAMAGE_PCT,
   RIOT_CHAIN,
   RIOT_KILLS_PER_CROWD,
+  RIOT_CROWD_PER_WAVE,
   SLOW_SHOT_BEATS,
   SLOW_SHOT_PCT,
   BOSS_CROWD_REWARD,
@@ -405,7 +406,12 @@ export function sweepDead(state: EngineState, ctx: TickCtx): void {
       state.headliner.kills = (state.headliner.kills ?? 0) + 1;
       if (state.headliner.kills >= RIOT_KILLS_PER_CROWD) {
         state.headliner.kills = 0;
-        gainCrowd(state, ctx, 1, 'riot');
+        const rw = state.headliner.riotWave?.start === state.wave.startBeat ? state.headliner.riotWave : { start: state.wave.startBeat, won: 0 };
+        if (rw.won < RIOT_CROWD_PER_WAVE) {
+          rw.won += 1;
+          gainCrowd(state, ctx, 1, 'riot');
+        }
+        state.headliner.riotWave = rw;
       }
     }
     ctx.events.push({ type: 'killed', enemyId: e.id, kind: e.kind, lane: e.lane, depth: e.depth });

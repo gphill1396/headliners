@@ -179,6 +179,8 @@ export interface HeadlinerState {
   lastLoadOutBeat?: number;
   /** Riot: kills toward the next crowd point. */
   kills?: number;
+  /** Riot: crowd won back this wave, and which wave (its start beat). */
+  riotWave?: { start: number; won: number };
   /**
    * Team Tour (S2.4): the three headliners on this run, in pick order. `id` is the
    * lead, whose ability the button fires. Missing = a solo run.

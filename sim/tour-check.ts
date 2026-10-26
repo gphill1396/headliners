@@ -4,6 +4,7 @@
  * T1 No solved Tour headliner: solo win rates at Heat 0, best ÷ worst ≤ 1.5×.
  * T2 Heat climbs: a skilled band of 3 wins 60–85% at Heat 0, 35–60% at Heat 5, 10–30% at Heat 10.
  * T3 Skill matters: random play never wins a Tour at Heat 0.
+ * T4 No solved band: at Heat 5, the best band of 3 wins at most 2.5× as often as the worst.
  *
  * The four parts (solo, and teams at Heat 0, 5 and 10) run in parallel child processes.
  */
@@ -40,8 +41,16 @@ function runPart(name: string): PartResult {
     return out;
   }
   const heat = Number(name.replace('team-', ''));
-  const rs = TEAMS.flatMap((team) => Array.from({ length: perTeam }, (_, i) => runTour(skilled('rotate'), `tc-${team.join('+')}-${i}`, undefined, team, heat)));
-  return { team: rs.filter((r) => r.won).length / rs.length };
+  const out: PartResult = {};
+  let won = 0;
+  for (const team of TEAMS) {
+    const rs = Array.from({ length: perTeam }, (_, i) => runTour(skilled('rotate'), `tc-${team.join('+')}-${i}`, undefined, team, heat));
+    const w = rs.filter((r) => r.won).length;
+    out[team.join('+')] = w / perTeam;
+    won += w;
+  }
+  out.team = won / (TEAMS.length * perTeam);
+  return out;
 }
 
 if (part) {
@@ -75,8 +84,19 @@ if (part) {
       target: '60–85% / 35–60% / 10–30%',
     },
     { id: 'T3', name: 'Random play never wins (Heat 0)', pass: solo.random === 0, value: pct(solo.random!), target: '0%' },
+    (() => {
+      const bands = TEAMS.map((t) => [t.join('+'), t5[t.join('+')]!] as const).sort((a, b) => b[1] - a[1]);
+      const [hi, lo] = [bands[0]!, bands[bands.length - 1]!];
+      const ratio = hi[1] / Math.max(0.01, lo[1]);
+      return { id: 'T4', name: 'No solved band (Heat 5)', pass: ratio <= 2.5, value: `${ratio.toFixed(2)}× (${hi[0]} ${pct(hi[1])} / ${lo[0]} ${pct(lo[1])})`, target: '≤ 2.5×' };
+    })(),
   ];
   console.log(`Headliners Tour targets — ${runs} solo Tours per headliner, ${perTeam} per team of 3 per Heat\n`);
   console.log(`Solo, Heat 0: ${rates.map(([h, w]) => `${h} ${pct(w)}`).join(', ')}`);
+  console.log('Bands (Heat 0 / 5 / 10):');
+  for (const team of TEAMS) {
+    const k = team.join('+');
+    console.log(`  ${k.padEnd(22)} ${[t0, t5, t10].map((t) => pct(t[k]!).padStart(4)).join(' ')}`);
+  }
   for (const c of checks) console.log(`${c.pass ? 'PASS' : 'FAIL'}  ${c.id}  ${c.name}: ${c.value} (target ${c.target})`);
 }

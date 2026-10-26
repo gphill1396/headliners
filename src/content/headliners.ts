@@ -64,7 +64,7 @@ export const HEADLINERS: Record<HeadlinerId, HeadlinerDef> = {
     active: {
       name: 'Hold',
       text: 'For 2 beats, every enemy stops where it is.',
-      cooldownBeats: 16,
+      cooldownBeats: 13,
       durationBeats: 2,
     },
     evolutions: [
@@ -78,7 +78,7 @@ export const HEADLINERS: Record<HeadlinerId, HeadlinerDef> = {
     id: 'riot',
     name: 'Riot',
     title: 'the piper drake',
-    passive: 'While your chain is 3 or longer, every 5 kills win back 1 crowd.',
+    passive: 'While your chain is 3 or longer, every 5 kills win back 1 crowd (up to 2 a wave).',
     active: {
       name: 'Riot',
       text: 'For 2 beats, all your damage is doubled.',

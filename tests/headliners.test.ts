@@ -45,7 +45,7 @@ test('Load-In: a Squire now and one on the echo; they leave after 10 beats and n
   const roadies = s.units.filter((u) => u.cardId === 'roadie');
   assert.equal(before('roadie'), 3); // Load-In, its echo, and the Tight-hit Roadie
   assert.ok(roadies.every((r) => r.token && r.lane === 1));
-  assert.equal(roadies[0]!.damage, 4);
+  assert.equal(roadies[0]!.damage, getCard('roadie').unit!.damage);
   const deckSize = s.draw.length + s.discard.length + s.hand.length;
   const expired: string[] = [];
   for (let b = 0; b < 12; b++) for (const e of nextBeat(s)) if (e.type === 'unitExpired') expired.push(e.cardId);

@@ -117,6 +117,8 @@ export const SLOW_SHOT_PCT = 50;
 export const SLOW_SHOT_BEATS = 2;
 /** Riot's passive: this many kills win back 1 crowd. */
 export const RIOT_KILLS_PER_CROWD = 5;
+/** Riot's passive wins back at most this much crowd a wave (a band with Thrum won back 40 a Tour without it). */
+export const RIOT_CROWD_PER_WAVE = 2;
 /** Riot's passive needs a chain at least this long. */
 export const RIOT_CHAIN = 3;
 /** Riot's ability: all damage ×this % while it's on. */

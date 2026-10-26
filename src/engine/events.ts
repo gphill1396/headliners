@@ -12,6 +12,8 @@ export type EngineEvent =
   /** The pocket got deeper or shallower. */
   | { type: 'pocket'; depth: number; delta: number }
   | { type: 'rejected'; iid: number; reason: RejectReason }
+  /** Team Tour: a new lead (whose ability the button fires). */
+  | { type: 'lead'; headliner: HeadlinerId }
   /** A practice tap (no card): graded, nothing else happens. */
   | { type: 'tapped'; lane: number; grade: Grade; offsetMilli: number }
   | { type: 'resolved'; id: number; cardId: string; lane: number; grade: Grade; beat: number; isEcho: boolean }
@@ -68,4 +70,4 @@ export type EngineEvent =
   | { type: 'fill'; untilBeat: number; headliner: HeadlinerId; grade?: Grade }
   | { type: 'gameOver'; wave: number; score: number };
 
-export type RejectReason = 'not-in-hand' | 'energy' | 'lane' | 'not-playing' | 'cooldown' | 'cycled';
+export type RejectReason = 'not-in-hand' | 'energy' | 'lane' | 'not-playing' | 'cooldown' | 'cycled' | 'busy';

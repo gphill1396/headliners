@@ -2,7 +2,7 @@ import { createClock, type ClockState, type Grade } from './clock';
 import { HAND_SIZE, START_BPM, START_CROWD, START_ENERGY } from './constants';
 import { createRng, shuffleInPlace, type RngState } from './rng';
 import type { EnemyKind, GateKind, HeadlinerId } from './types';
-import { STARTER_DECKS } from '../content/cards';
+import { STARTER_DECKS, teamStarterDeck } from '../content/cards';
 import { startTour } from './tour';
 
 export const ENGINE_STATE_VERSION = 4;
@@ -174,6 +174,13 @@ export interface HeadlinerState {
   lastLoadOutBeat?: number;
   /** Riot: kills toward the next crowd point. */
   kills?: number;
+  /**
+   * Team Tour (S2.4): the three headliners on this run, in pick order. `id` is the
+   * lead, whose ability the button fires. Missing = a solo run.
+   */
+  team?: HeadlinerId[];
+  /** Team Tour: each member's chosen evolution, once it has evolved. */
+  evolutions?: Partial<Record<HeadlinerId, 0 | 1>>;
 }
 
 export interface EngineSettings {
@@ -310,6 +317,8 @@ export interface CreateOptions {
   headliner?: HeadlinerId;
   /** Encore: the headliner's permanent evolution from the Collection. */
   evolution?: 0 | 1 | null;
+  /** Tour: a team of 3 (the first leads). Overrides `headliner` and the starter deck. */
+  team?: readonly HeadlinerId[];
 }
 
 export function emptyChain(): ChainState {
@@ -325,8 +334,9 @@ export function createState(opts: CreateOptions): EngineState {
 function baseState(opts: CreateOptions): EngineState {
   const rng = createRng(opts.seed);
   let nextId = 1;
-  const headliner = opts.headliner ?? 'thrum';
-  const deck = (opts.deck ?? STARTER_DECKS[headliner]).map((cardId) => ({ iid: nextId++, cardId }));
+  const team = opts.team && opts.team.length > 1 ? [...opts.team] : null;
+  const headliner = team ? team[0]! : (opts.headliner ?? 'thrum');
+  const deck = (opts.deck ?? (team ? teamStarterDeck(team) : STARTER_DECKS[headliner])).map((cardId) => ({ iid: nextId++, cardId }));
   shuffleInPlace(rng, deck);
   const hand = deck.splice(0, HAND_SIZE);
   return {
@@ -359,7 +369,14 @@ function baseState(opts: CreateOptions): EngineState {
     // Wave 0 is a short count-in; wave 1 starts on beat 4.
     wave: { index: 0, startBeat: 0, hpMult: 1, spawns: [], nextSpawn: 0, kinds: [] },
     pick: [],
-    headliner: { id: headliner, readyBeat: 0, activeUntilBeat: -1, lastTightBonusBar: -1, ...(opts.evolution === 0 || opts.evolution === 1 ? { presetEvolution: opts.evolution } : {}) },
+    headliner: {
+      id: headliner,
+      readyBeat: 0,
+      activeUntilBeat: -1,
+      lastTightBonusBar: -1,
+      ...(opts.evolution === 0 || opts.evolution === 1 ? { presetEvolution: opts.evolution } : {}),
+      ...(team ? { team, evolutions: {} } : {}),
+    },
     stats: {
       tight: 0,
       good: 0,

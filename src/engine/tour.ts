@@ -16,6 +16,7 @@ import {
   WAVE_BEATS,
 } from './constants';
 import type { TickCtx } from './context';
+import { teamOf, unevolved } from './evolution';
 import { gainCrowd } from './effects';
 import { addCardToDeck, refillHand } from './deck';
 import { nextFloat, nextInt, shuffleInPlace } from './rng';
@@ -235,7 +236,8 @@ function fightWon(state: EngineState, ctx: TickCtx): void {
   if (fight.kind === 'boss') {
     if (tour.act >= TOUR_ACTS) tour.after.push('won');
     else {
-      if (tour.act === 1 && (state.headliner.evolution ?? null) === null) tour.after.push('evolve');
+      // Solo: evolve after act 1. Team: one member evolves after each of acts 1 and 2.
+      if (state.headliner.team ? unevolved(state).length > 0 : tour.act === 1 && (state.headliner.evolution ?? null) === null) tour.after.push('evolve');
       tour.after.push('next-act');
     }
   }
@@ -246,7 +248,7 @@ function fightWon(state: EngineState, ctx: TickCtx): void {
 
 /** Three cards, weighted toward your headliner's signature cards. Elites and bosses always offer a rare. */
 export function offerTourPick(state: EngineState, ctx: TickCtx, kind: 'fight' | 'elite' | 'boss' | 'draft'): void {
-  const pool = pickPool(state.headliner.id);
+  const pool = pickPool(teamOf(state));
   const weight = (id: string) => {
     const def = getCard(id);
     return def.headliner ? 3 : def.rarity === 'common' ? 2 : 1;
@@ -323,7 +325,7 @@ function removeCard(state: EngineState, iid: number | undefined): boolean {
 }
 
 function openShop(state: EngineState): void {
-  const pool = pickPool(state.headliner.id);
+  const pool = pickPool(teamOf(state));
   const cards = weightedSample(state, pool, (id) => (getCard(id).headliner ? 2 : 1), 4).map((cardId) => {
     const def = getCard(cardId);
     return { cardId, price: TOUR_PRICES[def.rarity] + (def.headliner ? 5 : 0), sold: false };
@@ -395,9 +397,9 @@ function applyTourEffect(state: EngineState, ctx: TickCtx, effect: TourEffect): 
       return;
     }
     case 'addCard': {
-      const pool = pickPool(state.headliner.id).filter((id) => {
+      const pool = pickPool(teamOf(state)).filter((id) => {
         const def = getCard(id);
-        return effect.rarity === 'signature' ? def.headliner === state.headliner.id : def.rarity === effect.rarity;
+        return effect.rarity === 'signature' ? def.headliner !== undefined && teamOf(state).includes(def.headliner) : def.rarity === effect.rarity;
       });
       if (pool.length === 0) return;
       const cardId = pool[nextInt(state.rng, 0, pool.length)]!;

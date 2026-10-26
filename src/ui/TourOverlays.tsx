@@ -259,13 +259,14 @@ export function EventOverlay({ state, onChoose }: { state: EngineState; onChoose
 export function TourEndOverlay({ state, onAgain, progress }: { state: EngineState; onAgain: () => void; progress?: string }) {
   const tour = state.tour!;
   const won = state.phase === 'won';
-  const h = HEADLINERS[state.headliner.id];
+  const names = (state.headliner.team ?? [state.headliner.id]).map((id) => HEADLINERS[id].name);
+  const who = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]!;
   return (
     <div className="overlay over" role="dialog" aria-modal="true" aria-label={won ? 'Tour complete' : 'Tour over'}>
       <div className="overlay-top">
         <h2 className="title small">{won ? 'Tour complete!' : 'The wagon broke an axle'}</h2>
         <p className="lede">
-          {won ? `${h.name} played all ${TOUR_ACTS} acts and beat every boss.` : `${h.name} made it to act ${tour.act}.`}
+          {won ? `${who} played all ${TOUR_ACTS} acts and beat every boss.` : `${who} made it to act ${tour.act}.`}
         </p>
         {progress && <p className="run-progress">{progress}</p>}
         <dl className="run-stats">

@@ -1782,3 +1782,52 @@ button:disabled {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
+
+/* Team Tour: pick order on the title chips, and the lead chips beside the ability button. */
+.hl-chip {
+  position: relative;
+}
+
+.team-slot {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  min-width: 16px;
+  padding: 0 3px;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--night);
+  background: var(--cream, #f6ecd6);
+}
+
+.lead-chips {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  margin-right: 6px;
+}
+
+.lead-chip {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--hl);
+  background: transparent;
+  border: 2px solid var(--hl);
+  opacity: 0.6;
+  touch-action: manipulation;
+}
+
+.lead-chip.on {
+  color: var(--night);
+  background: var(--hl);
+  opacity: 1;
+}
+
+.lead-chip:disabled:not(.on) {
+  opacity: 0.3;
+}

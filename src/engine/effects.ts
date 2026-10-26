@@ -20,7 +20,7 @@ import {
   SINGALONG_LINKS,
 } from './constants';
 import { isDownbeat } from './clock';
-import { evolvedInto } from './evolution';
+import { evolvedInto, hasMember } from './evolution';
 import { chainFrozen } from './waves';
 import type { TickCtx } from './context';
 import type { CrowdGainReason } from './events';
@@ -363,7 +363,7 @@ export function resolvePlay(state: EngineState, ctx: TickCtx, play: QueuedPlay):
 
   if (def.onPlay) runEffects(state, ctx, def.onPlay, { cardId: def.id, lane: play.lane, multPct, unit: null });
   // Aria's passive: her Tight riffs slow the enemies in their lane.
-  if (def.type === 'riff' && state.headliner.id === 'aria' && play.grade === 'tight') {
+  if (def.type === 'riff' && hasMember(state, 'aria') && play.grade === 'tight') {
     for (const e of state.enemies) if (e.hp > 0 && e.depth >= 0 && inLane(e, play.lane)) slowEnemy(state, e, ARIA_RIFF_SLOW_PCT, ARIA_RIFF_SLOW_BEATS);
   }
 

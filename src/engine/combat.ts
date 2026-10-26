@@ -21,7 +21,7 @@ import {
 } from './constants';
 import type { TickCtx } from './context';
 import { beatInBar } from './clock';
-import { evolvedInto } from './evolution';
+import { evolvedInto, hasMember } from './evolution';
 import { gainCrowd } from './effects';
 import type { EngineState, Enemy, Gate, Projectile, Unit } from './state';
 
@@ -317,7 +317,7 @@ function applyGate(state: EngineState, p: Projectile, g: Gate): boolean {
   p.gatesPassed |= 1 << g.slot;
   g.durability -= 1;
   // Lyra's passive: every gate a shot passes through adds 1 damage.
-  if (state.headliner.id === 'lyra') p.damage += LYRA_GATE_BONUS;
+  if (hasMember(state, 'lyra')) p.damage += LYRA_GATE_BONUS;
   // Lyra's Swell: for a couple of beats every gate works twice as hard. Harmony: two gates in a lane always do.
   const swell =
     (state.headliner.id === 'lyra' && state.clock.beat < state.headliner.activeUntilBeat) ||
@@ -400,7 +400,7 @@ export function sweepDead(state: EngineState, ctx: TickCtx): void {
     if (e.leaked) continue;
     state.stats.kills += 1;
     // Riot's passive: every few kills while the chain is going win back a point of crowd.
-    if (state.headliner.id === 'riot' && state.mode !== 'tutorial' && state.chain.links >= 3) {
+    if (hasMember(state, 'riot') && state.mode !== 'tutorial' && state.chain.links >= 3) {
       state.headliner.kills = (state.headliner.kills ?? 0) + 1;
       if (state.headliner.kills >= RIOT_KILLS_PER_CROWD) {
         state.headliner.kills = 0;

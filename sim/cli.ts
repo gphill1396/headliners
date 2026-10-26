@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BotConfig } from './bots';
 import { evaluate, formatReport } from './report';
-import { runOne, runTour, type RunResult } from './run';
+import { runOne, runTour, TEAMS, type RunResult } from './run';
 import { median } from './report';
 
 /**
@@ -58,6 +58,26 @@ if (mode === 'tour') {
     const lost: Record<string, number> = {};
     for (const r of rs) if (r.lostAt) lost[r.lostAt] = (lost[r.lostAt] ?? 0) + 1;
     console.log(`           lost at: ${Object.entries(lost).sort((a, b) => b[1] - a[1]).map(([k, v]) => `act ${k} ${v}`).join(', ')}`);
+  }
+  // Team Tour (S2.4): every team of 3, played by the skilled bot and by random play.
+  const teamBots: BotConfig[] = [
+    { name: 'team', kind: 'archetype', headliner: 'rotate', timingSkill: 0.7 },
+    { name: 'team-random', kind: 'random', headliner: 'rotate', timingSkill: 0 },
+  ];
+  const perTeam = Math.max(4, Math.round(runs / 4));
+  console.log(`\nTeams of 3 — ${perTeam} runs per team (${TEAMS.length} teams)\n`);
+  for (const bot of teamBots) {
+    const rs = TEAMS.flatMap((team) => Array.from({ length: perTeam }, (_, i) => runTour(bot, `team-${team.join('+')}-${i}`, undefined, team)));
+    const won = rs.filter((r) => r.won).length / rs.length;
+    const acts = [1, 2, 3].map((a) => rs.filter((r) => r.act === a).length);
+    console.log(`${bot.name.padEnd(12)} ${String(rs.length).padStart(4)}  ${(won * 100).toFixed(0).padStart(3)}%   acts ${acts.join(' / ')}  minutes ${median(rs.map((r) => r.minutes)).toFixed(1)}`);
+    if (bot.kind !== 'random') {
+      const rows = TEAMS.map((team) => {
+        const mine = rs.filter((r) => r.team === team.join('+'));
+        return [team.join('+'), mine.filter((r) => r.won).length / mine.length] as const;
+      }).sort((a, b) => b[1] - a[1]);
+      for (const [t, w] of rows) console.log(`             ${t.padEnd(22)} ${(w * 100).toFixed(0).padStart(3)}%`);
+    }
   }
   process.exit(0);
 }

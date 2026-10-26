@@ -16,6 +16,7 @@ import {
   reachable,
 } from '../src/engine';
 import { ENEMIES } from '../src/content/enemies';
+import { hasMember, teamOf } from '../src/engine/evolution';
 
 /**
  * Bot players for the depth simulator (SPEC §9). Bots only see what a player
@@ -99,7 +100,10 @@ export function createBot(config: BotConfig, rng: RngState): Bot {
         const target = s.tick + ticksPerBeat + drawOffsetMs() / MS_PER_TICK;
         plan = { tick: Math.max(s.tick + 1, Math.floor(target)), iid: choice.card.iid, lane: choice.lane };
       }
-      if (wantsFill(config, s, rng)) {
+      // A team picks the member whose ability fits the moment, then fires it.
+      const lead = s.headliner.team && config.kind !== 'random' ? bestLead(config, s, rng) : null;
+      if (lead && lead !== s.headliner.id && s.clock.beat >= s.headliner.activeUntilBeat) inputs.push({ type: 'lead', headliner: lead });
+      if (lead || wantsFill(config, s, rng)) {
         // Abilities are graded on the beat too: aim at the next beat with the bot's timing skill.
         const ticksPerBeat = BEAT_UNITS / s.clock.bpm;
         const target = s.tick + ticksPerBeat + drawOffsetMs() / MS_PER_TICK;
@@ -154,7 +158,7 @@ function choosePlay(config: BotConfig, s: EngineState, rng: RngState): Choice | 
     for (let lane = 0; lane < 3; lane++) {
       let value = estimateValue(def, lane, s, threat);
       if (config.kind === 'archetype') {
-        if (def.headliner && def.headliner === s.headliner.id) value *= 1.15;
+        if (def.headliner && teamOf(s).includes(def.headliner)) value *= 1.15;
         // Keep a running chain alive, but only when it's about to drop and only with cheap cards.
         const aboutToDrop = s.chain.links > 0 && s.chain.lastLinkBeat < s.clock.beat;
         if (aboutToDrop && def.cost <= 1) value += 2 + Math.min(8, s.chain.links * 0.4);
@@ -178,7 +182,7 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
   const flyers = enemiesInLane.filter((e) => ENEMIES[e.kind].flying).length + s.enemies.filter((e) => ENEMIES[e.kind].flying && e.depth >= 0).length * 0.3;
   const priority = enemiesInLane.filter((e) => ENEMIES[e.kind].priority).length;
   const shielded = s.enemies.filter((e) => (e.shieldLeft ?? 0) > 0 && e.depth >= 0);
-  const lyraBonus = s.headliner.id === 'lyra' ? unitsInLane.length * 2 : 0; // +1 damage per gate pass
+  const lyraBonus = hasMember(s, 'lyra') ? unitsInLane.length * 2 : 0; // +1 damage per gate pass
   const swarm = enemiesInLane.filter((e) => e.kind === 'swarmling').length;
   switch (def.type) {
     case 'unit': {
@@ -326,13 +330,20 @@ function roadieValue(s: EngineState, lane: number): number {
   return dmg * 2 * busy;
 }
 
+/** Team Tour: the member whose ability the moment calls for (Hold first, when something is about to get through), or null. */
+function bestLead(config: BotConfig, s: EngineState, rng: RngState): HeadlinerId | null {
+  const order: HeadlinerId[] = ['aria', 'clatter', 'riot', 'lyra', 'thrum'];
+  for (const id of order) if (s.headliner.team!.includes(id) && wantsFill(config, s, rng, id)) return id;
+  return null;
+}
+
 /** When to use the headliner's ability (Fill, Swell or All Hands). */
-function wantsFill(config: BotConfig, s: EngineState, rng: RngState): boolean {
+function wantsFill(config: BotConfig, s: EngineState, rng: RngState, who: HeadlinerId = s.headliner.id): boolean {
   if (s.clock.beat < s.headliner.readyBeat) return false;
   if (config.kind === 'random') return s.units.length > 0 && nextFloat(rng) < 0.05;
   const threat = laneThreat(s);
   const pressed = Math.max(...threat) > 40 * s.wave.hpMult;
-  switch (s.headliner.id) {
+  switch (who) {
     case 'lyra':
       return pressed && s.gates.length > 0 && s.units.length > 0;
     case 'clatter':
@@ -363,7 +374,7 @@ function choosePick(config: BotConfig, s: EngineState, rng: RngState): number | 
     // A sensible player buys an answer to an enemy if nothing in the deck answers it yet.
     const unanswered = Object.values(ENEMIES).some((e) => e.answers?.includes(id) && !e.answers.some((a) => owned(a) > 0));
     if (unanswered) v += 1.2;
-    if (config.kind === 'archetype' && def.headliner === s.headliner.id) v += 0.3;
+    if (config.kind === 'archetype' && def.headliner !== undefined && teamOf(s).includes(def.headliner)) v += 0.3;
     return v;
   });
   // Keep the deck lean: the bigger it gets, the better a card has to be to earn a place.

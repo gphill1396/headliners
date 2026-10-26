@@ -888,12 +888,33 @@ export const STARTER_DECKS: Record<HeadlinerId, readonly string[]> = {
   ],
 };
 
+/**
+ * Team Tour (S2.4): what each headliner brings to a shared 12-card starter deck:
+ * its core card, its answer to flyers and its answer to priority targets.
+ */
+export const TEAM_CARDS: Record<HeadlinerId, readonly [string, string, string]> = {
+  thrum: ['kick-drum', 'cymbal-crash', 'rimshot'],
+  lyra: ['arpeggiator', 'falsetto', 'tuning-fork'],
+  clatter: ['crew-chief', 'rigger', 'security'],
+  aria: ['backup-singer', 'shatter', 'soprano'],
+  riot: ['skater', 'bottle-rocket', 'bouncer'],
+};
+
+/** The neutral core every team starts with. */
+export const TEAM_CORE: readonly string[] = ['stagehand', 'double-stop', 'power-chord'];
+
+/** A team's starter deck: the neutral core plus three cards from each member. */
+export function teamStarterDeck(team: readonly HeadlinerId[]): string[] {
+  return [...TEAM_CORE, ...team.flatMap((h) => TEAM_CARDS[h])];
+}
+
 /** Thrum's deck, the default. */
 export const STARTER_DECK: readonly string[] = STARTER_DECKS.thrum;
 
-/** Cards a headliner can be offered in Encore card picks: neutral cards plus their own signature cards. */
-export function pickPool(headliner: HeadlinerId): string[] {
-  return CARDS.filter((c) => c.rarity !== 'token' && (!c.headliner || c.headliner === headliner)).map((c) => c.id);
+/** Cards a headliner (or a team) can be offered in picks: neutral cards plus their own signature cards. */
+export function pickPool(headliner: HeadlinerId | readonly HeadlinerId[]): string[] {
+  const who: readonly HeadlinerId[] = typeof headliner === 'string' ? [headliner] : headliner;
+  return CARDS.filter((c) => c.rarity !== 'token' && (!c.headliner || who.includes(c.headliner))).map((c) => c.id);
 }
 
 /** Thrum's pool (kept for older callers). */

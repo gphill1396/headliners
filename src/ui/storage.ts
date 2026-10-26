@@ -132,6 +132,19 @@ export function saveHeadliner(id: HeadlinerId): void {
   write(HEADLINER_KEY, JSON.stringify(id));
 }
 
+const TEAM_KEY = 'headliners.team.v1';
+
+/** The Tour team picked last time (in pick order; the first leads). */
+export function loadTeam(): HeadlinerId[] {
+  const ids = read<string[]>(TEAM_KEY);
+  const valid = Array.isArray(ids) ? ids.filter((id): id is HeadlinerId => typeof id === 'string' && id in HEADLINERS) : [];
+  return [...new Set(valid)].slice(0, 3);
+}
+
+export function saveTeam(team: HeadlinerId[]): void {
+  write(TEAM_KEY, JSON.stringify(team));
+}
+
 export type GameMode = 'encore' | 'tour';
 const MODE_KEY = 'headliners.mode.v1';
 

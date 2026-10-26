@@ -41,6 +41,7 @@ import {
   loadCollection,
   loadDeckChoice,
   loadHeadliner,
+  loadTeam,
   loadMode,
   loadRun,
   loadSettings,
@@ -48,6 +49,7 @@ import {
   saveCollection,
   saveDeckChoice,
   saveHeadliner,
+  saveTeam,
   saveMode,
   saveRun,
   saveSettings,
@@ -112,6 +114,8 @@ interface Hud {
   headliner: HeadlinerId;
   /** The boss's phase, 0 when there isn't one. */
   bossPhase: 0 | 1 | 2 | 3;
+  /** Team Tour: the three members (the lead is `headliner`). */
+  team: HeadlinerId[] | null;
   /** The Hush, phase 2: the beat dots go quiet. */
   hushed: boolean;
   /** Tour: "Act 1 · Gig", shown where Encore shows the wave. */
@@ -140,6 +144,7 @@ function sampleHud(s: EngineState): Hud {
     pocket: s.pocket.depth,
     headliner: s.headliner.id,
     bossPhase: s.boss?.phase ?? 0,
+    team: s.headliner.team ? [...s.headliner.team] : null,
     hushed: s.boss?.phase === 2 && bossKind(s) === 'hush',
     tourLabel: s.tour ? `Act ${s.tour.act}${s.tour.fight ? ` · ${FIGHT_LABEL[s.tour.fight.kind]}` : ''}` : null,
     menuKey: s.tour ? `${s.phase}:${s.tour.at}:${s.tour.act}:${s.pick.join(',')}:${s.tour.merch}:${s.tour.shop?.cards.filter((c) => c.sold).length ?? 0}` : s.phase,
@@ -153,9 +158,11 @@ function sampleHud(s: EngineState): Hud {
   };
 }
 
-function newRun(settings: Settings, headliner: HeadlinerId, mode: GameMode = 'encore', collection?: Collection, deckId?: string | null): EngineState {
+function newRun(settings: Settings, headliner: HeadlinerId, mode: GameMode = 'encore', collection?: Collection, deckId?: string | null, team?: HeadlinerId[]): EngineState {
   // The UI picks the seed; the engine never reads the clock itself.
   const seed = `run-${new Date().toISOString()}`;
+  // Tour takes a team of 3 (S2.4); the first one picked leads.
+  if (mode === 'tour' && team && team.length === 3) return createState({ seed, relaxedTiming: settings.relaxedTiming, mode, team });
   if (mode === 'tour' || !collection) return createState({ seed, relaxedTiming: settings.relaxedTiming, headliner, mode });
   // Encore can use a saved Workshop deck and the headliner's permanent evolution from the Collection.
   const deck = collection.decks.find((d) => d.id === deckId && d.headliner === headliner);
@@ -244,6 +251,7 @@ export function App() {
   const [pickSent, setPickSent] = useState(false);
   const [tutorialDone, setTutorialDone] = useState(loadTutorialDone);
   const [headliner, setHeadliner] = useState<HeadlinerId>(loadHeadliner);
+  const [team, setTeam] = useState<HeadlinerId[]>(loadTeam);
   const [inspect, setInspect] = useState<Inspect | null>(null);
   const [mode, setMode] = useState<GameMode>(loadMode);
   const [collection, setCollection] = useState<Collection>(loadCollection);
@@ -404,9 +412,10 @@ export function App() {
       const rec = recordRunInCollection(loadCollection(), s);
       saveCollection(rec.collection);
       setCollection(rec.collection);
-      const name = HEADLINERS[s.headliner.id].name;
-      const parts = [`+${rec.xp} XP for ${name}`];
-      if (rec.levelAfter > rec.levelBefore) parts.push(`level ${rec.levelAfter}!`);
+      const members = s.headliner.team ?? [s.headliner.id];
+      const names = members.map((id) => HEADLINERS[id].name);
+      const parts = [`+${rec.xp} XP for ${names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]}`];
+      for (const up of rec.levelUps) parts.push(members.length > 1 ? `${HEADLINERS[up.headliner].name} level ${up.level}!` : `level ${up.level}!`);
       if (rec.newlyUnlocked.length) parts.push(`unlocked ${rec.newlyUnlocked.map((id) => getCard(id).name).join(', ')}`);
       setRunProgress(parts.join(' · '));
     }
@@ -915,7 +924,7 @@ export function App() {
     clearRun();
     savedRun.current = null;
     setCanResume(false);
-    runner.load(newRun(settings, headliner, mode, collection, deckChoice[headliner] ?? null));
+    runner.load(newRun(settings, headliner, mode, collection, deckChoice[headliner] ?? null, team));
     fxRef.current = createFx();
     overlayRef.current?.replaceChildren();
     setSelected(null);
@@ -958,8 +967,8 @@ export function App() {
   };
 
   /** Same as a card pick: the band comes back in on the next beat 1. */
-  const evolve = (index: 0 | 1) => {
-    if (runner.state.mode === 'tour') return sendMenu({ type: 'evolve', index });
+  const evolve = (index: 0 | 1, member?: HeadlinerId) => {
+    if (runner.state.mode === 'tour') return sendMenu({ type: 'evolve', index, ...(member ? { headliner: member } : {}) });
     setPickSent(true);
     const now = performance.now();
     const conductor = conductorRef.current;
@@ -1225,6 +1234,26 @@ export function App() {
               ))}
             </span>
           </div>
+          {hud.team && (
+            <div className="lead-chips" role="radiogroup" aria-label="Lead: whose ability the button fires">
+              {hud.team.map((id) => (
+                <button
+                  key={id}
+                  role="radio"
+                  aria-checked={id === hud.headliner}
+                  aria-label={`${HEADLINERS[id].name}: ${HEADLINERS[id].active.name}`}
+                  className={`lead-chip hl-${id}${id === hud.headliner ? ' on' : ''}`}
+                  disabled={hud.filling || view !== 'playing'}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    if (id !== hud.headliner) runner.send({ type: 'lead', headliner: id }, e.timeStamp);
+                  }}
+                >
+                  {HEADLINERS[id].name[0]}
+                </button>
+              ))}
+            </div>
+          )}
           <button
             className={`fill-btn hl-${hud.headliner}${hud.filling ? ' active' : ''}${coached('fill')}`}
             disabled={hud.fillIn > 0 || view !== 'playing'}
@@ -1266,6 +1295,15 @@ export function App() {
           onNew={startNew}
           headliner={headliner}
           onHeadliner={(id) => {
+            setHeadliner(id);
+            saveHeadliner(id);
+          }}
+          team={team}
+          onTeam={(id) => {
+            // Tap to add (up to 3, in order: the first leads); tap again to drop.
+            const next = team.includes(id) ? team.filter((t) => t !== id) : team.length < 3 ? [...team, id] : team;
+            setTeam(next);
+            saveTeam(next);
             setHeadliner(id);
             saveHeadliner(id);
           }}

@@ -191,7 +191,7 @@ tests/
   - Levels up from XP earned in runs. At set levels it **evolves along a branch: choose A or B**. Evolutions are permanent per headliner in Collection, but chosen fresh in each Tour run.
 - **Swapping** a headliner in Collection changes which signature cards your decks can include.
 
-**Phase 1b: one headliner per run.** With only three headliners, a team of 3 would always be the same three, so for now you pick one on the title screen (it's remembered). It sets your starter deck, passive, ability and the band's instruments. Teams of 3 come back once there are more than three headliners (Phase 2). *(Deviation from S1.5, flagged to Grant.)*
+**Phase 1b: one headliner per run.** With only three headliners, a team of 3 would always be the same three, so for now you pick one on the title screen (it's remembered). It sets your starter deck, passive, ability and the band's instruments. Teams of 3 come back once there are more than three headliners (Phase 2). *(Deviation from S1.5, flagged to Grant.)* **Phase 2: Tour is played as a team of 3 (S2.4); Encore stays one headliner.**
 
 **Phase 1 headliners:**
 
@@ -640,6 +640,20 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 **S2.3 Content expansion**
 - [x] 2 new headliners, 4 new enemies and 2 bosses are added, all following §4 and §6.
 - [x] The simulator thresholds still pass after they're added.
+
+**S2.4 Team Tour**
+*As a player, I want to take a band of three headliners on Tour, so runs mix archetypes and the draft has more to chase.*
+- [x] A Tour starts with exactly 3 headliners, picked on the title screen; the first one picked leads.
+- [x] All three passives are on all the time.
+- [x] One ability button; small chips beside it switch the lead (whose ability it fires). Shared cooldown; no switching while an ability is running.
+- [x] The starter deck is 12 cards: 3 neutral (Page, Double Stop, Mighty Strum) plus 3 from each headliner (core card, flyer answer, priority answer).
+- [x] Draft picks, the Market and events draw from all three headliners' signature cards.
+- [x] After the act 1 and act 2 bosses, you choose which headliner evolves and into which form.
+- [x] The band's time-keeping follows the lead; each unit still plays its own instrument.
+- [x] Collection XP from a Tour goes to all three headliners.
+- [x] `npm run sim -- --mode tour` plays every team of 3; Encore D1–D8 still pass (unchanged: Encore stays solo).
+
+*As built:* engine state keeps the team on `headliner.team` (pick order) with `headliner.id` as the lead and `headliner.evolutions` per member; solo runs and old saves are unchanged. Passives check membership (`hasMember`), abilities check the lead. Tour sim (10 runs per team, skilled bot): 72% overall; by team from 90% (Thrum+Lyra+Clatter and three others) down to 30% (Lyra+Clatter+Riot); random play 0%. Solo Tours (40 runs): Thrum 85%, Aria 75%, Clatter 55%, Lyra 53%, Riot 38%. No threshold covers Tour; Heat (Phase 3) is where its difficulty is tuned.
 
 ### Phase 3 — Daily Setlist + Heat
 

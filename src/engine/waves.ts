@@ -18,6 +18,7 @@ import {
   TOUR_ELITE_HP,
 } from './constants';
 import type { TickCtx } from './context';
+import { teamOf } from './evolution';
 import { gainCrowd } from './effects';
 import { nextInt, shuffleInPlace } from './rng';
 import { emptyChain, type EngineState } from './state';
@@ -310,7 +311,7 @@ export function hordeGrowth(kind: EnemyKind, wave: number): number {
  * each enemy needs, and a run is never stuck without one).
  */
 function offerPick(state: EngineState, ctx: TickCtx): void {
-  const pool = shuffleInPlace(state.rng, pickPool(state.headliner.id));
+  const pool = shuffleInPlace(state.rng, pickPool(teamOf(state)));
   const owned = new Set([...state.hand, ...state.draw, ...state.discard, ...state.units.map((u) => u.card), ...state.gates.map((g) => g.card), ...state.amps.map((a) => a.card)].map((c) => c.cardId));
   const upcoming = ALL_KINDS.filter((k) => DEBUT_WAVE[k] > state.wave.index && DEBUT_WAVE[k] <= state.wave.index + PICK_EVERY_WAVES)
     .concat(ALL_KINDS.filter((k) => DEBUT_WAVE[k] <= state.wave.index));

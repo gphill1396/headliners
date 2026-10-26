@@ -76,6 +76,8 @@ export function runOne(config: BotConfig, seed: string, maxTicks = DEFAULT_MAX_T
 export interface TourResult {
   bot: string;
   headliner: HeadlinerId;
+  /** Team Tour: the team, e.g. "thrum+lyra+clatter". */
+  team?: string;
   seed: string;
   won: boolean;
   act: number;
@@ -87,14 +89,22 @@ export interface TourResult {
 }
 
 /** One whole Tour run (SPEC S2.1). */
-export function runTour(config: BotConfig, seed: string, maxTicks = DEFAULT_MAX_TICKS): TourResult {
-  const headliner = config.headliner === 'rotate' ? ROTATION[seedIndex(seed) % ROTATION.length]! : config.headliner;
-  const s: EngineState = createState({ seed, headliner, mode: 'tour' });
+/** Every team of 3 from the five headliners (10 of them), in a fixed order. */
+export const TEAMS: HeadlinerId[][] = (() => {
+  const out: HeadlinerId[][] = [];
+  for (let a = 0; a < ROTATION.length; a++) for (let b = a + 1; b < ROTATION.length; b++) for (let c = b + 1; c < ROTATION.length; c++) out.push([ROTATION[a]!, ROTATION[b]!, ROTATION[c]!]);
+  return out;
+})();
+
+export function runTour(config: BotConfig, seed: string, maxTicks = DEFAULT_MAX_TICKS, team?: HeadlinerId[]): TourResult {
+  const headliner = team ? team[0]! : config.headliner === 'rotate' ? ROTATION[seedIndex(seed) % ROTATION.length]! : config.headliner;
+  const s: EngineState = createState({ seed, headliner, mode: 'tour', ...(team ? { team } : {}) });
   const bot = createBot(config, createRng(`bot:${config.name}:${seed}`));
   while (s.phase !== 'over' && s.phase !== 'won' && s.tick < maxTicks) step(s, bot.act(s));
   return {
     bot: config.name,
     headliner,
+    ...(team ? { team: team.join('+') } : {}),
     seed,
     won: s.phase === 'won',
     act: s.tour?.act ?? 1,

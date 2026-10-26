@@ -1,13 +1,13 @@
 import { accuracyPct, advanceClock, beatInBar, chainStepPct, gradeInput, inPocket, isDownbeat, setTempo, type Grade } from './clock';
 import { moveEnemies, moveProjectiles, smashGates, sweepDead } from './combat';
 import { ABILITY_RETRY_BEATS, BEAT_UNITS, BEATS_PER_BAR, CHAIN_STEP_GOOD_PCT, CYCLE_COST, LANES, MAX_ENERGY, METRONOME_WIDEN_PCT, POCKET_MAX, SUBTICK } from './constants';
-import { evolvedInto } from './evolution';
+import { evolvedInto, hasMember, unevolved } from './evolution';
 import { createCtx, flushDamage, type TickCtx } from './context';
 import { addCardToDeck, drawCards, refillHand } from './deck';
 import { checkChainEnd, checkGameOver, createToken, expireTokens, fireUnitsOnEighth, resolvePlay, runDownbeatTriggers } from './effects';
 import type { EngineEvent } from './events';
 import type { EngineState } from './state';
-import type { EnemyKind } from './types';
+import type { EnemyKind, HeadlinerId } from './types';
 import { beatMuted, enemyAbilities, onBeatWaves, spawnGroup, startWave, updateBoss } from './waves';
 import { afterTourChoice, eventChoice, onBeatTour, rest, shop, travel, type ShopAction } from './tour';
 import { getCard } from '../content/cards';
@@ -36,7 +36,9 @@ export type Input =
   /** Tour: choose an option at an event. */
   | { type: 'event'; option: 0 | 1 }
   /** Choose one of the headliner's two evolutions while phase === 'evolving'. */
-  | { type: 'evolve'; index: 0 | 1 }
+  | { type: 'evolve'; index: 0 | 1; headliner?: HeadlinerId }
+  /** Team Tour: make another member the lead (whose ability the button fires). Not while an ability is running. */
+  | { type: 'lead'; headliner: HeadlinerId }
   /** Practice tap on a lane with no card: graded for timing, no other effect. */
   | { type: 'tap'; lane: number; permille: number }
   /** Tutorial only: put cards in hand and/or set energy. Ignored in Encore. */
@@ -124,7 +126,10 @@ function applyInput(state: EngineState, ctx: TickCtx, input: Input): void {
       activate(state, ctx, input.permille);
       return;
     case 'evolve':
-      evolve(state, ctx, input.index);
+      evolve(state, ctx, input.index, input.headliner);
+      return;
+    case 'lead':
+      setLead(state, ctx, input.headliner);
       return;
     case 'cycle':
       cycle(state, ctx, input.iid);
@@ -231,18 +236,21 @@ function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: nu
   if (!muted || timing.grade !== 'tight') updatePocket(state, ctx, timing.grade, timing.offsetMilli, widen);
 
   // Passives that reward a Tight hit, once per bar (not while the beat is muted).
-  // Thrum: refund 1 energy. Clatter: call a Roadie to that lane.
-  if (timing.grade === 'tight' && !muted && state.headliner.id !== 'lyra') {
+  // Thrum: refund 1 energy. Clatter: call a Squire to that lane. A team with both gets both.
+  if (timing.grade === 'tight' && !muted && (hasMember(state, 'thrum') || hasMember(state, 'clatter'))) {
     const bar = Math.floor(timing.resolveBeat / BEATS_PER_BAR);
     if (state.headliner.lastTightBonusBar !== bar) {
-      if (state.headliner.id === 'thrum' && state.energy < MAX_ENERGY) {
-        state.headliner.lastTightBonusBar = bar;
+      let paid = false;
+      if (hasMember(state, 'thrum') && state.energy < MAX_ENERGY) {
+        paid = true;
         state.energy += 1;
         ctx.events.push({ type: 'energy', amount: 1, reason: 'tight' });
-      } else if (state.headliner.id === 'clatter') {
-        state.headliner.lastTightBonusBar = bar;
+      }
+      if (hasMember(state, 'clatter')) {
+        paid = true;
         createToken(state, ctx, 'roadie', input.lane);
       }
+      if (paid) state.headliner.lastTightBonusBar = bar;
     }
   }
 }
@@ -325,15 +333,36 @@ function cycle(state: EngineState, ctx: TickCtx, iid: number): void {
   ctx.events.push({ type: 'cycled', iid, cardId: card!.cardId });
 }
 
-/** Choose the headliner's evolution (SPEC §4.7): 0 or 1. */
-function evolve(state: EngineState, ctx: TickCtx, index: number): void {
+/** Choose an evolution (SPEC §4.7): 0 or 1. In a team, for `member` (default: the first one that hasn't evolved). */
+function evolve(state: EngineState, ctx: TickCtx, index: number, member?: HeadlinerId): void {
   if (state.phase !== 'evolving' || (index !== 0 && index !== 1)) return;
-  state.headliner.evolution = index;
-  const evo = HEADLINERS[state.headliner.id].evolutions[index];
-  ctx.events.push({ type: 'evolved', headliner: state.headliner.id, evolution: evo.id });
+  let who = state.headliner.id;
+  if (state.headliner.team) {
+    const open = unevolved(state);
+    const chosen = member ?? open[0];
+    if (!chosen || !open.includes(chosen)) return;
+    who = chosen;
+    state.headliner.evolutions = { ...state.headliner.evolutions, [who]: index };
+  } else {
+    state.headliner.evolution = index;
+  }
+  const evo = HEADLINERS[who].evolutions[index];
+  ctx.events.push({ type: 'evolved', headliner: who, evolution: evo.id });
   state.phase = 'playing';
   if (state.mode === 'tour') return afterTourChoice(state, ctx);
   startWave(state, ctx, state.wave.index + 1);
+}
+
+/** Team Tour: switch the lead. The cooldown is shared, and you can't switch while an ability is running. */
+function setLead(state: EngineState, ctx: TickCtx, id: HeadlinerId): void {
+  const h = state.headliner;
+  if (!h.team || !h.team.includes(id) || h.id === id) return;
+  if (state.clock.beat < h.activeUntilBeat) {
+    ctx.events.push({ type: 'rejected', iid: -1, reason: 'busy' });
+    return;
+  }
+  h.id = id;
+  ctx.events.push({ type: 'lead', headliner: id });
 }
 
 function pick(state: EngineState, ctx: TickCtx, index: number | null): void {

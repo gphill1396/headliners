@@ -114,19 +114,35 @@ export function runDeck(state: EngineState): string[] {
 
 export interface RunRecord {
   collection: Collection;
+  /** XP each member of the run got (a Tour team shares it: every member gets the full amount). */
   xp: number;
+  /** The first member's levels (a solo run's only headliner). */
   levelBefore: number;
   levelAfter: number;
+  /** Every member that levelled up, with its new level. */
+  levelUps: { headliner: HeadlinerId; level: number }[];
   newlyUnlocked: string[];
 }
 
 /** Fold a finished run into the Collection: XP, unlocks and card history. */
 export function recordRunInCollection(collection: Collection, state: EngineState): RunRecord {
   const next: Collection = JSON.parse(JSON.stringify(collection)) as Collection;
-  const h = next.headliners[state.headliner.id];
-  const levelBefore = levelFor(h.xp);
+  const members = state.headliner.team ?? [state.headliner.id];
   const xp = xpForRun(state);
-  h.xp += xp;
+  const levelUps: RunRecord['levelUps'] = [];
+  let levelBefore = 0;
+  let levelAfter = 0;
+  members.forEach((id, i) => {
+    const h = next.headliners[id];
+    const before = levelFor(h.xp);
+    h.xp += xp;
+    const after = levelFor(h.xp);
+    if (after > before) levelUps.push({ headliner: id, level: after });
+    if (i === 0) {
+      levelBefore = before;
+      levelAfter = after;
+    }
+  });
 
   const deck = runDeck(state);
   const ids = [...new Set(deck)];
@@ -145,7 +161,7 @@ export function recordRunInCollection(collection: Collection, state: EngineState
       if (state.mode === 'encore') rec.bestWave = Math.max(rec.bestWave, state.wave.index);
     }
   }
-  return { collection: next, xp, levelBefore, levelAfter: levelFor(h.xp), newlyUnlocked };
+  return { collection: next, xp, levelBefore, levelAfter, levelUps, newlyUnlocked };
 }
 
 // ---------------------------------------------------------------- decks

@@ -69,6 +69,8 @@ export function TitleOverlay({
   deckChoice,
   onDeckChoice,
   onCollection,
+  team,
+  onTeam,
   ...settings
 }: SettingsProps & {
   bests: Bests;
@@ -86,8 +88,13 @@ export function TitleOverlay({
   deckChoice: string | null;
   onDeckChoice: (id: string | null) => void;
   onCollection: () => void;
+  /** Tour: the team of 3 being picked, in order (the first leads). */
+  team: HeadlinerId[];
+  onTeam: (id: HeadlinerId) => void;
 }) {
   const h = HEADLINERS[headliner];
+  const touring = mode === 'tour';
+  const teamReady = team.length === 3;
   // A new run is played as the chosen headliner; a saved run keeps whoever it started with.
   const choosing = !canResume && tutorialDone;
   return (
@@ -118,7 +125,7 @@ export function TitleOverlay({
         )}
         {mode === 'tour' && (
           <p className="muted">
-            Tour: 3 acts of shows, markets and inns across the realm, with a boss at the end of each. Your crowd carries the whole way.
+            Tour: take a band of 3 across the realm. Pick three below; the first leads. 3 acts of shows, markets and inns, with a boss at the end of each.
             {(bests.tours ?? 0) > 0 ? ` Tours won: ${bests.toursWon ?? 0} of ${bests.tours}.` : ''}
           </p>
         )}
@@ -135,18 +142,24 @@ export function TitleOverlay({
           </div>
         )}
         {(choosing || canResume) && (
-          <div className="hl-picker" role="radiogroup" aria-label="Headliner for a new run">
-            {(Object.keys(HEADLINERS) as HeadlinerId[]).map((id) => (
-              <button
-                key={id}
-                role="radio"
-                aria-checked={id === headliner}
-                className={`hl-chip hl-${id}${id === headliner ? ' on' : ''}`}
-                onClick={() => onHeadliner(id)}
-              >
-                {HEADLINERS[id].name}
-              </button>
-            ))}
+          <div className="hl-picker" role={touring ? 'group' : 'radiogroup'} aria-label={touring ? 'Your band of 3 for the Tour' : 'Headliner for a new run'}>
+            {(Object.keys(HEADLINERS) as HeadlinerId[]).map((id) => {
+              const slot = team.indexOf(id);
+              const on = touring ? slot >= 0 : id === headliner;
+              return (
+                <button
+                  key={id}
+                  role={touring ? 'checkbox' : 'radio'}
+                  aria-checked={on}
+                  className={`hl-chip hl-${id}${on ? ' on' : ''}`}
+                  aria-label={touring && slot >= 0 ? `${HEADLINERS[id].name}, ${slot === 0 ? 'lead' : `pick ${slot + 1}`}` : HEADLINERS[id].name}
+                  onClick={() => (touring ? onTeam(id) : onHeadliner(id))}
+                >
+                  {HEADLINERS[id].name}
+                  {touring && slot >= 0 && <span className="team-slot">{slot + 1}</span>}
+                </button>
+              );
+            })}
           </div>
         )}
         {(choosing || canResume) && mode === 'encore' && decks.length > 0 && (
@@ -163,13 +176,13 @@ export function TitleOverlay({
             <button className="primary-btn" onClick={onResume}>
               Resume run
             </button>
-            <button className="secondary-btn" onClick={onNew}>
-              New {mode === 'tour' ? 'tour' : 'run'} as {h.name}
+            <button className="secondary-btn" disabled={touring && !teamReady} onClick={onNew}>
+              {touring ? (teamReady ? 'New tour' : `Pick 3 for a new tour (${team.length}/3)`) : `New run as ${h.name}`}
             </button>
           </>
         ) : tutorialDone ? (
-          <button className="primary-btn" onClick={onNew}>
-            {mode === 'tour' ? 'Start a tour' : 'Start'} as {h.name}
+          <button className="primary-btn" disabled={touring && !teamReady} onClick={onNew}>
+            {touring ? (teamReady ? 'Start the tour' : `Pick 3 to tour (${team.length}/3)`) : `Start as ${h.name}`}
           </button>
         ) : (
           <>
@@ -270,21 +283,42 @@ export function PickOverlay({ state, onPick, title, lede }: { state: EngineState
 }
 
 /** After wave 5 the headliner evolves: pick one of two branches for the rest of the run. Guarded like a card pick. */
-export function EvolveOverlay({ state, onEvolve }: { state: EngineState; onEvolve: (index: 0 | 1) => void }) {
+export function EvolveOverlay({ state, onEvolve }: { state: EngineState; onEvolve: (index: 0 | 1, member?: HeadlinerId) => void }) {
   const [armed, setArmed] = useState(false);
   const [chosen, setChosen] = useState<0 | 1 | null>(null);
+  // A team chooses who evolves first (only members that haven't yet).
+  const open = state.headliner.team ? state.headliner.team.filter((id) => state.headliner.evolutions?.[id] === undefined) : null;
+  const [member, setMember] = useState<HeadlinerId>(open?.[0] ?? state.headliner.id);
   useEffect(() => {
     const id = window.setTimeout(() => setArmed(true), PICK_LOCKOUT_MS);
     return () => window.clearTimeout(id);
   }, []);
-  const h = HEADLINERS[state.headliner.id];
+  const h = HEADLINERS[member];
   return (
     <div className={`overlay${armed ? '' : ' arming'}`} role="dialog" aria-modal="true" aria-label="Evolve">
       <div className="overlay-top">
-        <h2 className="title small">{h.name} evolves</h2>
-        <p className="lede">Choose one. It lasts the rest of the run.</p>
+        <h2 className="title small">{open ? 'One of the band evolves' : `${h.name} evolves`}</h2>
+        <p className="lede">{open ? 'Choose who, then how. It lasts the rest of the run.' : 'Choose one. It lasts the rest of the run.'}</p>
       </div>
       <div className="overlay-controls">
+        {open && (
+          <div className="hl-picker" role="radiogroup" aria-label="Who evolves">
+            {open.map((id) => (
+              <button
+                key={id}
+                role="radio"
+                aria-checked={id === member}
+                className={`hl-chip hl-${id}${id === member ? ' on' : ''}`}
+                onClick={() => {
+                  setMember(id);
+                  setChosen(null);
+                }}
+              >
+                {HEADLINERS[id].name}
+              </button>
+            ))}
+          </div>
+        )}
         <div className={`evolve-row hl-${h.id}`}>
           {h.evolutions.map((evo, i) => (
             <button
@@ -299,8 +333,8 @@ export function EvolveOverlay({ state, onEvolve }: { state: EngineState; onEvolv
             </button>
           ))}
         </div>
-        <button className="primary-btn" disabled={!armed || chosen === null} onClick={() => armed && chosen !== null && onEvolve(chosen)}>
-          {chosen === null ? 'Choose one' : `Evolve into ${h.evolutions[chosen].name}`}
+        <button className="primary-btn" disabled={!armed || chosen === null} onClick={() => armed && chosen !== null && onEvolve(chosen, open ? member : undefined)}>
+          {chosen === null ? 'Choose one' : `${open ? `${h.name}: e` : 'E'}volve into ${h.evolutions[chosen].name}`}
         </button>
       </div>
     </div>

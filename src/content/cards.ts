@@ -462,7 +462,7 @@ export const CARDS: readonly CardDef[] = [
     keywords: ['roadie', 'echo'],
     onPlay: [{ do: 'roadie', count: 1 }],
     echo: true,
-    note: 'Squires are small units that leave after 8 beats.',
+    note: 'Squires are small units that leave after 10 beats.',
     short: 'Squire here, twice',
     flavor: 'Lift with your legs. Or your tail.',
   },
@@ -797,10 +797,10 @@ export const CARDS: readonly CardDef[] = [
     rarity: 'token',
     headliner: 'clatter',
     keywords: [],
-    unit: { damage: 3, fireEvery: 2, lifespanBeats: 8 },
+    unit: { damage: 4, fireEvery: 2, lifespanBeats: 10 },
     note: 'A token: made by other cards, never in your deck.',
-    short: 'Leaves after 8 beats',
-    flavor: 'Off duty in 8.',
+    short: 'Leaves after 10 beats',
+    flavor: 'Off duty in 10.',
   },
 ];
 

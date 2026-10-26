@@ -10,7 +10,7 @@ export const HEADLINERS: Record<HeadlinerId, HeadlinerDef> = {
     active: {
       name: 'Fill',
       text: 'For 2 beats, every unit fires on every eighth note.',
-      cooldownBeats: 16,
+      cooldownBeats: 24,
       durationBeats: 2,
     },
     evolutions: [
@@ -24,11 +24,11 @@ export const HEADLINERS: Record<HeadlinerId, HeadlinerDef> = {
     id: 'lyra',
     name: 'Lyra',
     title: 'the serpent lutenist',
-    passive: 'Every gate a shot passes through adds +1 damage.',
+    passive: 'Every gate a shot passes through adds +2 damage.',
     active: {
       name: 'Swell',
       text: 'For 2 beats, every gate works twice as hard: one more copy, double damage, one more pierce.',
-      cooldownBeats: 16,
+      cooldownBeats: 12,
       durationBeats: 2,
     },
     evolutions: [
@@ -78,11 +78,11 @@ export const HEADLINERS: Record<HeadlinerId, HeadlinerDef> = {
     id: 'riot',
     name: 'Riot',
     title: 'the piper drake',
-    passive: 'While your chain is 3 or longer, every 8 kills win back 1 crowd.',
+    passive: 'While your chain is 3 or longer, every 5 kills win back 1 crowd.',
     active: {
       name: 'Riot',
       text: 'For 2 beats, all your damage is doubled.',
-      cooldownBeats: 16,
+      cooldownBeats: 12,
       durationBeats: 2,
     },
     evolutions: [

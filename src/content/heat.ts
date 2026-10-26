@@ -8,15 +8,15 @@ export const MAX_HEAT = 10;
 /** Rule added at each Heat (index 0 = Heat 1). Short: these show on the title screen. */
 export const HEAT_RULES: readonly string[] = [
   'Start the Tour with 25 crowd.',
-  'Monsters have 10% more health.',
+  'Monsters have 15% more health.',
   'Tournaments are tougher.',
   'Market cards cost 25% more.',
   'Inns win back less crowd.',
-  'Bosses have 20% more health.',
-  'Monsters walk 10% faster.',
+  'Bosses have 35% more health.',
+  'Monsters walk 15% faster.',
   'Each monster that gets through costs 1 more crowd.',
   'Card picks offer 2 cards instead of 3.',
-  'Bosses call for help twice as often.',
+  'Every show is as tough as a Tournament.',
 ];
 
 /** Every rule in force at a Heat. */

@@ -4,6 +4,7 @@ import {
   COMEBACK_MAX_PCT,
   COMEBACK_PCT_PER_CROWD,
   RIOT_DAMAGE_PCT,
+  RIOT_CHAIN,
   RIOT_KILLS_PER_CROWD,
   SLOW_SHOT_BEATS,
   SLOW_SHOT_PCT,
@@ -28,7 +29,7 @@ import type { EngineState, Enemy, Gate, Projectile, Unit } from './state';
 /** Enemies are hit at their leading (stage-side) edge. */
 const HIT_OFFSET = 2_000;
 const SLOT_X = [200, 500, 800];
-const LYRA_GATE_BONUS = 1;
+const LYRA_GATE_BONUS = 2;
 /** Each Splitter piece that gets through costs this much crowd. */
 const SPLITTER_PIECE_CROWD = 2;
 
@@ -400,7 +401,7 @@ export function sweepDead(state: EngineState, ctx: TickCtx): void {
     if (e.leaked) continue;
     state.stats.kills += 1;
     // Riot's passive: every few kills while the chain is going win back a point of crowd.
-    if (hasMember(state, 'riot') && state.mode !== 'tutorial' && state.chain.links >= 3) {
+    if (hasMember(state, 'riot') && state.mode !== 'tutorial' && state.chain.links >= RIOT_CHAIN) {
       state.headliner.kills = (state.headliner.kills ?? 0) + 1;
       if (state.headliner.kills >= RIOT_KILLS_PER_CROWD) {
         state.headliner.kills = 0;

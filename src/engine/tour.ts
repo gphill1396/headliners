@@ -230,7 +230,7 @@ function nextFightWave(state: EngineState, ctx: TickCtx): void {
   fight.wave += 1;
   const last = fight.wave === fight.waves.length - 1;
   // Each act has its own boss: The Hush, then The Critic, then Dead Air.
-  startWave(state, ctx, fight.waves[fight.wave]!, { boss: fight.kind === 'boss' && last, bossKind: BOSS_ORDER[(state.tour!.act - 1) % BOSS_ORDER.length], elite: fight.kind === 'elite' });
+  startWave(state, ctx, fight.waves[fight.wave]!, { boss: fight.kind === 'boss' && last, bossKind: BOSS_ORDER[(state.tour!.act - 1) % BOSS_ORDER.length], elite: fight.kind === 'elite' || (heatOf(state) >= 10 && fight.kind === 'fight') });
 }
 
 function fightWon(state: EngineState, ctx: TickCtx): void {

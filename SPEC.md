@@ -361,6 +361,14 @@ A headless simulator in `sim/` runs the real engine with bot players. Run it wit
 | D7 | Real choices: the median number of meaningful choices per bar is at least **2**. |
 | D8 | Infinite loops are rare: the 50-link cap triggers in fewer than **1%** of runs. |
 
+**Tour targets** (added Oct 26; `npm run sim:tour`, about 4 minutes, not run in CI):
+
+| # | Target |
+|---|---|
+| T1 | No solved Tour headliner: solo win rates at Heat 0, best ÷ worst ≤ **1.5×**. |
+| T2 | Heat climbs: a skilled band of 3 wins **60–85%** at Heat 0, **35–60%** at Heat 5, **10–30%** at Heat 10. |
+| T3 | Skill matters: random play never wins a Tour at Heat 0. |
+
 ---
 
 ## 10. User stories & acceptance criteria
@@ -669,8 +677,13 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 - [x] Heat 1–10 unlock in order after clearing Tour. Each adds one rule modifier.
 - [x] The highest Heat cleared is tracked per headliner.
 
-*As built:* Heat applies to Tour only (rules in `src/content/heat.ts`, effects in `engine/tour.ts` and `engine/waves.ts`), cumulative: 1 start with 25 crowd · 2 monsters +10% health · 3 Tournaments tougher (+15% health, one more monster kind) · 4 Market cards +25% · 5 Inns heal 6 instead of 10 · 6 bosses +20% health · 7 monsters 10% faster · 8 each leak costs 1 more crowd · 9 picks offer 2 cards · 10 bosses call help twice as often. Winning a Tour marks its Heat cleared for every member of the band (Collection, shown in the Band tab); the title screen's Heat stepper goes up to one above the highest Heat won by anyone. Answer to open question "How do Heat modifiers interact with the daily seed?": they don't; the Daily Setlist has no Heat.
+*As built:* Heat applies to Tour only (rules in `src/content/heat.ts`, effects in `engine/tour.ts` and `engine/waves.ts`), cumulative: 1 start with 25 crowd · 2 monsters +15% health · 3 Tournaments tougher (+30% health, one more monster kind) · 4 Market cards +25% · 5 Inns heal 5 instead of 10 · 6 bosses +35% health · 7 monsters 15% faster · 8 each leak costs 1 more crowd · 9 picks offer 2 cards · 10 every show is as tough as a Tournament. *(Retuned in the Tour balance pass below; Heat 10 was "bosses call help twice as often".)* Winning a Tour marks its Heat cleared for every member of the band (Collection, shown in the Band tab); the title screen's Heat stepper goes up to one above the highest Heat won by anyone. Answer to open question "How do Heat modifiers interact with the daily seed?": they don't; the Daily Setlist has no Heat.
 - Sim, teams of 3 (10 runs per team): Heat 0 72%, Heat 3 63%, Heat 6 65%, Heat 10 47%; random play 0% at every Heat. The middle tiers barely move the bots, and Heat 10 may be too easy for a top tier; tune after playtesting (`npm run sim -- --mode tour --heat N`).
+
+**Tour balance pass (Oct 26, after Phase 4):** Tour targets T1–T3 added to §9, then tuned until they pass. Before: solo Tours Thrum 90%, Aria 71%, Clatter 55%, Lyra 51%, Riot 38% (T1 2.4×); teams Heat 0 79%, Heat 5 62%, Heat 10 46%.
+- Heat: the numbers above (stronger 2, 3, 5, 6, 7; a new Heat 10).
+- Headliners: Thrum's Fill cools down in 24 beats (was 16); Lyra's Swell and Riot's Riot in 12 (was 16); Lyra's gates add +2 (was +1); Riot wins back 1 crowd every 5 kills (was 8); Squires hit for 4 (was 3) and stay 10 beats (was 8).
+- Results: solo Tours (80 each) Thrum 83%, Aria 71%, Lyra 66%, Clatter 66%, Riot 66% (T1 1.25×); teams (10 per team) Heat 0 82%, Heat 5 58%, Heat 10 23%; random 0%. All pass. Encore (200 runs per bot): median wave Thrum 19, Lyra 18, Clatter 18, Aria 18, Riot 20, random 6; D1–D8 all pass, D1 3.00× (Lyra) right on the line.
 
 ### Phase 4 — Load-In + polish
 

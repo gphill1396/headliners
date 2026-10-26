@@ -72,8 +72,8 @@ test('Crescendo: gates add damage as shots pass, up to double', () => {
   s.projectiles = [{ id: s.nextId++, lane: 1, x: 500, depth: STAGE_LINE, damage: 10, pierceLeft: 0, splash: false, gatesPassed: 0, sourceCardId: 't' }];
   runTicks(s, 12);
   const shots = s.projectiles.filter((p) => p.sourceCardId === 't');
-  // +1 (Lyra) then ×1.5 (100 passes = 10 steps of 5%).
-  assert.ok(shots.length === 2 && shots.every((p) => p.damage === 16.5), JSON.stringify(shots.map((p) => p.damage)));
+  // +2 (Lyra) then ×1.5 (100 passes = 10 steps of 5%).
+  assert.ok(shots.length === 2 && shots.every((p) => p.damage === 18), JSON.stringify(shots.map((p) => p.damage)));
 });
 
 test('Harmony: two gates in one lane both work as if Swelled', () => {

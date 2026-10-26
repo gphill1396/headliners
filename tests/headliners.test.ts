@@ -36,7 +36,7 @@ test("card picks offer neutral cards plus only your headliner's signatures, neve
 
 // ---------------------------------------------------------------- Clatter
 
-test('Load-In: a Roadie now and one on the echo; they leave after 8 beats and never enter the deck', () => {
+test('Load-In: a Squire now and one on the echo; they leave after 10 beats and never enter the deck', () => {
   const s = as('clatter');
   const before = (id: string) => s.units.filter((u) => u.cardId === id).length;
   playOnBeat(s, 'load-in', 1);
@@ -45,10 +45,10 @@ test('Load-In: a Roadie now and one on the echo; they leave after 8 beats and ne
   const roadies = s.units.filter((u) => u.cardId === 'roadie');
   assert.equal(before('roadie'), 3); // Load-In, its echo, and the Tight-hit Roadie
   assert.ok(roadies.every((r) => r.token && r.lane === 1));
-  assert.equal(roadies[0]!.damage, 3);
+  assert.equal(roadies[0]!.damage, 4);
   const deckSize = s.draw.length + s.discard.length + s.hand.length;
   const expired: string[] = [];
-  for (let b = 0; b < 10; b++) for (const e of nextBeat(s)) if (e.type === 'unitExpired') expired.push(e.cardId);
+  for (let b = 0; b < 12; b++) for (const e of nextBeat(s)) if (e.type === 'unitExpired') expired.push(e.cardId);
   assert.deepEqual(expired, ['roadie', 'roadie', 'roadie']);
   assert.equal(s.units.filter((u) => u.token).length, 0);
   assert.equal(s.draw.length + s.discard.length + s.hand.length, deckSize);
@@ -95,7 +95,7 @@ test("Clatter's All Hands: a Roadie in every lane", () => {
 
 // ---------------------------------------------------------------- Lyra
 
-test("Lyra's passive: each gate a shot passes adds +1 damage", () => {
+test("Lyra's passive: each gate a shot passes adds +2 damage", () => {
   const through = (h: 'lyra' | 'thrum') => {
     const s = as(h, `pass-${h}`);
     playOnBeat(s, 'distortion', 1);
@@ -104,7 +104,7 @@ test("Lyra's passive: each gate a shot passes adds +1 damage", () => {
     for (let i = 0; i < 12; i++) step(s);
     return s.projectiles.find((p) => p.sourceCardId === 't')!.damage;
   };
-  assert.equal(through('lyra') - through('thrum'), 1);
+  assert.equal(through('lyra') - through('thrum'), 2);
 });
 
 test("Clatter's passive: a Tight hit calls a Roadie, once per bar", () => {
@@ -144,8 +144,8 @@ test('Harmonizer makes 3 shots; Swell makes it 4 and doubles damage gates', () =
   };
   assert.equal(shotsThrough(false, 'harmonizer').length, 3);
   assert.equal(shotsThrough(true, 'harmonizer').length, 4);
-  assert.equal(shotsThrough(false, 'distortion')[0]!.damage, 7);
-  assert.equal(shotsThrough(true, 'distortion')[0]!.damage, 12);
+  assert.equal(shotsThrough(false, 'distortion')[0]!.damage, 8); // 1 + 5 + Lyra's 2
+  assert.equal(shotsThrough(true, 'distortion')[0]!.damage, 13); // 1 + 10 + 2
 });
 
 test('Sustain Pedal repairs gates in its lane, then again next beat', () => {

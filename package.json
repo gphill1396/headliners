@@ -12,7 +12,8 @@
     "typecheck": "tsc -p tsconfig.engine.json && tsc -p tsconfig.app.json && tsc -p tsconfig.node.json",
     "check": "npm run typecheck && npm test",
     "sim": "tsx sim/cli.ts",
-    "loadin": "tsx sim/loadin-pack.ts"
+    "loadin": "tsx sim/loadin-pack.ts",
+    "sim:tour": "tsx sim/tour-check.ts"
   },
   "dependencies": {
     "react": "^19.2.0",

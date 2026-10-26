@@ -117,8 +117,7 @@ export function bossCalls(state: EngineState, ctx?: TickCtx): void {
     kind === 'hush' && boss.phase === 3 ? 'brute' : kind === 'critic' && boss.phase === 3 ? 'medic' : kind === 'dead-air' && boss.phase >= 2 ? 'ghost' : null;
   if (!call) return;
   spawnGroup(state, call);
-  // Heat 10: help comes twice as often.
-  boss.nextBruteBeat = state.clock.beat + ((state.tour?.heat ?? 0) >= 10 ? BOSS_BRUTE_EVERY_BEATS / 2 : BOSS_BRUTE_EVERY_BEATS);
+  boss.nextBruteBeat = state.clock.beat + BOSS_BRUTE_EVERY_BEATS;
 }
 
 /**

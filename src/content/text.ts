@@ -46,7 +46,7 @@ export const KEYWORD_TEXT: Record<Keyword, string> = {
   encore: 'Encore: a bonus while your chain is 3 or longer.',
   feedback: 'Feedback: strong, but costs you crowd.',
   antiAir: 'Anti-Air: hits Harpies and other flyers.',
-  roadie: 'Squire: a small unit that leaves after 8 beats.',
+  roadie: 'Squire: a small unit that leaves after 10 beats.',
   shred: 'Tinker: shots ignore armor and get past shields.',
   priority: 'Priority: goes for Trolls, Hags, Shamans and bosses first.',
   speaker: 'Horn: turns shots into the next lane over, from the side.',

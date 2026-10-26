@@ -79,6 +79,30 @@ export const SPRITES = {
     rows: ['.eeeee.', 'eccccce', 'ec#c#ce', 'eccccce', 'eccccce', '.eeeee.', '.e...e.'],
     colors: { e: '#f0773e', c: '#f6ecd6', '#': '#7a5c3e' },
   },
+  'hype-man': {
+    rows: ['.aaa.', 'a#a#a', '.aaa.', 'cc.cc', '.ccc.', '.c.c.', 'c...c'],
+    colors: { a: '#e2574c', c: '#f6ecd6', '#': '#211934' },
+  },
+  'double-kick': {
+    rows: ['eeeeeee', 'ec#e#ce', 'eccecce', 'ec#e#ce', 'eeeeeee', '.e...e.', 'ee...ee'],
+    colors: { e: '#f0773e', c: '#f6ecd6', '#': '#7a5c3e' },
+  },
+  'tuning-fork': {
+    rows: ['t...t', 't...t', 't...t', '.ttt.', '..t..', '..t..', '.ttt.'],
+    colors: { t: '#4fd1c5' },
+  },
+  'guitar-tech': {
+    rows: ['.yyy...', 'yoyoy..', '.yyy..g', 'bbbbb.g', '.bbb.gg', '.b.b...', '.b.b...'],
+    colors: { y: '#e8d36a', o: '#211934', b: '#4a3a2e', g: '#a69cc0' },
+  },
+  security: {
+    rows: ['.###.', '#o#o#', '.###.', 'kkkkk', 'kkYkk', '.k.k.', 'kk.kk'],
+    colors: { '#': '#e8d36a', o: '#211934', k: '#6b6b84', Y: '#ffc94d' },
+  },
+  rigger: {
+    rows: ['|.yy.', '|yoyo', '|.yy.', '|gggg', '|.gg.', '|g..g', '|....'],
+    colors: { '|': '#a69cc0', y: '#e8d36a', o: '#211934', g: '#7a5c3e' },
+  },
   pyro: {
     rows: ['..f..', '.fyf.', '..f..', '.ccc.', 'cc#cc', '.c.c.', '.c.c.'],
     colors: { f: '#f0773e', y: '#ffc94d', c: '#f6ecd6', '#': '#211934' },

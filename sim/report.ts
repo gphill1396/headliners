@@ -109,12 +109,20 @@ export function evaluate(byBot: Record<string, RunResult[]>, runsPerBot: number)
     checks.push({ id: 'D3', name: 'No solved headliner (best vs worst median wave)', pass: d3 <= T.D3_headlinerSpread, value: `${d3.toFixed(2)}× (${best.h} ${best.w} / ${worst.h} ${worst.w})`, target: `≤ ${T.D3_headlinerSpread}×` });
   }
 
-  // D4 — no must-pick card. The starter deck is fixed, so this measures card picks in top runs.
+  // D4 — no must-pick card, across all archetypes: the top 25% of the headliner archetype bots'
+  // runs, one bot per headliner so no headliner's signature cards are over-counted.
+  // Starter decks are fixed, so this measures cards taken in card picks.
   const top = topQuarter(skilled);
-  const pickRates: Record<string, number> = {};
-  for (const c of CARDS) pickRates[c.id] = top.filter((r) => r.picks.includes(c.id)).length / Math.max(1, top.length);
+  const topArch = topQuarter(archetypes.flatMap((h) => byBot[h]!));
+  const rates = (runs: RunResult[]) => {
+    const out: Record<string, number> = {};
+    for (const c of CARDS) out[c.id] = runs.filter((r) => r.picks.includes(c.id)).length / Math.max(1, runs.length);
+    return out;
+  };
+  const pickRates = rates(topArch);
   const [topPick, topPickRate] = Object.entries(pickRates).sort((a, b) => b[1] - a[1])[0] ?? ['-', 0];
-  checks.push({ id: 'D4', name: 'No must-pick card (top-25% runs)', pass: topPickRate <= T.D4_mustPick, value: `${topPick} in ${pct(topPickRate)}`, target: `≤ ${pct(T.D4_mustPick)}`, note: 'Not meaningful yet: Pyro, Side Fill and Spotlight are the only answers to Bats, Shieldbearers and Breakers until the full card set adds alternatives, and picks offer them on purpose.' });
+  const [allPick, allPickRate] = Object.entries(rates(top)).sort((a, b) => b[1] - a[1])[0] ?? ['-', 0];
+  checks.push({ id: 'D4', name: 'No must-pick card (top-25% archetype runs)', pass: topPickRate <= T.D4_mustPick, value: `${topPick} in ${pct(topPickRate)}`, target: `≤ ${pct(T.D4_mustPick)}`, note: `Counting every skilled bot (Thrum-heavy): ${allPick} in ${pct(allPickRate)}.` });
 
   // D5 — no single damage source (top runs stand in for "winning", since Encore is endless).
   const damageShare: Record<string, number> = {};

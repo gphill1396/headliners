@@ -178,8 +178,12 @@ test('a card pick before a new enemy offers an answer to it if the deck has none
     s.wave.index = 3; // the next waves bring Bats (4), which need Anti-Air
     s.wave.startBeat = s.clock.beat - 100;
     s.mode = 'encore';
+    // Take the deck's own anti-air out, so nothing answers Bats yet.
+    const bat = ENEMIES.bat.answers!;
+    s.hand = s.hand.filter((c) => !bat.includes(c.cardId));
+    s.draw = s.draw.filter((c) => !bat.includes(c.cardId));
     for (let t = 0; t < 200 && s.pick.length === 0; t++) step(s);
-    if (s.pick.includes('pyro')) offered++;
+    if (s.pick.some((id) => ENEMIES.bat.answers!.includes(id))) offered++;
   }
   assert.equal(offered, 20);
 });

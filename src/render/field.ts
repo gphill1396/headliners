@@ -15,6 +15,7 @@ export const GATE_COLORS: Record<GateKind, string> = {
   pierce: PALETTE.cream,
   shred: '#a69cc0',
   aim: '#8fd3ff',
+  lift: '#f6d38a',
 };
 const HEX_COLOR = '#c06bd6';
 

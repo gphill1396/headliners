@@ -44,9 +44,9 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     armor: 0,
     travelBeats: 9,
     crowdDamage: 1,
-    packSize: 3,
+    packSize: 4,
     flying: true,
-    answers: ['pyro'],
+    answers: ['pyro', 'riser', 'cymbal-crash', 'falsetto', 'rigger'],
   },
   splitter: {
     kind: 'splitter',
@@ -71,7 +71,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     crowdDamage: 3,
     packSize: 1,
     shieldHits: 8,
-    answers: ['side-fill'],
+    answers: ['side-fill', 'toolbox', 'bassline'],
   },
   hexer: {
     kind: 'hexer',
@@ -85,7 +85,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     packSize: 1,
     hexRange: 40_000,
     priority: true,
-    answers: ['spotlight'],
+    answers: ['spotlight', 'heckle', 'rimshot', 'tuning-fork', 'security'],
   },
   breaker: {
     kind: 'breaker',
@@ -99,7 +99,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     packSize: 1,
     smashPerBeat: 10,
     priority: true,
-    answers: ['spotlight'],
+    answers: ['spotlight', 'heckle', 'rimshot', 'tuning-fork', 'security'],
   },
   hush: {
     kind: 'hush',

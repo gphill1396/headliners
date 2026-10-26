@@ -437,6 +437,22 @@ Phase 1 is built in two steps, so the feel can be judged on a phone before conte
 - **Simpler cards** (Cass found the screen overstimulating): cards in hand show only cost and name. What a card does appears above the hand when you select it, and in full on card picks.
 - **Results** at 200 runs per bot: median wave Thrum 22, Lyra 19, Clatter 18, random 6. D1 3.00× (Clatter; Lyra 3.17×, Thrum 3.67×), D2 7.7×, D3 1.22×, D5 24.5%, D6 6.2% (Shamblers lowest), D7 3.0, D8 0.1% — all pass. D4 still waits on the full card set. The Hush itself rarely ends a run, but it costs crowd along the way.
 
+**Phase 1b progress — the full card set** (done):
+- 43 cards: 16 neutral and 9 signature cards per headliner (plus the Roadie token).
+  - New neutral: Hype Man (Volume: +1 damage every beat 1), Riser (gate: Anti-Air), Heckle (riff: hits a Breaker/Hexer/Hush first), Mic Drop (riff: Downbeat bonus), Soundboard (amp: draw on beat 1).
+  - Thrum: Cymbal Crash (hits all flyers, Echo), Double Kick, Rimshot (free; seeks Breakers; Downbeat bonus), Four on the Floor (amp), Drum Solo (Encore).
+  - Lyra: Glissando, Cadenza, Choir (×4 gate, fragile), Falsetto (cheap Anti-Air gate), Tuning Fork (Priority unit for gates to multiply).
+  - Clatter: Stage Dive, Guitar Tech, Security (Priority), Rigger (Anti-Air), Crew Call (a Roadie in every lane).
+- New effect parts: Volume, a Downbeat condition, "hit a priority target first", "flyers only", Roadies in every lane, and the Lift gate (Anti-Air).
+- Every enemy now has at least 2 answers for every headliner, and **each starter deck carries its headliner's own answers** to flyers and to Breakers/Hexers (Thrum: Cymbal Crash, Rimshot; Lyra: Falsetto, Tuning Fork; Clatter: Rigger, Security). Neutral answers are upgrades from picks.
+- Starter decks (see `STARTER_DECKS`): Thrum trades a Double Stop and Snare Roll for Cymbal Crash and Rimshot (Snare Roll is still in its picks). Lyra trades a Stagehand and a Sustain Pedal for Tuning Fork and Falsetto. Clatter trades a Stagehand and a Double Stop for Security and Rigger.
+- Balance and measurement changes, each rerun through the report:
+  - Encore! only works on a 3+ chain and deals 8 (was: always draw, 15 on a chain). Spotlight deals 5 (was 6). Bats come in 4s again.
+  - Bots: they now aim for a deck shape when picking (about 40% units, 25% gates, 30% riffs), skip picks as the deck grows, and only count an answer card as urgent when nothing in the deck answers that enemy.
+  - D4 is now measured on the three headliner archetype bots, one per headliner, as §9 says ("across all archetypes"). Before, the two extra Thrum timing bots made Thrum's signature cards look over-picked. The old measure is still printed.
+- **Results** at 200 runs per bot: median wave Thrum 19, Lyra 18, Clatter 18, random 6. D1 3.00× (Lyra and Clatter), D2 4.6×, D3 1.06×, D5 22.3%, D6 5.6%, D7 3.0, D8 0% — pass.
+  - **D4 still fails narrowly:** Encore! is in 44% of top archetype decks (Fuzz Box 41%). Top runs take about 8 picks from a pool of about 25, so most cards land near 30–40% and the top few sit just over the line. Nerfing whichever card is on top just moves the top spot (Encore! at cost 3 put Fuzz Box at 44% and dropped Lyra below D1).
+
 **Phase 1b — Fill out.** Adds the simulator and the D1–D8 report, then tunes the slice against it. Then adds Lyra and Clatter, the other 5 enemy types, The Hush, the full ~40 cards, evolutions, the remaining keywords, audio, discard-cycle and drag-to-play.
 
 **S1.1 Play a card into a lane**

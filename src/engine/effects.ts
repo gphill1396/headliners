@@ -1,4 +1,5 @@
-import { damageEnemy, fireUnit, frontEnemy, gateDepth, inLane } from './combat';
+import { damageEnemy, fireUnit, frontEnemy, gateDepth, inLane, priorityEnemy } from './combat';
+import { ENEMIES } from '../content/enemies';
 import {
   BIG_CHAIN,
   CHAIN_BASE_PCT,
@@ -6,10 +7,13 @@ import {
   CHAIN_GRACE_BEATS,
   CHAIN_STEP_AUTO_PCT,
   GATE_DEPTHS,
+  LANES,
   POCKET_STEP_PCT,
   MAX_ENERGY,
   UNIT_SLOTS,
+  VOLUME_MAX,
 } from './constants';
+import { isDownbeat } from './clock';
 import type { TickCtx } from './context';
 import { drawCards } from './deck';
 import { emptyChain, type EngineState, type QueuedPlay, type Unit } from './state';
@@ -107,7 +111,7 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
   const scale = (n: number) => (n * src.multPct) / 100;
   switch (effect.do) {
     case 'damageFront': {
-      const target = frontEnemy(state, src.lane);
+      const target = (effect.prefer === 'priority' ? priorityEnemy(state, src.lane) : null) ?? frontEnemy(state, src.lane);
       if (target) damageEnemy(state, ctx, target, scale(effect.amount), src.cardId);
       return;
     }
@@ -115,7 +119,10 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
       for (const e of state.enemies) if (inLane(e, src.lane) && e.depth >= 0) damageEnemy(state, ctx, e, scale(effect.amount), src.cardId);
       return;
     case 'damageAll':
-      for (const e of state.enemies) if (e.depth >= 0) damageEnemy(state, ctx, e, scale(effect.amount), src.cardId);
+      for (const e of state.enemies) {
+        if (e.depth < 0 || (effect.only === 'flying' && !ENEMIES[e.kind].flying)) continue;
+        damageEnemy(state, ctx, e, scale(effect.amount), src.cardId);
+      }
       return;
     case 'volley':
       for (const u of state.units) {
@@ -125,7 +132,19 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
       }
       return;
     case 'roadie':
-      for (let i = 0; i < effect.count; i++) createToken(state, ctx, 'roadie', src.lane);
+      for (let lane = 0; lane < LANES; lane++) {
+        if (effect.scope !== 'all' && lane !== src.lane) continue;
+        for (let i = 0; i < effect.count; i++) createToken(state, ctx, 'roadie', lane);
+      }
+      return;
+    case 'volume':
+      if (src.unit && (src.unit.volume ?? 0) < VOLUME_MAX) {
+        src.unit.volume = (src.unit.volume ?? 0) + 1;
+        src.unit.damage += effect.amount;
+      }
+      return;
+    case 'ifDownbeat':
+      runEffects(state, ctx, isDownbeat(state.clock.beat) ? effect.then : (effect.else ?? []), src);
       return;
     case 'repairGates': {
       const amount = Math.round(scale(effect.amount));

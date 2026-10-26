@@ -48,6 +48,8 @@ export interface Unit {
   antiAir?: boolean;
   /** Shots go for priority targets first. */
   priority?: boolean;
+  /** Volume counters gained (each already added to damage). */
+  volume?: number;
 }
 
 export interface Gate {

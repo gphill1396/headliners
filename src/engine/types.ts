@@ -8,7 +8,7 @@
 
 export type CardType = 'unit' | 'gate' | 'riff' | 'amp';
 
-export type Keyword = 'pierce' | 'splash' | 'echo' | 'downbeat' | 'encore' | 'feedback' | 'antiAir' | 'roadie' | 'shred' | 'priority' | 'speaker';
+export type Keyword = 'pierce' | 'splash' | 'echo' | 'downbeat' | 'encore' | 'feedback' | 'antiAir' | 'roadie' | 'shred' | 'priority' | 'speaker' | 'volume';
 
 export type HeadlinerId = 'thrum' | 'lyra' | 'clatter';
 
@@ -19,16 +19,20 @@ export type Scope = 'lane' | 'all';
 
 /** One step of something a card or trigger does. Amounts are base values before grade and chain multipliers. */
 export type Effect =
-  /** Hit the enemy closest to the stage in the lane. */
-  | { do: 'damageFront'; amount: number }
+  /** Hit the enemy closest to the stage in the lane. `prefer: 'priority'`: a Breaker, Hexer or boss in the lane if there is one. */
+  | { do: 'damageFront'; amount: number; prefer?: 'priority' }
   /** Hit every enemy in the lane. */
   | { do: 'damageLane'; amount: number }
-  /** Hit every enemy on the field. */
-  | { do: 'damageAll'; amount: number }
+  /** Hit every enemy on the field (`only: 'flying'`: just flyers). */
+  | { do: 'damageAll'; amount: number; only?: 'flying' }
   /** Every unit in the lane (or everywhere) fires extra shots right now. `tokensOnly`: just Roadies and other tokens. */
   | { do: 'volley'; scope: Scope; shots: number; tokensOnly?: boolean }
-  /** Put Roadie tokens on stage in this lane (Clatter). */
-  | { do: 'roadie'; count: number }
+  /** Put Roadie tokens on stage in this lane, or in every lane (Clatter). */
+  | { do: 'roadie'; count: number; scope?: Scope }
+  /** Volume: the unit that owns this trigger gains +amount damage for good (up to 20 times). */
+  | { do: 'volume'; amount: number }
+  /** Downbeat bonus: different effects if this resolves on beat 1. */
+  | { do: 'ifDownbeat'; then: Effect[]; else?: Effect[] }
   /** Restore durability to gates in the lane or everywhere (Lyra). */
   | { do: 'repairGates'; scope: Scope; amount: number }
   /** The unit that owns this trigger fires extra shots. */
@@ -77,6 +81,8 @@ export type GateKind =
   | 'pierce'
   /** Shots ignore armor and pry past shields. */
   | 'shred'
+  /** Shots gain Anti-Air. */
+  | 'lift'
   /** A speaker: shots turn into the next lane over (from the middle, alternating left and right). */
   | 'aim';
 

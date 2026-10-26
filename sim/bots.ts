@@ -168,7 +168,7 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
       const u = def.unit!;
       const full = unitsInLane.length >= UNIT_SLOTS;
       const roadieMaker = def.id === 'crew-chief' ? roadieValue(s, lane) * 0.5 : 0;
-      const answers = (u.antiAir ? flyers * 6 : 0) + (u.priority ? priority * 10 : 0);
+      const answers = (u.antiAir ? flyers * 6 : 0) + (u.priority ? priority * 10 : 0) + (def.id === 'hype-man' ? 2 : 0);
       const dps = (u.damage * 2) / u.fireEvery + (def.id === 'kick-drum' ? 1.5 : 0) + roadieMaker;
       return (dps * 3 + threatHere * 0.05 + answers) * (full ? 0.3 : 1) * (armored && u.damage <= 4 ? 0.6 : 1);
     }
@@ -185,6 +185,7 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
         const shieldHere = shielded.some((e) => e.lane === lane);
         return (armored || shieldHere ? laneDps * 3 + 10 : laneDps * 0.5) * dupe * full;
       }
+      if (g.kind === 'lift') return (flyers * 8 + (flyers > 0 ? laneDps : 0)) * dupe * full;
       if (g.kind === 'aim') {
         // A speaker is worth it when a neighbor lane has a Shieldbearer and this lane is quiet.
         const next = lane === 0 ? [1] : lane === 2 ? [1] : [0, 2];
@@ -209,7 +210,35 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
         case 'paradiddle':
           return s.energy < 4 ? 8 : 3;
         case 'encore':
-          return s.chain.links >= 2 ? 10 + s.enemies.length * 2 : 4;
+          return s.chain.links >= 2 ? 8 + s.enemies.length * 1.6 : 0;
+        case 'heckle': {
+          const pr = enemiesInLane.some((e) => ENEMIES[e.kind].priority);
+          return pr ? 20 : frontEnemy(s, lane) ? 10 : 0;
+        }
+        case 'mic-drop':
+          return frontEnemy(s, lane) ? (s.clock.beat % 4 === 3 ? 34 : 16) + (armored ? 6 : 0) : 0;
+        case 'rimshot': {
+          const pr = enemiesInLane.some((e) => ENEMIES[e.kind].priority);
+          return frontEnemy(s, lane) ? (s.clock.beat % 4 === 3 ? 10 : 2) + (pr ? 6 : 0) : 0;
+        }
+        case 'cymbal-crash': {
+          const allFlyers = s.enemies.filter((e) => ENEMIES[e.kind].flying && e.depth >= 0).length;
+          return allFlyers * 7;
+        }
+        case 'drum-solo':
+          return s.units.length * (s.chain.links >= 2 ? 4 : 2.2);
+        case 'glissando': {
+          const worn = s.gates.reduce((sum, g) => sum + Math.min(8, g.maxDurability - g.durability), 0);
+          return worn * 0.4 + (s.chain.links >= 2 ? 4 : 0);
+        }
+        case 'cadenza':
+          return laneDps * 4 * (1 + s.gates.filter((g) => g.lane === lane).length) * (enemiesInLane.length > 0 ? 1 : 0.2);
+        case 'stage-dive': {
+          const roadies = s.units.filter((u) => u.token).length;
+          return roadies * 5;
+        }
+        case 'crew-call':
+          return [0, 1, 2].reduce((sum, l) => sum + (s.units.filter((u) => u.lane === l).length < UNIT_SLOTS ? roadieValue(s, l) : 0), 0);
         case 'load-in': {
           const free = Math.max(0, UNIT_SLOTS - unitsInLane.length);
           return Math.min(2, free) * roadieValue(s, lane) + (enemiesInLane.length > 0 ? 2 : 0);
@@ -225,6 +254,8 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
     case 'amp': {
       if (s.amps.length >= 2) return 1;
       if (def.id === 'mosh-pit') return 4 + s.units.filter((u) => u.token).length * 4;
+      if (def.id === 'soundboard') return 8;
+      if (def.id === 'four-on-the-floor') return 4 + s.units.length * 2.5;
       if (def.id === 'resonance') return 4 + s.gates.length * 3;
       return 6 + s.units.length * 2;
     }
@@ -266,15 +297,21 @@ function choosePick(config: BotConfig, s: EngineState, rng: RngState): number | 
   // Pick what the deck is short on: every copy already owned makes a card less attractive.
   const owned = (id: string) => [...s.hand, ...s.draw, ...s.discard].filter((c) => c.cardId === id).length +
     s.units.filter((u) => u.cardId === id).length + s.gates.filter((g) => g.cardId === id).length + s.amps.filter((a) => a.cardId === id).length;
-  const base: Record<string, number> = { unit: 2, gate: 2, riff: 1.6, amp: 1.6 };
+  // Build toward a rough deck shape: about 40% units, 25% gates, 30% riffs, a few amps.
+  const deck = [...s.hand, ...s.draw, ...s.discard, ...s.units.filter((u) => !u.token).map((u) => u.card), ...s.gates.map((g) => g.card), ...s.amps.map((a) => a.card)];
+  const share = (type: string) => deck.filter((c) => getCard(c.cardId).type === type).length / Math.max(1, deck.length);
+  const target: Record<string, number> = { unit: 0.4, gate: 0.25, riff: 0.3, amp: 0.08 };
   const scores = s.pick.map((id) => {
     const def = getCard(id);
-    let v = (base[def.type] ?? 1.5) - 0.6 * owned(id) + nextFloat(rng);
-    // A sensible player buys an answer to an enemy they've met (or is about to meet) if they have none.
-    const answers = Object.values(ENEMIES).some((e) => e.answers?.includes(id));
-    if (answers && owned(id) === 0) v += 1.2;
+    let v = 2 + 3 * ((target[def.type] ?? 0.2) - share(def.type)) - 0.6 * owned(id) + nextFloat(rng);
+    // A sensible player buys an answer to an enemy if nothing in the deck answers it yet.
+    const unanswered = Object.values(ENEMIES).some((e) => e.answers?.includes(id) && !e.answers.some((a) => owned(a) > 0));
+    if (unanswered) v += 1.2;
     if (config.kind === 'archetype' && def.headliner === s.headliner.id) v += 0.3;
     return v;
   });
-  return argmax(scores);
+  // Keep the deck lean: the bigger it gets, the better a card has to be to earn a place.
+  const best = argmax(scores);
+  const bar = 2 + Math.max(0, deck.length - 14) * 0.25;
+  return scores[best]! >= bar ? best : null;
 }

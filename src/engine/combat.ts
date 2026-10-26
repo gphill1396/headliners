@@ -62,6 +62,16 @@ export function inLane(e: Enemy, lane: number): boolean {
   return e.lane === lane || ENEMIES[e.kind].wide === true;
 }
 
+/** The living priority enemy (Breaker, Hexer, boss) closest to the stage in a lane, if any. */
+export function priorityEnemy(state: EngineState, lane: number): Enemy | null {
+  let best: Enemy | null = null;
+  for (const e of state.enemies) {
+    if (!inLane(e, lane) || e.hp <= 0 || e.depth < 0 || !ENEMIES[e.kind].priority) continue;
+    if (!best || e.depth > best.depth || (e.depth === best.depth && e.id < best.id)) best = e;
+  }
+  return best;
+}
+
 /** The living enemy closest to the stage in a lane. */
 export function frontEnemy(state: EngineState, lane: number): Enemy | null {
   let best: Enemy | null = null;
@@ -274,6 +284,9 @@ function applyGate(state: EngineState, p: Projectile, g: Gate): boolean {
       break;
     case 'shred':
       p.shred = true;
+      break;
+    case 'lift':
+      p.antiAir = true;
       break;
     case 'aim': {
       // Edge lanes aim at the middle; the middle alternates left and right, shot by shot.

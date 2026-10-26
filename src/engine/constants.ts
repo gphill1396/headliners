@@ -97,6 +97,8 @@ export const WAVE_TEMPO_STEP = 2;
 export const WAVE_MAX_BPM = 150;
 /** Card pick every N waves (Phase 1a addition, SPEC §10). */
 export const PICK_EVERY_WAVES = 3;
+/** A unit can gain at most this many Volume counters. */
+export const VOLUME_MAX = 20;
 /** The Hush, the Phase 1 boss, plays every 10th wave (SPEC §4.8). */
 export const BOSS_EVERY_WAVES = 10;
 /** Phase 3: The Hush calls in a Brute this often. */

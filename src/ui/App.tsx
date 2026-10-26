@@ -126,6 +126,8 @@ function gateLabel(kind: Hud['gates'][number]['kind'], amount: number, lane: num
       return `Pierce +${amount}`;
     case 'shred':
       return 'Toolbox';
+    case 'lift':
+      return 'Anti-Air';
   }
 }
 

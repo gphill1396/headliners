@@ -161,6 +161,31 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
         if (copy && !chill) synth.shaker(t + sixteenth, 0.6 * v, dest);
         break;
       }
+      case 'hype-man':
+        // Claps on 2 and 4, getting louder as it gains Volume.
+        if (onBeat && inBar % 2 === 1) synth.snare(t, 0.5 * v, dest);
+        break;
+      case 'double-kick':
+        if (chill && !onBeat) break;
+        synth.kick(t, (onBeat ? 0.7 : 0.45) * v, dest);
+        break;
+      case 'tuning-fork':
+        // A pure high tone, a fifth above the chord root.
+        if (chill && !onBeat) break;
+        synth.keys(t, chord.root + 43, eighthSec * 0.9, 0.35 * v, dest);
+        break;
+      case 'guitar-tech':
+        if (chill && inBar % 2 === 1) break;
+        synth.stab(t, [chord.root + 24, chord.root + 31], eighthSec * 0.6, 0.6 * v, dest);
+        break;
+      case 'security':
+        if (chill && !onBeat) break;
+        synth.tom(t, 43, 0.6 * v, dest);
+        break;
+      case 'rigger':
+        if (chill && !onBeat) break;
+        synth.clank(t, 0.45 * v, dest, 1.5);
+        break;
       case 'pyro':
         // A sizzle and a pop, like a firework going up.
         if (chill && !onBeat) break;
@@ -213,6 +238,37 @@ export function playRiff(synth: Synth, cardId: string, lane: number, beat: numbe
     case 'encore':
       synth.crash(t);
       synth.stab(t, [...chord.notes], 0.6, 0.8 * level, dest);
+      break;
+    case 'cymbal-crash':
+      synth.crash(t);
+      break;
+    case 'rimshot':
+      synth.snare(t, 0.9 * level, dest);
+      synth.clank(t, 0.4 * level, dest, 2);
+      break;
+    case 'mic-drop':
+      synth.kick(t, level, dest);
+      synth.crash(t + 0.02);
+      break;
+    case 'drum-solo':
+      for (let i = 0; i < 8; i++) synth.tom(t + i * (sixteenth / 2), 55 - i * 2, 0.7 * level, dest);
+      break;
+    case 'heckle':
+      synth.stab(t, [chord.root + 36], 0.12, level, dest);
+      synth.stab(t + sixteenth, [chord.root + 36], 0.12, level, dest);
+      break;
+    case 'glissando':
+      for (let i = 0; i < 8; i++) synth.keys(t + i * (sixteenth / 2), chord.notes[i % 4]! + 12 * Math.floor(i / 4), 0.3, 0.45 * level, dest);
+      break;
+    case 'cadenza':
+      chord.notes.forEach((m, i) => synth.keys(t + i * sixteenth, m + 12, 0.5, 0.6 * level, dest));
+      break;
+    case 'stage-dive':
+      for (let i = 0; i < 3; i++) synth.clank(t + i * sixteenth, 0.7 * level, dest, 0.8 + i * 0.2);
+      break;
+    case 'crew-call':
+      synth.cowbell(t, 0.8 * level, dest);
+      synth.cowbell(t + sixteenth, 0.6 * level, dest);
       break;
     case 'sustain-pedal':
       // A held chord on the keys.

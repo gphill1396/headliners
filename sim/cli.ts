@@ -6,7 +6,7 @@ import { runOne, runTour, TEAMS, type RunResult } from './run';
 import { median } from './report';
 
 /**
- * npm run sim -- [--runs 100] [--mode encore|tour] [--bots random,thrum] [--ci]
+ * npm run sim -- [--runs 100] [--mode encore|tour] [--heat 0-10] [--bots random,thrum] [--ci]
  *
  * Plays the real engine with bot players and checks the depth thresholds
  * (SPEC §9). In --ci mode, failures print as GitHub warnings and never fail
@@ -43,13 +43,15 @@ if (only) {
   BOTS.splice(0, BOTS.length, ...BOTS.filter((b) => keep.has(b.name)));
 }
 
+const heat = Number(arg('heat', '0')) || 0;
+
 if (mode === 'tour') {
   // Tour: no D1–D8 (those are defined on Encore); report win rates and how far runs get.
   const tourBots = BOTS.filter((b) => ['random', 'thrum', 'lyra', 'clatter', 'aria', 'riot'].includes(b.name));
-  console.log(`Headliners Tour report — ${runs} runs per bot\n`);
+  console.log(`Headliners Tour report — ${runs} runs per bot, Heat ${heat}\n`);
   console.log('Bot        runs  won    act reached (1/2/3)   stops cleared  minutes  deck');
   for (const bot of tourBots) {
-    const rs = Array.from({ length: runs }, (_, i) => runTour(bot, `tour-${i}`));
+    const rs = Array.from({ length: runs }, (_, i) => runTour(bot, `tour-${i}`, undefined, undefined, heat));
     const won = rs.filter((r) => r.won).length / rs.length;
     const acts = [1, 2, 3].map((a) => rs.filter((r) => r.act === a).length);
     console.log(
@@ -67,7 +69,7 @@ if (mode === 'tour') {
   const perTeam = Math.max(4, Math.round(runs / 4));
   console.log(`\nTeams of 3 — ${perTeam} runs per team (${TEAMS.length} teams)\n`);
   for (const bot of teamBots) {
-    const rs = TEAMS.flatMap((team) => Array.from({ length: perTeam }, (_, i) => runTour(bot, `team-${team.join('+')}-${i}`, undefined, team)));
+    const rs = TEAMS.flatMap((team) => Array.from({ length: perTeam }, (_, i) => runTour(bot, `team-${team.join('+')}-${i}`, undefined, team, heat)));
     const won = rs.filter((r) => r.won).length / rs.length;
     const acts = [1, 2, 3].map((a) => rs.filter((r) => r.act === a).length);
     console.log(`${bot.name.padEnd(12)} ${String(rs.length).padStart(4)}  ${(won * 100).toFixed(0).padStart(3)}%   acts ${acts.join(' / ')}  minutes ${median(rs.map((r) => r.minutes)).toFixed(1)}`);

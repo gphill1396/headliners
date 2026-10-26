@@ -96,9 +96,9 @@ export const TEAMS: HeadlinerId[][] = (() => {
   return out;
 })();
 
-export function runTour(config: BotConfig, seed: string, maxTicks = DEFAULT_MAX_TICKS, team?: HeadlinerId[]): TourResult {
+export function runTour(config: BotConfig, seed: string, maxTicks = DEFAULT_MAX_TICKS, team?: HeadlinerId[], heat = 0): TourResult {
   const headliner = team ? team[0]! : config.headliner === 'rotate' ? ROTATION[seedIndex(seed) % ROTATION.length]! : config.headliner;
-  const s: EngineState = createState({ seed, headliner, mode: 'tour', ...(team ? { team } : {}) });
+  const s: EngineState = createState({ seed, headliner, mode: 'tour', heat, ...(team ? { team } : {}) });
   const bot = createBot(config, createRng(`bot:${config.name}:${seed}`));
   while (s.phase !== 'over' && s.phase !== 'won' && s.tick < maxTicks) step(s, bot.act(s));
   return {

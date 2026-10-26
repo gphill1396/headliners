@@ -89,7 +89,7 @@ function BandTab({ collection, onChange }: { collection: Collection; onChange: (
         return (
           <section key={id} className={`band-member hl-${id}`}>
             <p className="headliner-name">
-              {h.name} <span className="muted">level {level}</span>
+              {h.name} <span className="muted">level {level}{p.heat !== undefined ? ` · Tour won at Heat ${p.heat}` : ''}</span>
             </p>
             <div className="xp-bar" aria-label={prog ? `${prog[0]} of ${prog[1]} XP to level ${level + 1}` : 'Max level'}>
               <span style={{ width: `${prog ? (100 * prog[0]) / prog[1] : 100}%` }} />

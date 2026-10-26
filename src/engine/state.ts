@@ -254,6 +254,8 @@ export interface TourState {
   cleared: number;
   /** Stops visited this act, in order (for drawing your route). */
   visited?: number[];
+  /** Heat (S3.2), 0–10: the difficulty rules in force. Missing in older saves = 0. */
+  heat?: number;
 }
 
 /** The Hush while it's on the field (SPEC §4.8). Phase follows its health: 1 above 2/3, 2 above 1/3, then 3. */
@@ -325,6 +327,8 @@ export interface CreateOptions {
   team?: readonly HeadlinerId[];
   /** Daily Setlist: an Encore run on the day's seed. */
   daily?: { date: string; scored: boolean };
+  /** Tour: Heat 0–10 (S3.2). */
+  heat?: number;
 }
 
 export function emptyChain(): ChainState {
@@ -333,7 +337,7 @@ export function emptyChain(): ChainState {
 
 export function createState(opts: CreateOptions): EngineState {
   const state = baseState(opts);
-  if (state.mode === 'tour') startTour(state);
+  if (state.mode === 'tour') startTour(state, opts.heat ?? 0);
   return state;
 }
 

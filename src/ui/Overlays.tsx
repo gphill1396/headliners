@@ -5,6 +5,7 @@ import { CardTile } from './CardTile';
 import { formatNumber } from './format';
 import type { Bests, GameMode, Settings } from './storage';
 import type { DailyResult } from '../meta/daily';
+import { HEAT_RULES } from '../content/heat';
 
 /** A headliner's animated portrait (only those drawn at the new art bar so far). Plays its frames at a steady 120 bpm. */
 function Portrait({ headliner }: { headliner: HeadlinerId }) {
@@ -73,6 +74,9 @@ export function TitleOverlay({
   team,
   onTeam,
   daily,
+  heat,
+  maxHeat,
+  onHeat,
   ...settings
 }: SettingsProps & {
   bests: Bests;
@@ -93,6 +97,10 @@ export function TitleOverlay({
   /** Tour: the team of 3 being picked, in order (the first leads). */
   team: HeadlinerId[];
   onTeam: (id: HeadlinerId) => void;
+  /** Tour: the Heat chosen, and the highest unlocked (0 until a Tour is won). */
+  heat: number;
+  maxHeat: number;
+  onHeat: (heat: number) => void;
   /** Daily Setlist: today's band and how today went. */
   daily: { team: HeadlinerId[]; played: boolean; result: DailyResult | null; streak: number; onShare: (() => void) | null; note: string | null };
 }) {
@@ -151,6 +159,7 @@ export function TitleOverlay({
         {mode === 'tour' && (
           <p className="muted">
             Tour: take a band of 3 across the realm. Pick three below; the first leads. 3 acts of shows, markets and inns, with a boss at the end of each.
+            {maxHeat === 0 ? ' Win a Tour to unlock Heat.' : ''}
             {(bests.tours ?? 0) > 0 ? ` Tours won: ${bests.toursWon ?? 0} of ${bests.tours}.` : ''}
           </p>
         )}
@@ -185,6 +194,20 @@ export function TitleOverlay({
                 </button>
               );
             })}
+          </div>
+        )}
+        {(choosing || canResume) && touring && maxHeat > 0 && (
+          <div className="heat-picker" role="group" aria-label="Heat">
+            <button className="hl-chip" aria-label="Less heat" disabled={heat <= 0} onClick={() => onHeat(heat - 1)}>
+              ◀
+            </button>
+            <span className="heat-now">
+              <b>Heat {heat}</b>
+              <span className="muted">{heat === 0 ? 'No extra rules.' : `+ ${HEAT_RULES[heat - 1]}`}</span>
+            </span>
+            <button className="hl-chip" aria-label="More heat" disabled={heat >= maxHeat} onClick={() => onHeat(heat + 1)}>
+              ▶
+            </button>
           </div>
         )}
         {(choosing || canResume) && mode === 'encore' && decks.length > 0 && (

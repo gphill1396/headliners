@@ -4,6 +4,10 @@ import {
   BOSS_BRUTE_EVERY_BEATS,
   BOSS_EVERY_WAVES,
   CLEAN_SET_CROWD,
+  HEAT_BOSS_HP,
+  HEAT_ELITE_HP,
+  HEAT_HP,
+  HEAT_SPEED_PCT,
   EVOLVE_AFTER_WAVE,
   LANES,
   PICK_EVERY_WAVES,
@@ -113,7 +117,8 @@ export function bossCalls(state: EngineState, ctx?: TickCtx): void {
     kind === 'hush' && boss.phase === 3 ? 'brute' : kind === 'critic' && boss.phase === 3 ? 'medic' : kind === 'dead-air' && boss.phase >= 2 ? 'ghost' : null;
   if (!call) return;
   spawnGroup(state, call);
-  boss.nextBruteBeat = state.clock.beat + BOSS_BRUTE_EVERY_BEATS;
+  // Heat 10: help comes twice as often.
+  boss.nextBruteBeat = state.clock.beat + ((state.tour?.heat ?? 0) >= 10 ? BOSS_BRUTE_EVERY_BEATS / 2 : BOSS_BRUTE_EVERY_BEATS);
 }
 
 /**
@@ -201,10 +206,13 @@ export function startWave(state: EngineState, ctx: TickCtx, index: number, opts:
   // Daily Setlist: every wave gets its own stream from the date, so everyone meets the same waves however they play.
   if (state.daily) state.waveRng = createRng(`${state.seed}:wave:${index}`);
   let hpMult = state.wave.hpMult;
-  if (state.mode === 'tour') hpMult = hpMultFor(index) * (opts.elite ? TOUR_ELITE_HP : 1);
+  const heat = state.tour?.heat ?? 0;
+  // Heat 2: tougher monsters. Heat 3: tougher Tournaments.
+  if (state.mode === 'tour') hpMult = hpMultFor(index) * (opts.elite ? TOUR_ELITE_HP : 1) * (heat >= 2 ? HEAT_HP : 1) * (opts.elite && heat >= 3 ? HEAT_ELITE_HP : 1);
   else for (let i = Math.max(1, state.wave.index); i < index; i++) hpMult *= WAVE_HP_GROWTH;
   const kinds = waveKinds(state, index);
-  if (opts.elite) {
+  // Tournaments bring one more kind of monster (two at Heat 3).
+  for (let n = opts.elite ? (heat >= 3 ? 2 : 1) : 0; n > 0; n--) {
     const extra = ALL_KINDS.filter((k) => DEBUT_WAVE[k] <= index + 1 && !kinds.includes(k));
     if (extra.length > 0) kinds.push(extra[nextInt(waveRng(state), 0, extra.length)]!);
   }
@@ -239,6 +247,11 @@ function spawnBoss(state: EngineState, kind: EnemyKind): void {
   spawnGroup(state, kind, 1);
   const boss = state.enemies[state.enemies.length - 1]!;
   boss.depth = 0;
+  // Heat 6: tougher bosses.
+  if ((state.tour?.heat ?? 0) >= 6) {
+    boss.hp *= HEAT_BOSS_HP;
+    boss.maxHp *= HEAT_BOSS_HP;
+  }
   state.boss = { enemyId: boss.id, kind, phase: 1, nextBruteBeat: 0 };
 }
 
@@ -256,7 +269,10 @@ export function spawnGroup(state: EngineState, kind: EnemyKind, lane = nextInt(w
   const hp = def.hp * state.wave.hpMult;
   // Walk to the stage in `travelBeats` beats at the current tempo. The first waves walk slower.
   const beats = travelBeats ?? (state.wave.index <= 2 ? def.travelBeats + 4 : def.travelBeats);
-  const speed = Math.max(1, Math.floor((STAGE_LINE * state.clock.bpm) / (beats * BEAT_UNITS)));
+  const heat = state.tour?.heat ?? 0;
+  // Heat 7: faster monsters.
+  const base = Math.floor((STAGE_LINE * state.clock.bpm) / (beats * BEAT_UNITS));
+  const speed = Math.max(1, heat >= 7 ? Math.floor((base * HEAT_SPEED_PCT) / 100) : base);
   for (let i = 0; i < (count ?? def.packSize + hordeGrowth(kind, state.wave.index)); i++) {
     state.enemies.push({
       id: state.nextId++,
@@ -267,7 +283,8 @@ export function spawnGroup(state: EngineState, kind: EnemyKind, lane = nextInt(w
       hp,
       maxHp: hp,
       armor: def.armor,
-      crowdDamage: def.crowdDamage,
+      // Heat 8: every leak costs 1 more crowd.
+      crowdDamage: def.crowdDamage + (heat >= 8 ? 1 : 0),
       leaked: false,
       // Shields get a little sturdier as the show goes on.
       ...(def.shieldHits ? { shieldLeft: def.shieldHits + Math.floor(state.wave.index / 2) } : {}),

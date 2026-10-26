@@ -9,6 +9,8 @@ import {
   TOUR_MERCH,
   TOUR_PRICES,
   TOUR_REST_HEAL,
+  HEAT_REST_HEAL,
+  HEAT_START_CROWD,
   TOUR_ROWS,
   TOUR_SHOP_HEAL,
   TOUR_SHOP_HEAL_PRICE,
@@ -16,6 +18,7 @@ import {
   WAVE_BEATS,
 } from './constants';
 import type { TickCtx } from './context';
+import { MAX_HEAT } from '../content/heat';
 import { teamOf, unevolved } from './evolution';
 import { gainCrowd } from './effects';
 import { addCardToDeck, refillHand } from './deck';
@@ -34,9 +37,17 @@ import { TOUR_EVENTS, type TourEffect } from '../content/events';
 
 // ---------------------------------------------------------------- setup
 
-export function startTour(state: EngineState): void {
-  const tour: TourState = { act: 1, nodes: [], at: null, merch: 0, fight: null, shop: null, event: null, after: [], cleared: 0 };
+/** The Heat in force on this run (0 outside Tour). */
+export function heatOf(state: EngineState): number {
+  return state.tour?.heat ?? 0;
+}
+
+export function startTour(state: EngineState, heat = 0): void {
+  const h = Math.max(0, Math.min(MAX_HEAT, Math.floor(heat)));
+  const tour: TourState = { act: 1, nodes: [], at: null, merch: 0, fight: null, shop: null, event: null, after: [], cleared: 0, ...(h > 0 ? { heat: h } : {}) };
   state.tour = tour;
+  // Heat 1: a smaller crowd to start with.
+  if (h >= 1) state.crowd = Math.min(state.crowd, HEAT_START_CROWD);
   tour.nodes = generateMap(state, 1);
   clearStage(state);
   state.phase = 'map';
@@ -253,7 +264,8 @@ export function offerTourPick(state: EngineState, ctx: TickCtx, kind: 'fight' | 
     const def = getCard(id);
     return def.headliner ? 3 : def.rarity === 'common' ? 2 : 1;
   };
-  const options = weightedSample(state, pool, weight, PICK_OPTIONS);
+  // Heat 9: two cards to choose from instead of three.
+  const options = weightedSample(state, pool, weight, heatOf(state) >= 9 ? PICK_OPTIONS - 1 : PICK_OPTIONS);
   if ((kind === 'elite' || kind === 'boss') && !options.some((id) => getCard(id).rarity === 'rare')) {
     const rares = pool.filter((id) => getCard(id).rarity === 'rare' && !options.includes(id));
     if (rares.length > 0) options[nextInt(state.rng, 0, options.length)] = rares[nextInt(state.rng, 0, rares.length)]!;
@@ -306,7 +318,8 @@ export function afterTourChoice(state: EngineState, ctx: TickCtx): void {
 export function rest(state: EngineState, ctx: TickCtx, choice: 'heal' | 'cut', iid?: number): void {
   if (state.phase !== 'rest') return;
   if (choice === 'heal') {
-    gainCrowd(state, ctx, TOUR_REST_HEAL, 'tour');
+    // Heat 5: inns win back less.
+    gainCrowd(state, ctx, heatOf(state) >= 5 ? HEAT_REST_HEAL : TOUR_REST_HEAL, 'tour');
   } else if (!removeCard(state, iid)) return;
   state.phase = 'map';
 }
@@ -328,7 +341,9 @@ function openShop(state: EngineState): void {
   const pool = pickPool(teamOf(state));
   const cards = weightedSample(state, pool, (id) => (getCard(id).headliner ? 2 : 1), 4).map((cardId) => {
     const def = getCard(cardId);
-    return { cardId, price: TOUR_PRICES[def.rarity] + (def.headliner ? 5 : 0), sold: false };
+    // Heat 4: Market cards cost 25% more.
+    const base = TOUR_PRICES[def.rarity] + (def.headliner ? 5 : 0);
+    return { cardId, price: heatOf(state) >= 4 ? Math.round((base * 5) / 4) : base, sold: false };
   });
   state.tour!.shop = { cards, removed: false, healed: false };
   state.phase = 'shop';

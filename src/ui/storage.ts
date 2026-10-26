@@ -148,6 +148,18 @@ export function saveTeam(team: HeadlinerId[]): void {
   write(TEAM_KEY, JSON.stringify(team));
 }
 
+const HEAT_KEY = 'headliners.heat.v1';
+
+/** The Heat picked last time for Tours. */
+export function loadHeat(): number {
+  const n = Number(read<number>(HEAT_KEY));
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+export function saveHeat(heat: number): void {
+  write(HEAT_KEY, JSON.stringify(heat));
+}
+
 export type GameMode = 'encore' | 'tour' | 'daily';
 const MODE_KEY = 'headliners.mode.v1';
 

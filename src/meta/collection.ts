@@ -1,3 +1,4 @@
+import { MAX_HEAT } from '../content/heat';
 import { CARDS, getCard, HEADLINERS, type CardDef, type EngineState, type HeadlinerId, type Keyword } from '../engine';
 import { STARTER_DECKS } from '../content/cards';
 import { cardText } from '../content/text';
@@ -26,6 +27,8 @@ export interface HeadlinerProgress {
   xp: number;
   /** Permanent evolution (index into the headliner's two), once chosen. */
   evolution: 0 | 1 | null;
+  /** Highest Heat (S3.2) this headliner has won a Tour at; missing = never won one. */
+  heat?: number;
 }
 
 export interface CardHistory {
@@ -69,12 +72,27 @@ export function normalizeCollection(raw: Partial<Collection> | null | undefined)
   const headliners = { ...base.headliners };
   for (const id of Object.keys(headliners) as HeadlinerId[]) {
     const h = raw.headliners?.[id];
-    if (h) headliners[id] = { xp: Math.max(0, Number(h.xp) || 0), evolution: h.evolution === 0 || h.evolution === 1 ? h.evolution : null };
+    if (h) {
+      const heat = Number(h.heat);
+      headliners[id] = {
+        xp: Math.max(0, Number(h.xp) || 0),
+        evolution: h.evolution === 0 || h.evolution === 1 ? h.evolution : null,
+        ...(Number.isFinite(heat) && heat >= 0 ? { heat: Math.min(MAX_HEAT, Math.floor(heat)) } : {}),
+      };
+    }
   }
   const known = new Set(CARDS.map((c) => c.id));
   const unlocked = [...new Set([...base.unlocked, ...(raw.unlocked ?? []).filter((id) => known.has(id))])].sort();
   const decks = (raw.decks ?? []).filter((d) => d && typeof d.name === 'string' && d.headliner in HEADLINERS && Array.isArray(d.cards)).slice(0, MAX_DECKS);
   return { version: COLLECTION_VERSION, headliners, unlocked, history: { ...(raw.history ?? {}) }, decks };
+}
+
+// ---------------------------------------------------------------- Heat (S3.2)
+
+/** The highest Heat you can pick: one above the highest Tour you've won (0 until you win one). */
+export function unlockedHeat(collection: Collection): number {
+  const best = Math.max(-1, ...Object.values(collection.headliners).map((h) => h.heat ?? -1));
+  return Math.min(MAX_HEAT, best + 1);
 }
 
 // ---------------------------------------------------------------- levels
@@ -132,8 +150,11 @@ export function recordRunInCollection(collection: Collection, state: EngineState
   const levelUps: RunRecord['levelUps'] = [];
   let levelBefore = 0;
   let levelAfter = 0;
+  // Heat: winning a Tour marks that Heat as cleared for every member of the band.
+  const wonHeat = state.mode === 'tour' && state.phase === 'won' ? (state.tour?.heat ?? 0) : null;
   members.forEach((id, i) => {
     const h = next.headliners[id];
+    if (wonHeat !== null) h.heat = Math.max(h.heat ?? -1, wonHeat);
     const before = levelFor(h.xp);
     h.xp += xp;
     const after = levelFor(h.xp);

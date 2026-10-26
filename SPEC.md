@@ -666,8 +666,11 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 *As built:* **Daily** is a third mode on the title screen. It plays Encore's endless waves with the day's band of 3 (all 10 teams of 3 in turn, the lead rotating each cycle), the team starter deck and no Collection deck or evolution, so it's the same for everyone. Each wave and each card pick draws from its own stream seeded by the date (`daily-YYYY-MM-DD:wave:N`), so the waves don't depend on how you play (tested). The band evolves once after wave 5 (you choose who). Starting the day's run uses the scored attempt (leaving it unfinished still uses it); later runs show "Practice" and aren't kept. Daily runs don't touch Encore bests but do give Collection XP to the band. The share text (share sheet on phones, else copied): date, band, wave, chain, score, a 10-square 🟩🟨🟥 timing row, relaxed timing on/off and a day streak. Logic in `src/meta/daily.ts`.
 
 **S3.2 Heat tiers**
-- [ ] Heat 1–10 unlock in order after clearing Tour. Each adds one rule modifier.
-- [ ] The highest Heat cleared is tracked per headliner.
+- [x] Heat 1–10 unlock in order after clearing Tour. Each adds one rule modifier.
+- [x] The highest Heat cleared is tracked per headliner.
+
+*As built:* Heat applies to Tour only (rules in `src/content/heat.ts`, effects in `engine/tour.ts` and `engine/waves.ts`), cumulative: 1 start with 25 crowd · 2 monsters +10% health · 3 Tournaments tougher (+15% health, one more monster kind) · 4 Market cards +25% · 5 Inns heal 6 instead of 10 · 6 bosses +20% health · 7 monsters 10% faster · 8 each leak costs 1 more crowd · 9 picks offer 2 cards · 10 bosses call help twice as often. Winning a Tour marks its Heat cleared for every member of the band (Collection, shown in the Band tab); the title screen's Heat stepper goes up to one above the highest Heat won by anyone. Answer to open question "How do Heat modifiers interact with the daily seed?": they don't; the Daily Setlist has no Heat.
+- Sim, teams of 3 (10 runs per team): Heat 0 72%, Heat 3 63%, Heat 6 65%, Heat 10 47%; random play 0% at every Heat. The middle tiers barely move the bots, and Heat 10 may be too easy for a top tier; tune after playtesting (`npm run sim -- --mode tour --heat N`).
 
 ### Phase 4 — Load-In + polish
 
@@ -738,4 +741,4 @@ The goal: a paid app on the App Store and Google Play, one price, the whole game
 - **Speaker placement** (Grant's idea) — first version built in Phase 1b as the Side Fill gate. Open: more speaker cards (fan a shot across two lanes, a speaker on a unit slot), and whether speakers should be their own card type.
 - Should the field get a lane-swap mechanic (moving units sideways) in Phase 2?
 - Should the Daily Setlist have a light leaderboard (paste-based, no backend)?
-- How do Heat modifiers interact with the daily seed?
+- ~~How do Heat modifiers interact with the daily seed?~~ They don't: Daily has no Heat (S3.2).

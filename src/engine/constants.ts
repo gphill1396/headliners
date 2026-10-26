@@ -167,3 +167,15 @@ export const SINGALONG_LINKS = 15;
 export const SINGALONG_CROWD = 1;
 /** A wave (or Tour fight wave) with nothing getting through wins back this much. */
 export const CLEAN_SET_CROWD = 1;
+
+// ---- Heat (S3.2) ----
+/** Heat 1: the crowd a Tour starts with. */
+export const HEAT_START_CROWD = 25;
+/** Heat 2: monster health. Heat 3: Tournaments on top. Heat 6: bosses. */
+export const HEAT_HP = 1.1;
+export const HEAT_ELITE_HP = 1.15;
+export const HEAT_BOSS_HP = 1.2;
+/** Heat 5: what an Inn wins back. */
+export const HEAT_REST_HEAL = 6;
+/** Heat 7: monsters walk this much faster (percent). */
+export const HEAT_SPEED_PCT = 110;

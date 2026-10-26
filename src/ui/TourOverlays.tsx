@@ -54,6 +54,11 @@ function TourStatus({ state }: { state: EngineState }) {
       <span>
         Coin <b>{tour.merch}</b>
       </span>
+      {(tour.heat ?? 0) > 0 && (
+        <span>
+          Heat <b>{tour.heat}</b>
+        </span>
+      )}
       <span>
         Deck <b>{deckCards(state).length + state.units.filter((u) => !u.token).length + state.gates.length + state.amps.length}</b>
       </span>

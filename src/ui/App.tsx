@@ -27,7 +27,7 @@ import { formatNumber } from './format';
 import { EvolveOverlay, GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay } from './Overlays';
 import { EventOverlay, MapOverlay, RestOverlay, ShopOverlay, TourEndOverlay } from './TourOverlays';
 import { CollectionOverlay } from './CollectionOverlay';
-import { deckProblems, EVOLVE_LEVEL, levelFor, recordRunInCollection, type Collection } from '../meta/collection';
+import { deckProblems, EVOLVE_LEVEL, levelFor, recordRunInCollection, unlockedHeat, type Collection } from '../meta/collection';
 import { dailyDate, dailySeed, dailyTeam, resultFrom, shareText, streak, type DailyHistory } from '../meta/daily';
 import { GameRunner, type CountIn } from './runner';
 import { mixFrom, playRiff, scheduleGroove, type MusicStyle } from '../audio/groove';
@@ -43,6 +43,8 @@ import {
   loadDeckChoice,
   loadHeadliner,
   loadTeam,
+  loadHeat,
+  saveHeat,
   loadDaily,
   saveDaily,
   loadMode,
@@ -166,7 +168,7 @@ function sampleHud(s: EngineState): Hud {
   };
 }
 
-function newRun(settings: Settings, headliner: HeadlinerId, mode: GameMode = 'encore', collection?: Collection, deckId?: string | null, team?: HeadlinerId[]): EngineState {
+function newRun(settings: Settings, headliner: HeadlinerId, mode: GameMode = 'encore', collection?: Collection, deckId?: string | null, team?: HeadlinerId[], heat = 0): EngineState {
   // The UI picks the seed; the engine never reads the clock itself.
   const seed = `run-${new Date().toISOString()}`;
   // The Daily Setlist: the day's seed and band, the same for everyone. The first run of the day is the scored one.
@@ -178,7 +180,7 @@ function newRun(settings: Settings, headliner: HeadlinerId, mode: GameMode = 'en
     return createState({ seed: dailySeed(date), relaxedTiming: settings.relaxedTiming, team: dailyTeam(date), daily: { date, scored } });
   }
   // Tour takes a team of 3 (S2.4); the first one picked leads.
-  if (mode === 'tour' && team && team.length === 3) return createState({ seed, relaxedTiming: settings.relaxedTiming, mode, team });
+  if (mode === 'tour' && team && team.length === 3) return createState({ seed, relaxedTiming: settings.relaxedTiming, mode, team, heat });
   if (mode === 'tour' || !collection) return createState({ seed, relaxedTiming: settings.relaxedTiming, headliner, mode });
   // Encore can use a saved Workshop deck and the headliner's permanent evolution from the Collection.
   const deck = collection.decks.find((d) => d.id === deckId && d.headliner === headliner);
@@ -268,6 +270,7 @@ export function App() {
   const [tutorialDone, setTutorialDone] = useState(loadTutorialDone);
   const [headliner, setHeadliner] = useState<HeadlinerId>(loadHeadliner);
   const [team, setTeam] = useState<HeadlinerId[]>(loadTeam);
+  const [heat, setHeat] = useState<number>(loadHeat);
   const [dailyHistory, setDailyHistory] = useState<DailyHistory>(loadDaily);
   const [shareNote, setShareNote] = useState<string | null>(null);
   /** Share a Daily result: the phone's share sheet if there is one, otherwise copy it. */
@@ -969,7 +972,7 @@ export function App() {
     clearRun();
     savedRun.current = null;
     setCanResume(false);
-    runner.load(newRun(settings, headliner, mode, collection, deckChoice[headliner] ?? null, team));
+    runner.load(newRun(settings, headliner, mode, collection, deckChoice[headliner] ?? null, team, Math.min(heat, unlockedHeat(collection))));
     fxRef.current = createFx();
     overlayRef.current?.replaceChildren();
     setSelected(null);
@@ -1344,6 +1347,12 @@ export function App() {
             saveHeadliner(id);
           }}
           team={team}
+          heat={Math.min(heat, unlockedHeat(collection))}
+          maxHeat={unlockedHeat(collection)}
+          onHeat={(h) => {
+            setHeat(h);
+            saveHeat(h);
+          }}
           daily={{
             team: dailyTeam(today),
             played: todayEntry?.started === true,

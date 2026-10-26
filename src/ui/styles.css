@@ -1831,3 +1831,23 @@ button:disabled {
 .lead-chip:disabled:not(.on) {
   opacity: 0.3;
 }
+
+/* Tour Heat: a stepper with the newest rule under it. */
+.heat-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.heat-picker .hl-chip {
+  flex: 0 0 44px;
+}
+
+.heat-now {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.3;
+}

@@ -1,4 +1,5 @@
 import { fromSnapshot, HEADLINERS, toSnapshot, type EngineState, type HeadlinerId } from '../engine';
+import type { DailyHistory } from '../meta/daily';
 import { normalizeCollection, type Collection } from '../meta/collection';
 
 /**
@@ -63,6 +64,8 @@ export function loadBests(): Bests {
 /** Record a finished run; returns the updated bests and which records it broke. */
 export function recordRun(state: EngineState): { bests: Bests; newBest: { wave: boolean; score: boolean; chain: boolean } } {
   const old = loadBests();
+  // Daily Setlist runs keep their own history (loadDaily); Encore bests are for your own runs.
+  if (state.daily) return { bests: old, newBest: { wave: false, score: false, chain: false } };
   if (state.mode === 'tour') {
     // Tours keep their own record; wave and score bests are Encore's.
     const bests: Bests = { ...old, tours: (old.tours ?? 0) + 1, toursWon: (old.toursWon ?? 0) + (state.phase === 'won' ? 1 : 0) };
@@ -145,16 +148,31 @@ export function saveTeam(team: HeadlinerId[]): void {
   write(TEAM_KEY, JSON.stringify(team));
 }
 
-export type GameMode = 'encore' | 'tour';
+export type GameMode = 'encore' | 'tour' | 'daily';
 const MODE_KEY = 'headliners.mode.v1';
 
 /** The mode picked last time on the title screen. */
 export function loadMode(): GameMode {
-  return read<string>(MODE_KEY) === 'tour' ? 'tour' : 'encore';
+  const m = read<string>(MODE_KEY);
+  return m === 'tour' || m === 'daily' ? m : 'encore';
 }
 
 export function saveMode(mode: GameMode): void {
   write(MODE_KEY, JSON.stringify(mode));
+}
+
+// ---------------------------------------------------------------- Daily Setlist (SPEC S3.1)
+
+const DAILY_KEY = 'headliners.daily.v1';
+
+/** Every day played on this device: whether the scored attempt was used, and its result. */
+export function loadDaily(): DailyHistory {
+  const raw = read<DailyHistory>(DAILY_KEY);
+  return raw && typeof raw === 'object' ? raw : {};
+}
+
+export function saveDaily(history: DailyHistory): void {
+  write(DAILY_KEY, JSON.stringify(history));
 }
 
 // ---------------------------------------------------------------- Collection (SPEC S2.2)

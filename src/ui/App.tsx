@@ -28,6 +28,7 @@ import { EvolveOverlay, GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay
 import { EventOverlay, MapOverlay, RestOverlay, ShopOverlay, TourEndOverlay } from './TourOverlays';
 import { CollectionOverlay } from './CollectionOverlay';
 import { deckProblems, EVOLVE_LEVEL, levelFor, recordRunInCollection, type Collection } from '../meta/collection';
+import { dailyDate, dailySeed, dailyTeam, resultFrom, shareText, streak, type DailyHistory } from '../meta/daily';
 import { GameRunner, type CountIn } from './runner';
 import { mixFrom, playRiff, scheduleGroove, type MusicStyle } from '../audio/groove';
 import { Conductor } from '../audio/conductor';
@@ -42,6 +43,8 @@ import {
   loadDeckChoice,
   loadHeadliner,
   loadTeam,
+  loadDaily,
+  saveDaily,
   loadMode,
   loadRun,
   loadSettings,
@@ -147,7 +150,11 @@ function sampleHud(s: EngineState): Hud {
     bossPhase: s.boss?.phase ?? 0,
     team: s.headliner.team ? [...s.headliner.team] : null,
     hushed: s.boss?.phase === 2 && bossKind(s) === 'hush',
-    tourLabel: s.tour ? `Act ${s.tour.act}${s.tour.fight ? ` · ${FIGHT_LABEL[s.tour.fight.kind]}` : ''}` : null,
+    tourLabel: s.tour
+      ? `Act ${s.tour.act}${s.tour.fight ? ` · ${FIGHT_LABEL[s.tour.fight.kind]}` : ''}`
+      : s.daily && s.wave.index > 0
+        ? `${s.daily.scored ? 'Daily' : 'Practice'} · Wave ${s.wave.index}`
+        : null,
     menuKey: s.tour ? `${s.phase}:${s.tour.at}:${s.tour.act}:${s.pick.join(',')}:${s.tour.merch}:${s.tour.shop?.cards.filter((c) => c.sold).length ?? 0}` : s.phase,
     fillIn: Math.max(0, s.headliner.readyBeat - s.clock.beat),
     filling,
@@ -162,6 +169,14 @@ function sampleHud(s: EngineState): Hud {
 function newRun(settings: Settings, headliner: HeadlinerId, mode: GameMode = 'encore', collection?: Collection, deckId?: string | null, team?: HeadlinerId[]): EngineState {
   // The UI picks the seed; the engine never reads the clock itself.
   const seed = `run-${new Date().toISOString()}`;
+  // The Daily Setlist: the day's seed and band, the same for everyone. The first run of the day is the scored one.
+  if (mode === 'daily') {
+    const date = dailyDate(new Date());
+    const history = loadDaily();
+    const scored = !history[date]?.started;
+    if (scored) saveDaily({ ...history, [date]: { started: true } });
+    return createState({ seed: dailySeed(date), relaxedTiming: settings.relaxedTiming, team: dailyTeam(date), daily: { date, scored } });
+  }
   // Tour takes a team of 3 (S2.4); the first one picked leads.
   if (mode === 'tour' && team && team.length === 3) return createState({ seed, relaxedTiming: settings.relaxedTiming, mode, team });
   if (mode === 'tour' || !collection) return createState({ seed, relaxedTiming: settings.relaxedTiming, headliner, mode });
@@ -253,6 +268,28 @@ export function App() {
   const [tutorialDone, setTutorialDone] = useState(loadTutorialDone);
   const [headliner, setHeadliner] = useState<HeadlinerId>(loadHeadliner);
   const [team, setTeam] = useState<HeadlinerId[]>(loadTeam);
+  const [dailyHistory, setDailyHistory] = useState<DailyHistory>(loadDaily);
+  const [shareNote, setShareNote] = useState<string | null>(null);
+  /** Share a Daily result: the phone's share sheet if there is one, otherwise copy it. */
+  const shareDaily = useCallback(async (text: string) => {
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareNote('Copied. Paste it anywhere.');
+    } catch {
+      setShareNote("Couldn't copy here.");
+    }
+  }, []);
+  const today = dailyDate(new Date());
+  const todayEntry = dailyHistory[today];
+  const todayShare = todayEntry?.result ? shareText(todayEntry.result, streak(dailyHistory, today)) : null;
   const [inspect, setInspect] = useState<Inspect | null>(null);
   const [mode, setMode] = useState<GameMode>(loadMode);
   const [collection, setCollection] = useState<Collection>(loadCollection);
@@ -408,6 +445,13 @@ export function App() {
     // The band fades out over two bars, leaving the metronome: the beat never stops.
     handToConductor('fade', s);
     const result = recordRun(s);
+    // Daily Setlist: the day's scored attempt keeps its result (practice runs don't).
+    if (s.daily?.scored) {
+      const history = loadDaily();
+      const next = { ...history, [s.daily.date]: { started: true, result: resultFrom(s, s.daily.date) } };
+      saveDaily(next);
+      setDailyHistory(next);
+    }
     // The Collection: XP, unlocks and card history (SPEC S2.2).
     if (s.mode !== 'tutorial') {
       const rec = recordRunInCollection(loadCollection(), s);
@@ -1300,6 +1344,14 @@ export function App() {
             saveHeadliner(id);
           }}
           team={team}
+          daily={{
+            team: dailyTeam(today),
+            played: todayEntry?.started === true,
+            result: todayEntry?.result ?? null,
+            streak: streak(dailyHistory, today),
+            onShare: todayShare ? () => void shareDaily(todayShare) : null,
+            note: shareNote,
+          }}
           onTeam={(id) => {
             // Tap to add (up to 3, in order: the first leads); tap again to drop.
             const next = team.includes(id) ? team.filter((t) => t !== id) : team.length < 3 ? [...team, id] : team;
@@ -1361,7 +1413,22 @@ export function App() {
       {view === 'playing' && hud.phase === 'evolving' && !pickSent && <EvolveOverlay state={runner.state} onEvolve={evolve} />}
       {view === 'over' && runner.state.mode === 'tour' && <TourEndOverlay state={runner.state} onAgain={startNew} progress={runProgress ?? undefined} />}
       {view === 'over' && runner.state.mode !== 'tour' && (
-        <GameOverOverlay state={runner.state} bests={bests} newBest={newBest} onAgain={startNew} progress={runProgress ?? undefined} />
+        <GameOverOverlay
+          state={runner.state}
+          bests={bests}
+          newBest={newBest}
+          onAgain={startNew}
+          progress={runProgress ?? undefined}
+          daily={
+            runner.state.daily
+              ? {
+                  practice: !runner.state.daily.scored,
+                  onShare: runner.state.daily.scored && todayShare ? () => void shareDaily(todayShare) : null,
+                  note: shareNote,
+                }
+              : undefined
+          }
+        />
       )}
       {collectionOpen && (
         <CollectionOverlay

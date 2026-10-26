@@ -18,9 +18,9 @@ import {
   TOUR_ELITE_HP,
 } from './constants';
 import type { TickCtx } from './context';
-import { teamOf } from './evolution';
+import { teamOf, unevolved } from './evolution';
 import { gainCrowd } from './effects';
-import { nextInt, shuffleInPlace } from './rng';
+import { createRng, nextInt, shuffleInPlace, type RngState } from './rng';
 import { emptyChain, type EngineState } from './state';
 import type { EnemyKind } from './types';
 import { pickPool } from '../content/cards';
@@ -72,12 +72,13 @@ export function onBeatWaves(state: EngineState, ctx: TickCtx): void {
     // A boss wave lasts until The Hush is beaten or reaches the stage.
     cleanSet(state, ctx);
     const preset = state.headliner.presetEvolution;
-    if (wave.index === EVOLVE_AFTER_WAVE && (state.headliner.evolution ?? null) === null && (preset === 0 || preset === 1)) {
+    const nobodyEvolved = unevolved(state).length === teamOf(state).length;
+    if (wave.index === EVOLVE_AFTER_WAVE && !state.headliner.team && (state.headliner.evolution ?? null) === null && (preset === 0 || preset === 1)) {
       // The Collection's permanent evolution: no need to ask.
       state.headliner.evolution = preset;
       ctx.events.push({ type: 'evolved', headliner: state.headliner.id, evolution: HEADLINERS[state.headliner.id].evolutions[preset].id });
       startWave(state, ctx, wave.index + 1);
-    } else if (wave.index === EVOLVE_AFTER_WAVE && (state.headliner.evolution ?? null) === null) {
+    } else if (wave.index === EVOLVE_AFTER_WAVE && nobodyEvolved) {
       state.phase = 'evolving';
       ctx.events.push({ type: 'evolveOffered' });
     } else if (wave.index % PICK_EVERY_WAVES === 0) offerPick(state, ctx);
@@ -166,7 +167,7 @@ export function waveKinds(state: EngineState, index: number): EnemyKind[] {
   const horde: EnemyKind[] = index >= 9 ? ['shambler', 'swarmling'] : ['shambler'];
   const specials = known.filter((k) => !horde.includes(k));
   const count = index <= 3 ? 0 : index <= 8 ? 1 : index < 13 ? 2 : 3;
-  const others = shuffleInPlace(state.rng, specials).slice(0, count);
+  const others = shuffleInPlace(waveRng(state), specials).slice(0, count);
   return [...horde, ...debut, ...others].sort((a, b) => DEBUT_WAVE[a] - DEBUT_WAVE[b]);
 }
 
@@ -191,14 +192,21 @@ export interface WaveOptions {
   elite?: boolean;
 }
 
+/** The stream waves draw from: the day's per-wave stream in the Daily Setlist, otherwise the run's. */
+export function waveRng(state: EngineState): RngState {
+  return state.waveRng ?? state.rng;
+}
+
 export function startWave(state: EngineState, ctx: TickCtx, index: number, opts: WaveOptions = {}): void {
+  // Daily Setlist: every wave gets its own stream from the date, so everyone meets the same waves however they play.
+  if (state.daily) state.waveRng = createRng(`${state.seed}:wave:${index}`);
   let hpMult = state.wave.hpMult;
   if (state.mode === 'tour') hpMult = hpMultFor(index) * (opts.elite ? TOUR_ELITE_HP : 1);
   else for (let i = Math.max(1, state.wave.index); i < index; i++) hpMult *= WAVE_HP_GROWTH;
   const kinds = waveKinds(state, index);
   if (opts.elite) {
     const extra = ALL_KINDS.filter((k) => DEBUT_WAVE[k] <= index + 1 && !kinds.includes(k));
-    if (extra.length > 0) kinds.push(extra[nextInt(state.rng, 0, extra.length)]!);
+    if (extra.length > 0) kinds.push(extra[nextInt(waveRng(state), 0, extra.length)]!);
   }
   const bossWave = opts.boss ?? (state.mode === 'encore' && index % BOSS_EVERY_WAVES === 0);
   // Waves 1–2 are a gentle start. A boss wave brings half the usual crowd with it.
@@ -206,8 +214,8 @@ export function startWave(state: EngineState, ctx: TickCtx, index: number, opts:
   const groups = bossWave ? Math.ceil(full / 2) : full;
   // Every kind appears at least once; the rest are random from the wave's kinds.
   const order: EnemyKind[] = [...kinds];
-  while (order.length < groups) order.push(kinds[nextInt(state.rng, 0, kinds.length)]!);
-  shuffleInPlace(state.rng, order);
+  while (order.length < groups) order.push(kinds[nextInt(waveRng(state), 0, kinds.length)]!);
+  shuffleInPlace(waveRng(state), order);
   const spawns = order.map((kind, i) => ({ beatOffset: Math.floor((i * WAVE_SPAWN_BEATS) / groups), kind }));
 
   // Each wave is a song: the chain from the last one is banked and a new one starts.
@@ -243,7 +251,7 @@ export function spawnDue(state: EngineState): void {
   }
 }
 
-export function spawnGroup(state: EngineState, kind: EnemyKind, lane = nextInt(state.rng, 0, LANES), travelBeats?: number, atDepth?: number, count?: number): void {
+export function spawnGroup(state: EngineState, kind: EnemyKind, lane = nextInt(waveRng(state), 0, LANES), travelBeats?: number, atDepth?: number, count?: number): void {
   const def = ENEMIES[kind];
   const hp = def.hp * state.wave.hpMult;
   // Walk to the stage in `travelBeats` beats at the current tempo. The first waves walk slower.
@@ -311,16 +319,18 @@ export function hordeGrowth(kind: EnemyKind, wave: number): number {
  * each enemy needs, and a run is never stuck without one).
  */
 function offerPick(state: EngineState, ctx: TickCtx): void {
-  const pool = shuffleInPlace(state.rng, pickPool(teamOf(state)));
+  // Daily Setlist: the same options for everyone at the same wave (an answer swapped in still depends on your deck).
+  const rng = state.daily ? createRng(`${state.seed}:pick:${state.wave.index}`) : state.rng;
+  const pool = shuffleInPlace(rng, pickPool(teamOf(state)));
   const owned = new Set([...state.hand, ...state.draw, ...state.discard, ...state.units.map((u) => u.card), ...state.gates.map((g) => g.card), ...state.amps.map((a) => a.card)].map((c) => c.cardId));
   const upcoming = ALL_KINDS.filter((k) => DEBUT_WAVE[k] > state.wave.index && DEBUT_WAVE[k] <= state.wave.index + PICK_EVERY_WAVES)
     .concat(ALL_KINDS.filter((k) => DEBUT_WAVE[k] <= state.wave.index));
   for (const kind of upcoming) {
     const answers = (ENEMIES[kind].answers ?? []).filter((id) => pool.includes(id));
     if (answers.length === 0 || answers.some((id) => owned.has(id))) continue;
-    const answer = answers[nextInt(state.rng, 0, answers.length)]!;
+    const answer = answers[nextInt(rng, 0, answers.length)]!;
     pool.splice(pool.indexOf(answer), 1);
-    pool.splice(nextInt(state.rng, 0, PICK_OPTIONS), 0, answer);
+    pool.splice(nextInt(rng, 0, PICK_OPTIONS), 0, answer);
     break;
   }
   state.pick = pool.slice(0, PICK_OPTIONS);

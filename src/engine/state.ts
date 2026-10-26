@@ -300,6 +300,10 @@ export interface EngineState {
   pick: string[];
   /** Tour runs only (SPEC S2.1). */
   tour?: TourState;
+  /** Daily Setlist (S3.1): whose day it is, and whether this is the day's one scored attempt. */
+  daily?: { date: string; scored: boolean };
+  /** Daily Setlist: the current wave's own random stream (seeded by date and wave), so waves don't depend on how you play. */
+  waveRng?: RngState;
   /** Enemy kinds met so far this run (for "New:" banners). */
   seenKinds?: EnemyKind[];
   /** Discard-cycle (SPEC §4.3): cards drawn by cycling can't be cycled again this bar. */
@@ -319,6 +323,8 @@ export interface CreateOptions {
   evolution?: 0 | 1 | null;
   /** Tour: a team of 3 (the first leads). Overrides `headliner` and the starter deck. */
   team?: readonly HeadlinerId[];
+  /** Daily Setlist: an Encore run on the day's seed. */
+  daily?: { date: string; scored: boolean };
 }
 
 export function emptyChain(): ChainState {
@@ -377,6 +383,7 @@ function baseState(opts: CreateOptions): EngineState {
       ...(opts.evolution === 0 || opts.evolution === 1 ? { presetEvolution: opts.evolution } : {}),
       ...(team ? { team, evolutions: {} } : {}),
     },
+    ...(opts.daily ? { daily: { ...opts.daily } } : {}),
     stats: {
       tight: 0,
       good: 0,

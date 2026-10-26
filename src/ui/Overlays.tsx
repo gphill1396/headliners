@@ -4,6 +4,7 @@ import { getCard, HEADLINERS, type EngineState, type HeadlinerId } from '../engi
 import { CardTile } from './CardTile';
 import { formatNumber } from './format';
 import type { Bests, GameMode, Settings } from './storage';
+import type { DailyResult } from '../meta/daily';
 
 /** A headliner's animated portrait (only those drawn at the new art bar so far). Plays its frames at a steady 120 bpm. */
 function Portrait({ headliner }: { headliner: HeadlinerId }) {
@@ -71,6 +72,7 @@ export function TitleOverlay({
   onCollection,
   team,
   onTeam,
+  daily,
   ...settings
 }: SettingsProps & {
   bests: Bests;
@@ -91,9 +93,13 @@ export function TitleOverlay({
   /** Tour: the team of 3 being picked, in order (the first leads). */
   team: HeadlinerId[];
   onTeam: (id: HeadlinerId) => void;
+  /** Daily Setlist: today's band and how today went. */
+  daily: { team: HeadlinerId[]; played: boolean; result: DailyResult | null; streak: number; onShare: (() => void) | null; note: string | null };
 }) {
   const h = HEADLINERS[headliner];
   const touring = mode === 'tour';
+  const isDaily = mode === 'daily';
+  const dailyNames = daily.team.map((id) => HEADLINERS[id].name).join(', ');
   const teamReady = team.length === 3;
   // A new run is played as the chosen headliner; a saved run keeps whoever it started with.
   const choosing = !canResume && tutorialDone;
@@ -106,6 +112,24 @@ export function TitleOverlay({
             ? 'Tap a card, then tap a lane on the beat. Units shoot up their lane, gates multiply the shots, and plays on back-to-back beats chain together.'
             : 'Your ren faire band fell through a portal into a land of monsters. Play to the beat, hold back the horde, keep your crowd. New here? The soundcheck teaches it in about two minutes.'}
         </p>
+        {isDaily ? (
+          <div className={`headliner hl-${daily.team[0]}`}>
+            <Portrait headliner={daily.team[0]!} />
+            <p className="headliner-name">Today's setlist</p>
+            <p>{dailyNames}</p>
+            <p className="muted">Same waves, deck and band for everyone today. Your first run counts; after that it's practice.</p>
+            {daily.result ? (
+              <p>
+                Today: wave {daily.result.wave}, {daily.result.chain}-link chain{daily.streak > 1 ? ` · ${daily.streak}-day streak` : ''}
+              </p>
+            ) : daily.played ? (
+              <p className="muted">Today's scored run is in progress or was left unfinished.</p>
+            ) : daily.streak > 0 ? (
+              <p className="muted">{daily.streak}-day streak. Keep it going.</p>
+            ) : null}
+            {daily.note && <p className="muted">{daily.note}</p>}
+          </div>
+        ) : (
         <div className={`headliner hl-${headliner}`}>
           <Portrait headliner={headliner} />
           <p className="headliner-name">
@@ -118,6 +142,7 @@ export function TitleOverlay({
           </p>
           <p className="muted">Sound: {h.sound}</p>
         </div>
+        )}
         {mode === 'encore' && bests.runs > 0 && (
           <p className="muted">
             Best: wave {bests.wave}, {formatNumber(bests.score)} score, {bests.chain}-link chain
@@ -134,14 +159,14 @@ export function TitleOverlay({
         <SettingsList {...settings} />
         {(choosing || canResume) && (
           <div className="hl-picker mode-picker" role="radiogroup" aria-label="Mode for a new run">
-            {(['encore', 'tour'] as const).map((m) => (
+            {(['encore', 'tour', 'daily'] as const).map((m) => (
               <button key={m} role="radio" aria-checked={m === mode} className={`hl-chip${m === mode ? ' on mode-on' : ''}`} onClick={() => onMode(m)}>
-                {m === 'encore' ? 'Encore' : 'Tour'}
+                {m === 'encore' ? 'Encore' : m === 'tour' ? 'Tour' : 'Daily'}
               </button>
             ))}
           </div>
         )}
-        {(choosing || canResume) && (
+        {(choosing || canResume) && !isDaily && (
           <div className="hl-picker" role={touring ? 'group' : 'radiogroup'} aria-label={touring ? 'Your band of 3 for the Tour' : 'Headliner for a new run'}>
             {(Object.keys(HEADLINERS) as HeadlinerId[]).map((id) => {
               const slot = team.indexOf(id);
@@ -177,13 +202,20 @@ export function TitleOverlay({
               Resume run
             </button>
             <button className="secondary-btn" disabled={touring && !teamReady} onClick={onNew}>
-              {touring ? (teamReady ? 'New tour' : `Pick 3 for a new tour (${team.length}/3)`) : `New run as ${h.name}`}
+              {isDaily ? (daily.played ? "Practice today's setlist" : "Play today's setlist") : touring ? (teamReady ? 'New tour' : `Pick 3 for a new tour (${team.length}/3)`) : `New run as ${h.name}`}
             </button>
           </>
         ) : tutorialDone ? (
-          <button className="primary-btn" disabled={touring && !teamReady} onClick={onNew}>
-            {touring ? (teamReady ? 'Start the tour' : `Pick 3 to tour (${team.length}/3)`) : `Start as ${h.name}`}
-          </button>
+          <>
+            {isDaily && daily.onShare && (
+              <button className="secondary-btn" onClick={daily.onShare}>
+                Share today's result
+              </button>
+            )}
+            <button className="primary-btn" disabled={touring && !teamReady} onClick={onNew}>
+              {isDaily ? (daily.played ? "Practice today's setlist" : "Play today's setlist") : touring ? (teamReady ? 'Start the tour' : `Pick 3 to tour (${team.length}/3)`) : `Start as ${h.name}`}
+            </button>
+          </>
         ) : (
           <>
             <button className="primary-btn" onClick={onTutorial}>
@@ -347,6 +379,7 @@ export function GameOverOverlay({
   newBest,
   onAgain,
   progress,
+  daily,
 }: {
   state: EngineState;
   bests: Bests;
@@ -354,6 +387,8 @@ export function GameOverOverlay({
   onAgain: () => void;
   /** XP, level-ups and unlocks from this run. */
   progress?: string;
+  /** Daily Setlist: practice or scored, and sharing the day's result. */
+  daily?: { practice: boolean; onShare: (() => void) | null; note: string | null };
 }) {
   const breakdown = Object.entries(state.stats.damageBySource)
     .filter(([, dmg]) => dmg >= 1)
@@ -364,7 +399,8 @@ export function GameOverOverlay({
   return (
     <div className="overlay over" role="dialog" aria-modal="true" aria-label="Run over">
       <div className="overlay-top">
-        <h2 className="title small">The crowd went home</h2>
+        <h2 className="title small">{daily ? (daily.practice ? 'Practice over' : "Today's setlist is done") : 'The crowd went home'}</h2>
+        {daily?.practice && <p className="muted">Practice runs aren't scored. Today's scored run was your first.</p>}
         {progress && <p className="run-progress">{progress}</p>}
         <dl className="run-stats">
           <div>
@@ -408,13 +444,21 @@ export function GameOverOverlay({
             ))}
           </ol>
         )}
-        <p className="muted">
-          {bests.runs} {bests.runs === 1 ? 'run' : 'runs'} played. Best wave {bests.wave}.
-        </p>
+        {!daily && (
+          <p className="muted">
+            {bests.runs} {bests.runs === 1 ? 'run' : 'runs'} played. Best wave {bests.wave}.
+          </p>
+        )}
+        {daily?.note && <p className="muted">{daily.note}</p>}
       </div>
       <div className="overlay-controls">
-        <button className="primary-btn" onClick={onAgain}>
-          Play again
+        {daily?.onShare && (
+          <button className="primary-btn" onClick={daily.onShare}>
+            Share result
+          </button>
+        )}
+        <button className={daily?.onShare ? 'secondary-btn' : 'primary-btn'} onClick={onAgain}>
+          {daily ? 'Practice again' : 'Play again'}
         </button>
       </div>
     </div>

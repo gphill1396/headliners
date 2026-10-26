@@ -659,9 +659,11 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 
 **S3.1 Daily Setlist**
 *As a player, I want one shared daily challenge, Wordle-style.*
-- [ ] The seed comes from the date (UTC). Everyone gets the same waves, deck and headliners.
-- [ ] One scored attempt per day. Practice runs afterward are marked as unscored.
-- [ ] A share button copies an emoji summary: wave reached, best chain, a timing grade row, and whether relaxed timing was on.
+- [x] The seed comes from the date (UTC). Everyone gets the same waves, deck and headliners.
+- [x] One scored attempt per day. Practice runs afterward are marked as unscored.
+- [x] A share button copies an emoji summary: wave reached, best chain, a timing grade row, and whether relaxed timing was on.
+
+*As built:* **Daily** is a third mode on the title screen. It plays Encore's endless waves with the day's band of 3 (all 10 teams of 3 in turn, the lead rotating each cycle), the team starter deck and no Collection deck or evolution, so it's the same for everyone. Each wave and each card pick draws from its own stream seeded by the date (`daily-YYYY-MM-DD:wave:N`), so the waves don't depend on how you play (tested). The band evolves once after wave 5 (you choose who). Starting the day's run uses the scored attempt (leaving it unfinished still uses it); later runs show "Practice" and aren't kept. Daily runs don't touch Encore bests but do give Collection XP to the band. The share text (share sheet on phones, else copied): date, band, wave, chain, score, a 10-square 🟩🟨🟥 timing row, relaxed timing on/off and a day streak. Logic in `src/meta/daily.ts`.
 
 **S3.2 Heat tiers**
 - [ ] Heat 1–10 unlock in order after clearing Tour. Each adds one rule modifier.
@@ -670,16 +672,63 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 ### Phase 4 — Load-In + polish
 
 **S4.1 Load-In puzzles**
-- [ ] A sliding-block puzzle where you clear gear cases so the van can be loaded. Includes a daily puzzle and a pack of 30 hand-checked levels.
+- [ ] A sliding-block puzzle where you clear gear chests so the wagon can be loaded. Includes a daily puzzle and a pack of 30 hand-checked levels.
 - [ ] Every level is verified as solvable by a solver script, which also reports the minimum number of moves.
 - [ ] Includes undo, restart, and a move counter with par.
+
+**S4.2 Art pass (the Metroid Fusion bar)**
+*As Grant, I want the whole game to look like Thrum's portrait, so it feels finished.*
+- [ ] Every headliner, unit, monster and boss has shaded, palette-indexed pixel art with at least 2 animation frames, drawn to the bar Thrum's portrait set (approved Oct 26).
+- [ ] The playfield is redrawn at a higher internal resolution (toward the GBA's 240 px wide) so that detail reads, and still fits a phone in portrait with input in the bottom ~38%.
+- [ ] Each sprite reads at a glance: a clear silhouette, a dark outline, and lit from the top left.
+- [ ] Calmer flashes and the light on-screen text rule still hold.
+
+---
+
+### Phase 5 — Release (buy once, the full game)
+
+The goal: a paid app on the App Store and Google Play, one price, the whole game, with no ads, in-app purchases, accounts or tracking. The web version on GitHub Pages can stay as Grant's own build. This phase starts only after Phases 3–4. *(This replaces "Purchases of any kind" in §11 for a single upfront price only. Ads and in-app purchases stay out.)*
+
+**S5.1 Native apps**
+*As a player, I want to install Headliners from the App Store or Google Play and play offline.*
+- [ ] The same web build is wrapped as iOS and Android apps (e.g. Capacitor), one codebase. Engine rules (§2) unchanged.
+- [ ] Fully playable offline, and with sound off; audio starts on first tap; the phone's silent switch and other audio are respected.
+- [ ] Haptics use the native API where available.
+- [ ] Runs at 60 fps on a 4-year-old mid-range phone, with input-to-sound latency calibrated per device (the existing timing offset).
+
+**S5.2 Saves that follow you**
+*As a player, I want my Collection and a run in progress to survive a new phone.*
+- [ ] Saves sync through the platform (iCloud key-value store on iOS, Android backup) without an account of ours.
+- [ ] The existing export/import backup file still works on every platform.
+- [ ] A save from the web version can be imported into the app.
+
+**S5.3 Store listing**
+*As Grant, I want a listing that shows the game honestly.*
+- [ ] Screenshots and a short gameplay video for both stores, captured from real play.
+- [ ] Age rating questionnaires completed; privacy labels declare no data collected.
+- [ ] A privacy policy page (hosted with the web build) stating that nothing is collected.
+- [ ] Name check: "Headliners" (or a final title) cleared against existing game trademarks before any spending on the listing.
+
+**S5.4 Business setup**
+*As Grant, I want the money side set up properly.*
+- [ ] Sold under Patternman Productions LLC (developer accounts in the LLC's name).
+- [ ] Apple Small Business Program and Google's reduced fee enrolled (15% on the first $1M a year).
+- [ ] Price decided from comparable premium games, with no in-app purchases; any future content is a free update or a separate app.
+- [ ] Trademark, LLC and tax questions reviewed with a professional before launch.
+
+**S5.5 Release quality**
+*As a player paying upfront, I want it to feel finished.*
+- [ ] Phases 3–4 done (Daily Setlist, Heat, Load-In, art pass).
+- [ ] A playtest round with people outside the project (Cass counts), with their notes addressed.
+- [ ] Simulator thresholds D1–D8 pass on the release build; Tour win rates per team reported in the release notes.
+- [ ] No crashes across a device test matrix (current iOS and Android, small and large phones).
 
 ---
 
 ## 11. Out of scope (for now)
 
 - Accounts, online leaderboards, multiplayer.
-- Purchases or ads of any kind.
+- Ads and in-app purchases of any kind. (A single upfront price is planned for Phase 5.)
 - Licensed music, art or characters.
 
 ---

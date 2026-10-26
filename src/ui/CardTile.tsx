@@ -7,7 +7,8 @@ import { PALETTE } from '../render/palette';
 export function cardAccent(def: CardDef): string {
   switch (def.type) {
     case 'unit':
-      return PALETTE.cream;
+      // Oak: units are the band themselves (cream vanished on the vellum card face).
+      return '#7a5130';
     case 'gate':
       return GATE_COLORS[def.gate!.kind];
     case 'riff':

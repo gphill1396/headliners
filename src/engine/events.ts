@@ -40,6 +40,8 @@ export type EngineEvent =
   | { type: 'drew'; count: number }
   /** A card was discard-cycled for a fresh one. */
   | { type: 'cycled'; iid: number; cardId: string }
+  /** Shift: two lanes swapped their units. */
+  | { type: 'shifted'; from: number; to: number; unitIds: number[] }
   /** `debut`: enemy kinds appearing for the first time this run. */
   | { type: 'waveStart'; index: number; kinds: EnemyKind[]; debut?: EnemyKind[]; boss?: boolean; bossKind?: EnemyKind }
   /** The Hush moved to a new phase. */
@@ -70,4 +72,4 @@ export type EngineEvent =
   | { type: 'fill'; untilBeat: number; headliner: HeadlinerId; grade?: Grade }
   | { type: 'gameOver'; wave: number; score: number };
 
-export type RejectReason = 'not-in-hand' | 'energy' | 'lane' | 'not-playing' | 'cooldown' | 'cycled' | 'busy';
+export type RejectReason = 'not-in-hand' | 'energy' | 'lane' | 'not-playing' | 'cooldown' | 'cycled' | 'busy' | 'shifted';

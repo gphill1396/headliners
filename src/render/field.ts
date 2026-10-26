@@ -255,7 +255,14 @@ export function drawField(
     const old = spriteSize(sprite);
     const sw = art ? art.frames[0]![0]!.length : old.w * OLD_SCALE;
     const sh = art ? art.frames[0]!.length : old.h * OLD_SCALE;
-    const cx = u.lane * LANE_PX + ((u.slot + 0.5) * LANE_PX) / 3;
+    let cx = u.lane * LANE_PX + ((u.slot + 0.5) * LANE_PX) / 3;
+    // Shift: walk across from the old lane over the first beat, stepping quickly.
+    const walking = u.movedUntilBeat !== undefined && u.movedFrom !== undefined && state.clock.beat < u.movedUntilBeat;
+    if (walking) {
+      const t = Math.min(1, Math.max(0, state.clock.beat + beatPhase - (u.movedAt ?? state.clock.beat)));
+      const ease = t * t * (3 - 2 * t);
+      cx = (u.movedFrom! + (u.lane - u.movedFrom!) * ease) * LANE_PX + ((u.slot + 0.5) * LANE_PX) / 3;
+    }
     const x = Math.round(cx - sw / 2);
     const y = stageY - sh + 5;
     if (filling && beatPhase < 0.5) {
@@ -263,7 +270,7 @@ export function drawField(
       ctx.fillRect(x - 1, y - 1, sw + 2, sh + 2);
     }
     // The band plays on the beat: the playing pose for the first part of each beat.
-    if (art) drawAnim(ctx, art, beatPhase < 0.3 ? 1 : 0, x, y, 1);
+    if (art) drawAnim(ctx, art, walking ? Math.floor(beatPhase * 4) % 2 : beatPhase < 0.3 ? 1 : 0, x, walking ? y - (Math.floor(beatPhase * 4) % 2) : y, 1);
     else drawSprite(ctx, sprite, x, y, OLD_SCALE);
   }
 

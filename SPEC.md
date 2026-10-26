@@ -102,6 +102,7 @@ tests/
 
 - **All input is in the bottom ~38%**, where the iOS keyboard sits. Nothing above the field divider needs a tap during play. Tapping the field only opens an info view.
 - **Two-thumb flow:** select a card with one thumb, tap a lane with the other. Dragging a card onto a lane also works.
+- **Shift (S4.3):** with no card selected, slide from one lane button to another to swap the two lanes' units.
 - **Long-press a card** to open full card text and keyword definitions.
 - Respect the phone's safe areas, including the home indicator.
 - Minimum touch target: 44 × 44 pt.
@@ -114,7 +115,7 @@ tests/
 
 - There are 3 lanes. Enemies spawn at the top and march down.
 - Each lane has **2 gate slots** (mid-lane) and **3 unit slots** (bottom).
-- Units auto-fire straight up their lane.
+- Units auto-fire straight up their lane. A **Shift** swaps two lanes' units (2 energy, once per bar; gates stay put).
 - **Gates:** when a projectile passes through a gate, the gate changes it.
   - Examples: ×2 copies, +3 damage, gains Pierce.
   - This is the horde-ad loop, but you choose and place the gates.
@@ -677,7 +678,7 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 - [x] Heat 1–10 unlock in order after clearing Tour. Each adds one rule modifier.
 - [x] The highest Heat cleared is tracked per headliner.
 
-*As built:* Heat applies to Tour only (rules in `src/content/heat.ts`, effects in `engine/tour.ts` and `engine/waves.ts`), cumulative: 1 start with 25 crowd · 2 monsters +15% health · 3 Tournaments tougher (+30% health, one more monster kind) · 4 Market cards +25% · 5 Inns heal 5 instead of 10 · 6 bosses +35% health · 7 monsters 15% faster · 8 each leak costs 1 more crowd · 9 picks offer 2 cards · 10 every show is as tough as a Tournament. *(Retuned in the Tour balance pass below; Heat 10 was "bosses call help twice as often".)* Winning a Tour marks its Heat cleared for every member of the band (Collection, shown in the Band tab); the title screen's Heat stepper goes up to one above the highest Heat won by anyone. Answer to open question "How do Heat modifiers interact with the daily seed?": they don't; the Daily Setlist has no Heat.
+*As built:* Heat applies to Tour only (rules in `src/content/heat.ts`, effects in `engine/tour.ts` and `engine/waves.ts`), cumulative: 1 start with 25 crowd · 2 monsters +15% health · 3 Tournaments tougher (+40% health, was +30% before Shift, one more monster kind) · 4 Market cards +25% · 5 Inns heal 5 instead of 10 · 6 bosses +35% health · 7 monsters 15% faster · 8 each leak costs 1 more crowd · 9 picks offer 2 cards · 10 every show is as tough as a Tournament. *(Retuned in the Tour balance pass below; Heat 10 was "bosses call help twice as often".)* Winning a Tour marks its Heat cleared for every member of the band (Collection, shown in the Band tab); the title screen's Heat stepper goes up to one above the highest Heat won by anyone. Answer to open question "How do Heat modifiers interact with the daily seed?": they don't; the Daily Setlist has no Heat.
 - Sim, teams of 3 (10 runs per team): Heat 0 72%, Heat 3 63%, Heat 6 65%, Heat 10 47%; random play 0% at every Heat. The middle tiers barely move the bots, and Heat 10 may be too easy for a top tier; tune after playtesting (`npm run sim -- --mode tour --heat N`).
 
 **Tour balance pass (Oct 26, after Phase 4):** Tour targets T1–T3 added to §9, then tuned until they pass. Before: solo Tours Thrum 90%, Aria 71%, Clatter 55%, Lyra 51%, Riot 38% (T1 2.4×); teams Heat 0 79%, Heat 5 62%, Heat 10 46%.
@@ -702,6 +703,35 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 - [x] Calmer flashes and the light on-screen text rule still hold.
 
 *Progress:* the pipeline is in `art/` (shapes → shading → outline → hand touches, regenerated with `python3 art/build.py`). **Batch 1 (done):** the playfield is now 240 px wide (the GBA's width), and all 12 monsters, the shieldless Hobgoblin, the small Slime and the three bosses are redrawn with two frames each (a step every beat; Harpies flap, Wisps flicker, Spiderlings scurry). **Batch 2 (done):** all 19 units (the 18 unit cards and the Squire token) as front-facing performers in their headliner's colours, playing on the first part of each beat; and portraits for Lyra (a cobra-hooded naga with a lute), Clatter (a goggled kobold cranking a hurdy-gurdy), Aria (a siren mid-song) and Riot (a mohawked drake on the bagpipes), shown on the title screen like Thrum's. Not redrawn (still simple shapes, by design): gates, shots, bursts and the stage. Open: Grant's verdict on batch 2.
+
+**S4.3 Shift: move units between lanes**
+*As a player, I want to move my band to the lane under pressure, so a bad placement isn't stuck for the rest of the wave.*
+- [x] With no card selected, slide a thumb from one lane button to another to **Shift**: the two lanes swap their units (an empty lane just receives them). Gates stay where they are.
+- [x] A Shift costs 2 energy and can be done once per bar. Moved units skip one beat of firing while they walk over.
+- [x] It doesn't link or break the chain, and it isn't graded.
+- [x] All input stays in the bottom ~38% (the lane buttons); it works with sound off; the field shows the move.
+- [x] Skilled sim bots use it, and D1–D8 and T1–T3 still pass.
+
+*As built:* input `{ type: 'shift', from, to }` (`engine/step.ts`), rejected with `shifted` if one was already done this bar. Moved units keep their slots, skip firing for the rest of that beat and the next (`movedUntilBeat`), and are drawn walking across (`movedFrom`, `movedAt`). On the phone: press a lane button with no card selected, slide to another and let go; letting go on the same lane shows the usual hint, which now mentions Shift. Skilled bots Shift when the most threatened lane has a monster past the halfway mark and a lane with no threat has more than twice its firepower (tokens not counted); random play never Shifts. `SIM_NO_SHIFT=1` turns it off for comparison.
+*Balance:* at 1 energy, Shift lifted solo Tours for Thrum (83% → 95%) and Lyra (66% → 83%) and T1 failed (1.95×). Two changes: Shift costs 2 energy, and the bots were taught not to Shift for passing Squires (Clatter had dropped to 49%). Then Heat 5 sat at 61%, so Heat 3's Tournaments went from +30% to +40% health. Results: solo Tours Thrum 88%, Aria 73%, Lyra 71%, Riot 68%, Clatter 63% (T1 1.40×); teams Heat 0 79%, Heat 5 58%, Heat 10 30% (T2 passes, on the line at Heat 10); random 0%. Encore at 200 runs: D1–D8 all pass (D1 3.00×, Clatter and Aria; D3 1.17×; D4 tavern-chorus 36.0%; D6 5.9%). Not in the soundcheck yet: the lane hint teaches it.
+
+**S4.4 Leaving and starting runs on purpose**
+*As a player, I want to step out to the home screen without losing my run, and never end a run by accident.*
+- [x] Pause offers Resume and Home. Home goes to the title screen with the run saved, ready to resume.
+- [x] Pause no longer offers "Start a new run". New runs start from the title screen.
+- [x] When a saved run would be lost, starting a new one needs a press and hold (about a second, with a fill showing progress).
+- [x] The end-of-run screen ignores taps for its first moment, like the card pick, so a tap meant for a lane can't start the next run; it offers Home as well as Play again.
+
+*As built:* `HoldButton` (`ui/Overlays.tsx`, 1 second, keyboard Enter/Space still confirms at once) on the title screen's new-run button whenever a run is saved. End screens (Encore, Daily and Tour) ignore taps for 1.2 seconds. Home from the soundcheck leaves it unfinished and goes back to any saved run.
+
+**S4.5 Themed UI**
+*As a player, I want the menus and HUD to feel like the ren faire band's world, not a generic app.*
+- [x] Menus look like parchment and wood (banners, framed panels, wax-seal buttons) in the game's palette, with no new on-screen text.
+- [x] The HUD and control zone use the same materials; cards look like playing cards from the faire.
+- [x] Headings use a display face in keeping with the theme; body text stays plain and legible at phone size.
+- [x] Works offline with no external font or image requests; "Calmer flashes" and contrast still hold.
+
+*As built:* a theme layer at the end of `src/ui/styles.css` with material tokens (oak, iron, vellum, ink, crimson, gilt). Menus are full vellum pages framed in oak, with ink text and a crimson initial on the title; primary buttons are crimson canvas edged in gilt, secondary ones oak boards. The HUD is an oak crossbeam, the control zone is stage floorboards, lane buttons are riveted oak plaques, cards in hand are vellum playing cards with a wax-seal cost, beat lights are iron lanterns, and a crimson valance hangs over the field. The Tour map is drawn in ink on the page. Fonts: Jacquard 24 (pixel blackletter) for titles and banners only, Pixelify Sans for everything else, both subset and self-hosted from `src/ui/fonts/` (SIL OFL), so the Google Fonts request is gone. No copy was added. Unit cards' ribbon is oak now (cream vanished on vellum).
 
 ---
 
@@ -756,6 +786,6 @@ The goal: a paid app on the App Store and Google Play, one price, the whole game
 ## 12. Open questions
 
 - **Speaker placement** (Grant's idea) — first version built in Phase 1b as the Side Fill gate. Open: more speaker cards (fan a shot across two lanes, a speaker on a unit slot), and whether speakers should be their own card type.
-- Should the field get a lane-swap mechanic (moving units sideways) in Phase 2?
+- ~~Should the field get a lane-swap mechanic (moving units sideways)?~~ Yes: Shift (S4.3).
 - Should the Daily Setlist have a light leaderboard (paste-based, no backend)?
 - ~~How do Heat modifiers interact with the daily seed?~~ They don't: Daily has no Heat (S3.2).

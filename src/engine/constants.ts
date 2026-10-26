@@ -101,6 +101,10 @@ export const PICK_EVERY_WAVES = 3;
 export const VOLUME_MAX = 20;
 /** Discard-cycle a card in hand: costs this much energy (SPEC §4.3). */
 export const CYCLE_COST = 1;
+/** Shift (S4.3): swap two lanes' units. Costs this much energy, once per bar (2, not 1: at 1 it made Thrum and Lyra Tours too easy). */
+export const SHIFT_COST = 2;
+/** Shifted units skip firing for this many beats while they walk over. */
+export const SHIFT_PAUSE_BEATS = 1;
 
 // ---------------------------------------------------------------- Aria and Riot (Phase 2c)
 /** Aria's passive: riffs slow the enemies in their lane to this % speed for this many beats. */
@@ -175,7 +179,7 @@ export const CLEAN_SET_CROWD = 1;
 export const HEAT_START_CROWD = 25;
 /** Heat 2: monster health. Heat 3: Tournaments on top. Heat 6: bosses. */
 export const HEAT_HP = 1.15;
-export const HEAT_ELITE_HP = 1.3;
+export const HEAT_ELITE_HP = 1.4;
 export const HEAT_BOSS_HP = 1.35;
 /** Heat 5: what an Inn wins back. */
 export const HEAT_REST_HEAL = 5;

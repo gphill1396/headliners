@@ -208,19 +208,21 @@ def tuning_fork(f):
 def kobold_body(cv, outfit, s=0, helm=None):
     P = body(cv, outfit, skin='kobold', s=s, small=True)
     P.insert(0, Part('tail', 'kobold', cv.curve([(12, 18), (16, 21), (18, 18)], 1.1, 0.6), group='tail'))
-    P.append(Part('snout', 'kobold', cv.ellipse(10, 10.5 - 0.5 * s, 1.8, 1.3), group='head'))
+    # A pale muzzle pushed forward from the face: nostrils on top, no mouth line (a dark line under it read as a second mouth).
+    P.append(Part('snout', 'muzzle', cv.ellipse(10, 10.6 - 0.5 * s, 2.1, 1.4), group='head'))
     P.append(Part('hornL', 'horn', cv.capsule(8, 7 - 0.5 * s, 6.5, 4.5, 0.6), group='horns'))
     P.append(Part('hornR', 'horn', cv.capsule(12, 7 - 0.5 * s, 13.5, 4.5, 0.6), group='horns'))
     return P
 
 
-KOBOLD_R = {'kobold': SKIN['kobold'], 'hose': ramp('#3a2a20', '#5e4430'), 'horn': ramp('#a89878', '#f0e6cc')}
+KOBOLD_R = {'kobold': SKIN['kobold'], 'muzzle': ramp('#c8a850', '#f0dc8a', '#fff4c4'), 'hose': ramp('#3a2a20', '#5e4430'), 'horn': ramp('#a89878', '#f0e6cc')}
 
 
 def kobold_face(c, s=0):
     y = int(8 - 0.5 * s)
     put_on(c, [(8, y), (11, y)], '#1a1222')
-    put_on(c, [(9, y + 3), (10, y + 3)], '#6a5216')
+    # Nostrils as two tiny dots at the muzzle's top corners, far apart so they can't read as a mouth.
+    put_on(c, [(8, y + 2), (11, y + 2)], '#a8883a')
 
 
 def quartermaster(f):

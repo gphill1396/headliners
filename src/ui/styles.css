@@ -1,4 +1,35 @@
+/* Self-hosted fonts (SIL OFL, licences in src/ui/fonts): no network needed, works offline. */
+@font-face {
+  font-family: 'Pixelify Sans';
+  src: url('./fonts/pixelify-sans.woff') format('woff');
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+/* Jacquard 24: a pixel blackletter, for titles and banners only (never body text). */
+@font-face {
+  font-family: 'Jacquard 24';
+  src: url('./fonts/jacquard-24.woff') format('woff');
+  font-display: swap;
+}
+
 :root {
+  /* Materials of the band's world (S4.5): oak, iron, vellum, crimson canvas, gilt. */
+  --oak-dk: #2e1c10;
+  --oak: #4f321c;
+  --oak-lt: #7a5130;
+  --iron: #1c1418;
+  --vellum: #e8d3a2;
+  --vellum-lt: #f5e8c8;
+  --vellum-dk: #c4a46c;
+  --ink: #2b1a10;
+  --ink-soft: #4e3826;
+  --ink-faint: #75603f;
+  --crimson: #8c2420;
+  --crimson-lt: #b33c2c;
+  --gilt: #e0b04a;
+  --gilt-dk: #8a5e14;
+  --display: 'Jacquard 24', 'Pixelify Sans', serif;
   --night: #211934;
   --panel: #1a1429;
   --floor: #2f2547;
@@ -1976,4 +2007,721 @@ button:disabled {
   left: 110% !important;
   opacity: 0;
   transition: left 400ms ease-in, opacity 400ms ease-in 200ms;
+}
+
+/* ======================================================================
+   Theme (S4.5): the band's world. Everything a thumb touches is the band's
+   own kit: oak stage boards, iron bands, painted canvas, vellum songbooks.
+   The field stays night; menus are pages of the band's songbook.
+   ====================================================================== */
+
+/* Oak: plank seams every 26px, with a faint grain. */
+.hud,
+.controls {
+  background:
+    repeating-linear-gradient(180deg, transparent 0 24px, rgba(0, 0, 0, 0.35) 24px 26px),
+    repeating-linear-gradient(90deg, rgba(255, 220, 160, 0.035) 0 1px, transparent 1px 7px, rgba(0, 0, 0, 0.06) 7px 9px, transparent 9px 17px),
+    var(--oak);
+}
+
+/* The HUD is the crossbeam over the stage. */
+.hud {
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 220, 160, 0.04) 0 1px, transparent 1px 9px, rgba(0, 0, 0, 0.08) 9px 11px, transparent 11px 23px),
+    var(--oak-dk);
+  border-bottom: var(--px) solid var(--iron);
+  box-shadow: inset 0 calc(var(--px) * -2) 0 var(--oak);
+}
+
+.hud-wave {
+  color: var(--vellum);
+}
+
+.hud-label {
+  color: var(--vellum-dk);
+}
+
+.hud-score {
+  color: var(--gilt);
+}
+
+.crowd-bar {
+  background: var(--iron);
+  box-shadow: 0 0 0 2px var(--oak-lt);
+}
+
+.crowd-bar > span {
+  background: var(--crimson-lt);
+}
+
+/* The field: a crimson valance hangs over the top of the stage. */
+.field::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 10px;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 0, var(--crimson) 0 7px, var(--iron) 7px 9px, transparent 9px) 0 0 / 18px 10px repeat-x;
+}
+
+/* ---- Control zone: the stage floor ---- */
+.controls {
+  --lilac: var(--vellum);
+  --dim: #b79c74;
+  --raised: var(--oak-dk);
+  --line: var(--iron);
+  border-top: var(--px) solid var(--iron);
+  box-shadow: inset 0 var(--px) 0 var(--oak-lt);
+}
+
+/* Beat lights are lanterns: dark iron until the beat lights them. */
+.pad {
+  --on: var(--vellum-lt);
+  background: color-mix(in srgb, var(--on) calc(var(--lit) * 100%), var(--iron));
+  outline-color: color-mix(in srgb, var(--on) calc(var(--warm) * 70%), var(--oak-dk));
+}
+
+.pad-down {
+  --on: var(--gilt);
+}
+
+.pocket-segs span {
+  background: var(--iron);
+}
+
+.pip {
+  background: var(--iron);
+}
+
+.pip.on {
+  background: var(--gilt);
+}
+
+.chain strong,
+.energy-label b {
+  color: var(--gilt);
+}
+
+.icon-btn {
+  --frame: var(--iron);
+  background: var(--oak-lt);
+}
+
+.pause-glyph {
+  border-color: var(--vellum-lt);
+}
+
+/* Cards are the faire's playing cards: vellum faces, ink, a wax-seal cost. */
+.card {
+  --frame: var(--iron);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0 3px, transparent 3px),
+    var(--vellum);
+  color: var(--ink);
+  border-bottom-width: 6px;
+}
+
+.card.selected {
+  --frame: var(--gilt);
+  background: var(--vellum-lt);
+}
+
+.card-name {
+  color: var(--ink);
+}
+
+.card-type {
+  color: var(--ink-faint);
+}
+
+.card-short,
+.card-text {
+  color: var(--ink-soft);
+}
+
+.card-cost {
+  background: var(--crimson);
+  color: var(--vellum-lt);
+  box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.3), inset 2px 2px 0 rgba(255, 255, 255, 0.18);
+  clip-path: polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px);
+}
+
+.card.poor {
+  background: var(--vellum-dk);
+}
+
+.card.poor .card-cost {
+  background: #6e5a44;
+  color: var(--vellum-dk);
+}
+
+.card-sig {
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+/* Empty slot: a dark recess in the boards. */
+.card-slot {
+  --frame: var(--iron);
+  background:
+    repeating-linear-gradient(45deg, transparent 0 6px, rgba(0, 0, 0, 0.18) 6px 9px),
+    var(--oak-dk);
+}
+
+.info span {
+  color: var(--vellum);
+}
+
+.info[data-tone='good'] strong {
+  color: var(--lyra);
+}
+
+.swap-btn {
+  --frame: var(--iron);
+  background: var(--oak-lt);
+  color: var(--vellum-lt);
+}
+
+/* Lane buttons: oak plaques bound in iron. */
+.lane-btn {
+  --frame: var(--iron);
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 220, 160, 0.05) 0 1px, transparent 1px 8px, rgba(0, 0, 0, 0.08) 8px 10px, transparent 10px 19px),
+    var(--oak-lt);
+  border-bottom-color: var(--oak-dk);
+  color: var(--vellum-dk);
+}
+
+.lane-btn::before,
+.lane-btn::after {
+  /* Two iron rivets per plaque. */
+  content: '';
+  position: absolute;
+  top: 6px;
+  width: 4px;
+  height: 4px;
+  background: var(--iron);
+  box-shadow: 1px 1px 0 rgba(255, 220, 160, 0.25);
+}
+
+.lane-btn::before {
+  left: 7px;
+}
+
+.lane-btn::after {
+  right: 7px;
+}
+
+.lane-btn.armed {
+  --frame: var(--gilt-dk);
+  border-bottom-color: var(--gilt);
+  color: var(--vellum-lt);
+}
+
+.lane-btn.drop,
+.lane-btn.shift-to {
+  --frame: var(--gilt);
+  background: var(--oak);
+  color: var(--vellum-lt);
+}
+
+/* Shift (S4.3): the lane you slide from dims; the one you slide to lights up. */
+.lane-btn.shift-from {
+  --frame: var(--vellum-dk);
+  opacity: 0.75;
+}
+
+@keyframes lane-hit {
+  0% {
+    background: var(--gilt);
+    color: var(--ink);
+    transform: translateY(2px);
+  }
+  100% {
+    background: var(--oak-lt);
+  }
+}
+
+.queued-pip {
+  background: var(--gilt);
+  box-shadow: 0 0 0 2px var(--iron);
+}
+
+.lead-chip {
+  background: var(--oak-dk);
+}
+
+/* ---- Menus: pages of the band's songbook ---- */
+.overlay,
+.collection {
+  --lilac: var(--ink-soft);
+  --dim: var(--ink-faint);
+  --amber: #a5600f;
+  --raised: var(--vellum-lt);
+  --panel: var(--vellum-lt);
+  --line: var(--vellum-dk);
+  color: var(--ink);
+  background:
+    repeating-linear-gradient(0deg, rgba(110, 70, 20, 0.05) 0 1px, transparent 1px 4px),
+    radial-gradient(120% 90% at 50% 40%, var(--vellum) 55%, #cdae74 100%);
+  /* An oak frame around the page. */
+  box-shadow:
+    inset 0 0 0 6px var(--oak),
+    inset 0 0 0 8px var(--iron);
+}
+
+.overlay-top {
+  justify-self: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.title {
+  font-family: var(--display);
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+  text-shadow: 3px 3px 0 rgba(140, 36, 32, 0.35);
+}
+
+/* The big title gets a crimson initial, like an illuminated page. */
+h1.title::first-letter {
+  color: var(--crimson);
+}
+
+.title.small {
+  text-shadow: 2px 2px 0 rgba(140, 36, 32, 0.3);
+}
+
+.lede {
+  color: var(--ink-soft);
+}
+
+.headliner {
+  --hl-ink: var(--hl-dark);
+  border-left-color: var(--hl-dark);
+}
+
+.headliner-name {
+  color: var(--hl-dark);
+}
+
+.evolve-name {
+  color: var(--hl-dark);
+}
+
+/* Portraits sit on the page like a painted plate. */
+.portrait {
+  background: var(--night);
+  box-shadow:
+    0 0 0 3px var(--iron),
+    0 0 0 6px var(--gilt-dk);
+  margin: 0 2px 6px 12px;
+}
+
+/* Buttons: crimson banner canvas with gilt edging, or a plain oak board. */
+.primary-btn {
+  --frame: var(--gilt);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0 4px, transparent 4px calc(100% - 5px), rgba(0, 0, 0, 0.25) calc(100% - 5px)),
+    var(--crimson);
+  color: var(--vellum-lt);
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.primary-btn:disabled {
+  --frame: var(--vellum-dk);
+  background: #d9c08e;
+  color: var(--ink-faint);
+  text-shadow: none;
+}
+
+.secondary-btn {
+  --frame: var(--iron);
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 220, 160, 0.05) 0 1px, transparent 1px 8px, rgba(0, 0, 0, 0.08) 8px 10px, transparent 10px 21px),
+    var(--oak-lt);
+  color: var(--vellum-lt);
+}
+
+.secondary-btn:disabled {
+  opacity: 0.5;
+}
+
+.btn-pair {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 14px;
+}
+
+.btn-pair > button {
+  min-width: 0;
+}
+
+/* Press and hold (S4.4): the bar fills while you hold. */
+.hold-btn {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+}
+
+.hold-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  transform: scaleX(0);
+  background: var(--crimson);
+}
+
+.hold-btn.holding .hold-fill {
+  transform: scaleX(1);
+  transition: transform var(--hold-ms, 1000ms) linear;
+}
+
+.hold-label {
+  position: relative;
+}
+
+.hold-hint {
+  position: absolute;
+  right: 10px;
+  bottom: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--vellum-dk);
+}
+
+/* Picker chips: unpicked are pale vellum tabs; picked take the headliner's colour. */
+.hl-chip {
+  --frame: var(--vellum-dk);
+  background: var(--vellum-lt);
+  color: var(--ink-soft);
+}
+
+.hl-chip.on {
+  --frame: var(--iron);
+  color: var(--ink);
+}
+
+.mode-picker .hl-chip.mode-on,
+.deck-picker .hl-chip.mode-on {
+  --frame: var(--iron);
+  background: var(--crimson);
+  color: var(--vellum-lt);
+}
+
+.team-slot {
+  color: var(--vellum-lt);
+  background: var(--ink);
+}
+
+/* Toggles: an iron slider with a brass knob. */
+.toggle-track {
+  background: var(--vellum-lt);
+  box-shadow: inset 0 0 0 3px var(--ink-faint);
+}
+
+.toggle-track::after {
+  background: var(--ink-faint);
+}
+
+.toggle input:checked + .toggle-track {
+  background: #3f6e3a;
+  box-shadow: inset 0 0 0 3px var(--iron);
+}
+
+.toggle input:checked + .toggle-track::after {
+  background: var(--gilt);
+}
+
+.link-btn {
+  color: var(--ink-soft);
+}
+
+.best {
+  color: var(--vellum-lt);
+  background: var(--crimson);
+}
+
+.bd-bar {
+  background: var(--crimson-lt);
+}
+
+.timing-split [data-grade='tight'] {
+  color: #a5600f;
+}
+
+.timing-split [data-grade='good'] {
+  color: #1f6b64;
+}
+
+.run-progress {
+  color: var(--crimson);
+}
+
+.evolve-card {
+  --frame: var(--vellum-dk);
+  background: var(--vellum-lt);
+}
+
+.evolve-card.selected {
+  --frame: var(--hl-dark);
+  background: #fff6dc;
+}
+
+.overlay .card.large {
+  background: var(--vellum-lt);
+}
+
+.overlay .card.large.selected {
+  --frame: var(--crimson);
+  background: #fff6dc;
+}
+
+/* Tour: the map is drawn on the page in ink. */
+.tour-status b {
+  color: var(--ink);
+}
+
+.tour-links line {
+  stroke: var(--ink-faint);
+}
+
+.tour-links line.walked {
+  stroke: var(--crimson);
+}
+
+.stop {
+  color: var(--ink-faint);
+  background: var(--vellum-lt);
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--vellum-dk),
+    0 var(--px) 0 0 var(--vellum-dk),
+    calc(var(--px) * -1) 0 0 0 var(--vellum-dk),
+    var(--px) 0 0 0 var(--vellum-dk);
+}
+
+.stop.here {
+  color: var(--crimson);
+}
+
+.stop.open {
+  color: var(--ink);
+  background: #fff6dc;
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--crimson),
+    0 var(--px) 0 0 var(--crimson),
+    calc(var(--px) * -1) 0 0 0 var(--crimson),
+    var(--px) 0 0 0 var(--crimson);
+}
+
+@keyframes stop-pulse {
+  50% {
+    background: var(--vellum);
+  }
+}
+
+.stop-mark {
+  background: var(--vellum-dk);
+}
+
+.stop-fight { --mark: #b5521f; }
+.stop-elite { --mark: var(--crimson); }
+.stop-draft { --mark: #5a3a8a; }
+.stop-rest { --mark: #1f6b64; }
+.stop-shop { --mark: #a5600f; }
+.stop-event { --mark: #7a6a1f; }
+.stop-boss { --mark: var(--ink); }
+
+.price {
+  color: var(--crimson);
+}
+
+/* Collection, Workshop, Load-In: same page. */
+.tab {
+  color: var(--ink-faint);
+  background: transparent;
+  box-shadow: inset 0 -3px 0 var(--vellum-dk);
+}
+
+.tab.on {
+  color: var(--ink);
+  box-shadow: inset 0 -3px 0 var(--crimson);
+}
+
+.band-member,
+.deck-row {
+  border-left-color: var(--hl-dark, var(--ink-faint));
+}
+
+.deck-row,
+.card-detail,
+.step-btn {
+  background: var(--vellum-lt);
+}
+
+.deck-title {
+  color: var(--ink);
+  background: var(--vellum-lt);
+  border-bottom-color: var(--hl-dark, var(--crimson));
+}
+
+.card-row {
+  border-bottom-color: var(--vellum-dk);
+}
+
+.card-row.in .card-row-name {
+  color: var(--ink);
+}
+
+.card-row-cost {
+  color: var(--vellum-lt);
+  background: var(--crimson);
+}
+
+.group-title {
+  color: var(--crimson);
+}
+
+.xp-bar {
+  background: var(--vellum-dk);
+}
+
+.xp-bar span,
+.curve-bar {
+  background: var(--hl-dark, var(--crimson));
+}
+
+.deck-ok {
+  color: #1f6b64;
+}
+
+.deck-bad {
+  color: var(--crimson);
+}
+
+.loadin-level {
+  color: var(--ink);
+  background: var(--vellum-lt);
+  border-color: var(--vellum-dk);
+}
+
+.loadin-level.done {
+  color: var(--vellum-lt);
+  background: var(--oak-lt);
+  border-color: var(--oak-dk);
+}
+
+.loadin-level.par {
+  color: var(--ink);
+  background: var(--gilt);
+  border-color: var(--gilt-dk);
+}
+
+.loadin-win {
+  color: var(--crimson);
+}
+
+/* The Load-In yard: packed earth behind the faire. */
+.loadin-board {
+  background:
+    repeating-linear-gradient(0deg, transparent 0 calc(100% / 6 - 1px), rgba(0, 0, 0, 0.25) calc(100% / 6 - 1px) calc(100% / 6)),
+    repeating-linear-gradient(90deg, transparent 0 calc(100% / 6 - 1px), rgba(0, 0, 0, 0.25) calc(100% / 6 - 1px) calc(100% / 6)),
+    #6e5236;
+  border-color: var(--oak-dk);
+}
+
+/* ---- On the field: banners in blackletter, notes on scraps of vellum ---- */
+.banner strong {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 44px;
+  line-height: 1;
+  color: var(--vellum-lt);
+  text-shadow:
+    3px 3px 0 var(--crimson),
+    5px 5px 0 var(--iron);
+}
+
+.banner span {
+  color: var(--vellum);
+}
+
+.inspect,
+.coach-panel {
+  --lilac: var(--ink-soft);
+  --dim: var(--ink-faint);
+  --amber: #a5600f;
+  color: var(--ink);
+  background: var(--vellum);
+}
+
+.inspect {
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--iron),
+    0 var(--px) 0 0 var(--iron),
+    calc(var(--px) * -1) 0 0 0 var(--iron),
+    var(--px) 0 0 0 var(--iron),
+    6px 6px 0 rgba(0, 0, 0, 0.5);
+}
+
+.inspect strong,
+.coach-title {
+  color: var(--crimson);
+}
+
+.coach-panel {
+  border-bottom-color: var(--crimson);
+  box-shadow: 0 var(--px) 0 var(--iron);
+}
+
+.coach-count,
+.coach-panel .link-btn {
+  color: var(--ink-faint);
+}
+
+.coach-progress {
+  color: #1f6b64;
+}
+
+.coach-nudge {
+  color: var(--crimson);
+}
+
+.coach-btn {
+  --frame: var(--gilt);
+  background: var(--crimson);
+  color: var(--vellum-lt);
+}
+
+.drag-ghost {
+  color: var(--ink);
+  background: var(--vellum);
+  box-shadow:
+    0 calc(var(--px) * -1) 0 0 var(--gilt),
+    0 var(--px) 0 0 var(--gilt),
+    calc(var(--px) * -1) 0 0 0 var(--gilt),
+    var(--px) 0 0 0 var(--gilt);
+}
+
+.lane-btn:focus-visible,
+.primary-btn:focus-visible,
+.secondary-btn:focus-visible,
+.icon-btn:focus-visible,
+.fill-btn:focus-visible,
+.card:focus-visible,
+.hl-chip:focus-visible,
+.toggle input:focus-visible + .toggle-track {
+  outline-color: var(--crimson-lt);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hold-btn.holding .hold-fill {
+    transition-timing-function: steps(5, end);
+  }
 }

@@ -2,9 +2,9 @@
  *
  * - Page loads: network first, so a new deploy shows up as soon as you're online; cached copy when offline.
  * - Built assets (hashed file names): cache first, they never change.
- * - Google Fonts: serve cached, refresh in the background.
+ * - Fonts are self-hosted (public/fonts), so they're cached like any other asset.
  */
-const CACHE = 'headliners-v26';
+const CACHE = 'headliners-v27';
 const CORE = ['./', './manifest.webmanifest', './icons/icon-192.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
@@ -39,10 +39,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(cacheFirst(request));
     return;
   }
-
-  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
-    event.respondWith(staleWhileRevalidate(request));
-  }
 });
 
 async function networkFirst(request, fallbackKey) {
@@ -63,16 +59,4 @@ async function cacheFirst(request) {
   const response = await fetch(request);
   if (response.ok) cache.put(request, response.clone());
   return response;
-}
-
-async function staleWhileRevalidate(request) {
-  const cache = await caches.open(CACHE);
-  const cached = await cache.match(request);
-  const network = fetch(request)
-    .then((response) => {
-      if (response.ok || response.type === 'opaque') cache.put(request, response.clone());
-      return response;
-    })
-    .catch(() => cached);
-  return cached || network;
 }

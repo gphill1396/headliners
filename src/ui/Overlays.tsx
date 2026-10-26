@@ -30,6 +30,64 @@ function Portrait({ headliner }: { headliner: HeadlinerId }) {
   return <canvas ref={ref} className="portrait" width={rows[0]!.length} height={rows.length} aria-hidden="true" />;
 }
 
+/** How long a hold takes to confirm something that ends a saved run. */
+const HOLD_MS = 1000;
+
+/**
+ * A button that only fires after a press and hold (S4.4), for actions that would lose a run.
+ * Keyboard users confirm with Enter or Space as usual.
+ */
+export function HoldButton({ className, label, onConfirm, disabled }: { className: string; label: string; onConfirm: () => void; disabled?: boolean }) {
+  const [holding, setHolding] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  const cancel = () => {
+    window.clearTimeout(timer.current);
+    setHolding(false);
+  };
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  return (
+    <button
+      className={`${className} hold-btn${holding ? ' holding' : ''}`}
+      style={{ ['--hold-ms' as string]: `${HOLD_MS}ms` }}
+      disabled={disabled}
+      aria-label={`${label} (press and hold)`}
+      onPointerDown={(e) => {
+        e.preventDefault();
+        setHolding(true);
+        window.clearTimeout(timer.current);
+        timer.current = window.setTimeout(() => {
+          setHolding(false);
+          onConfirm();
+        }, HOLD_MS);
+      }}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      onContextMenu={(e) => e.preventDefault()}
+      onClick={(e) => {
+        // A real click from a keyboard (no pointer) confirms straight away.
+        if (e.detail === 0) onConfirm();
+      }}
+    >
+      <span className="hold-fill" aria-hidden="true" />
+      <span className="hold-label">{label}</span>
+      <span className="hold-hint" aria-hidden="true">
+        {holding ? 'keep holding' : 'hold'}
+      </span>
+    </button>
+  );
+}
+
+/** True once `ms` have passed since mount: menus that open mid-play ignore stray taps until then. */
+function useArmed(ms: number): boolean {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setArmed(true), ms);
+    return () => window.clearTimeout(id);
+  }, [ms]);
+  return armed;
+}
+
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
   return (
     <label className="toggle">
@@ -226,9 +284,17 @@ export function TitleOverlay({
             <button className="primary-btn" onClick={onResume}>
               Resume run
             </button>
-            <button className="secondary-btn" disabled={touring && !teamReady} onClick={onNew}>
-              {isDaily ? (daily.played ? "Practice today's setlist" : "Play today's setlist") : touring ? (teamReady ? 'New tour' : `Pick 3 for a new tour (${team.length}/3)`) : `New run as ${h.name}`}
-            </button>
+            {touring && !teamReady ? (
+              <button className="secondary-btn" disabled>
+                {`Pick 3 for a new tour (${team.length}/3)`}
+              </button>
+            ) : (
+              <HoldButton
+                className="secondary-btn"
+                onConfirm={onNew}
+                label={isDaily ? (daily.played ? "Practice today's setlist" : "Play today's setlist") : touring ? 'New tour' : `New run as ${h.name}`}
+              />
+            )}
           </>
         ) : tutorialDone ? (
           <>
@@ -273,9 +339,10 @@ export function PauseOverlay({
   state,
   tutorial,
   onResume,
-  onRestart,
+  onHome,
+  onSkipTutorial,
   ...settings
-}: SettingsProps & { state: EngineState; tutorial: boolean; onResume: () => void; onRestart: () => void }) {
+}: SettingsProps & { state: EngineState; tutorial: boolean; onResume: () => void; onHome: () => void; onSkipTutorial: () => void }) {
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Paused">
       <div className="overlay-top">
@@ -288,12 +355,19 @@ export function PauseOverlay({
       </div>
       <div className="overlay-controls">
         <SettingsList {...settings} />
-        <button className="secondary-btn" onClick={onRestart}>
-          {tutorial ? 'Skip soundcheck' : 'Start a new run'}
-        </button>
-        <button className="primary-btn" onClick={onResume}>
-          Resume
-        </button>
+        {tutorial && (
+          <button className="secondary-btn" onClick={onSkipTutorial}>
+            Skip soundcheck
+          </button>
+        )}
+        <div className="btn-pair">
+          <button className="secondary-btn" onClick={onHome}>
+            Home
+          </button>
+          <button className="primary-btn" onClick={onResume}>
+            Resume
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -401,11 +475,15 @@ export function EvolveOverlay({ state, onEvolve }: { state: EngineState; onEvolv
   );
 }
 
+/** The end-of-run screen opens mid-play: ignore taps this long so a lane tap can't start the next run (S4.4). */
+export const END_LOCKOUT_MS = 1200;
+
 export function GameOverOverlay({
   state,
   bests,
   newBest,
   onAgain,
+  onHome,
   progress,
   daily,
 }: {
@@ -413,6 +491,7 @@ export function GameOverOverlay({
   bests: Bests;
   newBest: { wave: boolean; score: boolean; chain: boolean };
   onAgain: () => void;
+  onHome: () => void;
   /** XP, level-ups and unlocks from this run. */
   progress?: string;
   /** Daily Setlist: practice or scored, and sharing the day's result. */
@@ -424,8 +503,9 @@ export function GameOverOverlay({
     .slice(0, 10);
   const total = breakdown.reduce((sum, [, v]) => sum + v, 0) || 1;
   const nameOf = (id: string) => (id === 'showstopper' ? 'Showstopper' : getCard(id).name);
+  const armed = useArmed(END_LOCKOUT_MS);
   return (
-    <div className="overlay over" role="dialog" aria-modal="true" aria-label="Run over">
+    <div className={`overlay over${armed ? '' : ' arming'}`} role="dialog" aria-modal="true" aria-label="Run over">
       <div className="overlay-top">
         <h2 className="title small">{daily ? (daily.practice ? 'Practice over' : "Today's setlist is done") : 'The crowd went home'}</h2>
         {daily?.practice && <p className="muted">Practice runs aren't scored. Today's scored run was your first.</p>}
@@ -481,13 +561,18 @@ export function GameOverOverlay({
       </div>
       <div className="overlay-controls">
         {daily?.onShare && (
-          <button className="primary-btn" onClick={daily.onShare}>
+          <button className="primary-btn" disabled={!armed} onClick={daily.onShare}>
             Share result
           </button>
         )}
-        <button className={daily?.onShare ? 'secondary-btn' : 'primary-btn'} onClick={onAgain}>
-          {daily ? 'Practice again' : 'Play again'}
-        </button>
+        <div className="btn-pair">
+          <button className="secondary-btn" disabled={!armed} onClick={onHome}>
+            Home
+          </button>
+          <button className={daily?.onShare ? 'secondary-btn' : 'primary-btn'} disabled={!armed} onClick={onAgain}>
+            {daily ? 'Practice again' : 'Play again'}
+          </button>
+        </div>
       </div>
     </div>
   );

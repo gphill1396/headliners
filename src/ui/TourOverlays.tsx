@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { END_LOCKOUT_MS } from './Overlays';
 import {
   deckCards,
   getCard,
@@ -261,13 +262,18 @@ export function EventOverlay({ state, onChoose }: { state: EngineState; onChoose
   );
 }
 
-export function TourEndOverlay({ state, onAgain, progress }: { state: EngineState; onAgain: () => void; progress?: string }) {
+export function TourEndOverlay({ state, onAgain, onHome, progress }: { state: EngineState; onAgain: () => void; onHome: () => void; progress?: string }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setArmed(true), END_LOCKOUT_MS);
+    return () => window.clearTimeout(id);
+  }, []);
   const tour = state.tour!;
   const won = state.phase === 'won';
   const names = (state.headliner.team ?? [state.headliner.id]).map((id) => HEADLINERS[id].name);
   const who = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]!;
   return (
-    <div className="overlay over" role="dialog" aria-modal="true" aria-label={won ? 'Tour complete' : 'Tour over'}>
+    <div className={`overlay over${armed ? '' : ' arming'}`} role="dialog" aria-modal="true" aria-label={won ? 'Tour complete' : 'Tour over'}>
       <div className="overlay-top">
         <h2 className="title small">{won ? 'Tour complete!' : 'The wagon broke an axle'}</h2>
         <p className="lede">
@@ -290,9 +296,14 @@ export function TourEndOverlay({ state, onAgain, progress }: { state: EngineStat
         </dl>
       </div>
       <div className="overlay-controls">
-        <button className="primary-btn" onClick={onAgain}>
-          New tour
-        </button>
+        <div className="btn-pair">
+          <button className="secondary-btn" disabled={!armed} onClick={onHome}>
+            Home
+          </button>
+          <button className="primary-btn" disabled={!armed} onClick={onAgain}>
+            New tour
+          </button>
+        </div>
       </div>
     </div>
   );

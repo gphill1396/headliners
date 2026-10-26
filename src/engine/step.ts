@@ -1,6 +1,6 @@
 import { accuracyPct, advanceClock, beatInBar, chainStepPct, gradeInput, inPocket, isDownbeat, setTempo, type Grade } from './clock';
 import { moveEnemies, moveProjectiles, smashGates, sweepDead } from './combat';
-import { ABILITY_RETRY_BEATS, BEAT_UNITS, BEATS_PER_BAR, CHAIN_STEP_GOOD_PCT, CYCLE_COST, LANES, MAX_ENERGY, METRONOME_WIDEN_PCT, POCKET_MAX, SUBTICK } from './constants';
+import { ABILITY_RETRY_BEATS, BEAT_UNITS, BEATS_PER_BAR, CHAIN_STEP_GOOD_PCT, CYCLE_COST, LANES, SHIFT_COST, SHIFT_PAUSE_BEATS, MAX_ENERGY, METRONOME_WIDEN_PCT, POCKET_MAX, SUBTICK } from './constants';
 import { evolvedInto, hasMember, unevolved } from './evolution';
 import { createCtx, flushDamage, type TickCtx } from './context';
 import { addCardToDeck, drawCards, refillHand } from './deck';
@@ -27,6 +27,8 @@ export type Input =
   | { type: 'pick'; index: number | null }
   /** Discard-cycle: pay 1 energy to swap a card in hand for the next one (once per card per bar). */
   | { type: 'cycle'; iid: number }
+  /** Shift (S4.3): swap the units in lanes `from` and `to`. 2 energy, once per bar. */
+  | { type: 'shift'; from: number; to: number }
   /** Tour: go to a stop on the map. */
   | { type: 'travel'; node: number }
   /** Tour: buy, remove a card, heal, or leave the shop. */
@@ -133,6 +135,9 @@ function applyInput(state: EngineState, ctx: TickCtx, input: Input): void {
       return;
     case 'cycle':
       cycle(state, ctx, input.iid);
+      return;
+    case 'shift':
+      shift(state, ctx, input.from, input.to);
       return;
     case 'travel':
       travel(state, ctx, input.node);
@@ -331,6 +336,32 @@ function cycle(state: EngineState, ctx: TickCtx, iid: number): void {
   drawCards(state, 1, ctx.events);
   for (const fresh of state.hand.slice(before)) state.cycle.locked.push(fresh.iid);
   ctx.events.push({ type: 'cycled', iid, cardId: card!.cardId });
+}
+
+/**
+ * Shift (SPEC S4.3): the units in two lanes trade places (an empty lane just receives them).
+ * Gates stay. 2 energy (SHIFT_COST), once per bar; moved units skip a beat of firing. Not graded, no chain.
+ */
+function shift(state: EngineState, ctx: TickCtx, from: number, to: number): void {
+  const reject = (reason: 'not-playing' | 'lane' | 'energy' | 'shifted'): void => void ctx.events.push({ type: 'rejected', iid: -1, reason });
+  if (state.phase !== 'playing') return reject('not-playing');
+  const ok = (l: number) => Number.isInteger(l) && l >= 0 && l < LANES;
+  if (!ok(from) || !ok(to) || from === to) return reject('lane');
+  const moving = state.units.filter((u) => u.lane === from || u.lane === to);
+  if (moving.length === 0) return reject('lane');
+  const bar = Math.floor(state.clock.beat / BEATS_PER_BAR);
+  if (state.shiftBar === bar) return reject('shifted');
+  if (state.energy < SHIFT_COST) return reject('energy');
+  state.energy -= SHIFT_COST;
+  state.shiftBar = bar;
+  const until = state.clock.beat + 1 + SHIFT_PAUSE_BEATS;
+  for (const u of moving) {
+    u.movedFrom = u.lane;
+    u.movedAt = state.clock.beat + state.clock.phase / BEAT_UNITS;
+    u.lane = u.lane === from ? to : from;
+    u.movedUntilBeat = until;
+  }
+  ctx.events.push({ type: 'shifted', from, to, unitIds: moving.map((u) => u.id) });
 }
 
 /** Choose an evolution (SPEC §4.7): 0 or 1. In a team, for `member` (default: the first one that hasn't evolved). */

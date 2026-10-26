@@ -94,6 +94,7 @@ const REJECT_TEXT = {
   cooldown: 'Your ability is still cooling down.',
   busy: 'Let the ability finish before you switch the lead.',
   cycled: 'That one just came in. Swap it next bar.',
+  shifted: 'One Shift per bar.',
 } as const;
 /** Short banner lines and in-use button labels for each headliner's ability. */
 const ACTIVE_BANNER: Record<HeadlinerId, string> = {
@@ -504,6 +505,7 @@ export function App() {
           else if (e.type === 'showstopper') sfx.crash();
           else if (e.type === 'gatePlaced') sfx.place('gate');
           else if (e.type === 'unitPlaced') sfx.place('unit');
+          else if (e.type === 'shifted') sfx.place('unit');
         }
         switch (e.type) {
           case 'graded': {
@@ -557,6 +559,13 @@ export function App() {
           case 'crowdCost':
             // Feedback cards cost crowd; say so where the leaks show, so it never looks like a mystery leak.
             pop(`-${e.amount} crowd · Feedback`, e.lane, 88_000, 'pop-leak');
+            break;
+          case 'shifted':
+            fx.laneFlash[e.from] = 0.6;
+            fx.laneFlash[e.to] = 0.6;
+            fx.flashColor[e.from] = PALETTE.cream;
+            fx.flashColor[e.to] = PALETTE.cream;
+            pop('Shift', e.to, 30_000, 'pop-note');
             break;
           case 'gateBroken':
             pop('Gate broke', e.lane, 60_000, 'pop-note');
@@ -760,7 +769,7 @@ export function App() {
       if (iid === null) {
         const step = tutStepRef.current === null ? null : TUTORIAL[tutStepRef.current];
         if (step?.practiceTaps) runner.send({ type: 'tap', lane, permille: 0 }, timeStamp);
-        else flashInfo('<span>Tap a card first, then tap a lane on the beat.</span>', 'off');
+        else flashInfo('<span>Tap a card first. Or slide to another lane to Shift your band (2 energy).</span>', 'off');
         if (!step?.practiceTaps) return;
         const btn = laneRefs.current[lane];
         if (btn) {
@@ -852,6 +861,40 @@ export function App() {
       clearDrop();
       const lane = ev.type === 'pointerup' ? laneAt(ev.clientX, ev.clientY) : null;
       if (lane !== null) commitDrop(iid, lane, ev.timeStamp);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
+
+  /**
+   * A press on a lane button. With a card selected it plays at once (timed to the press).
+   * With none, slide to another lane and let go to Shift: the two lanes swap their units (S4.3).
+   */
+  const pressLane = (lane: number, e: React.PointerEvent) => {
+    const step = tutStepRef.current === null ? null : TUTORIAL[tutStepRef.current];
+    if (selectedRef.current !== null || step?.practiceTaps || !runner.running || runner.state.phase !== 'playing') {
+      playLane(lane, e.timeStamp);
+      return;
+    }
+    let target: number | null = lane;
+    laneRefs.current[lane]?.classList.add('shift-from');
+    const mark = () => laneRefs.current.forEach((b, i) => b?.classList.toggle('shift-to', i === target && i !== lane));
+    const move = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      target = laneAt(ev.clientX, ev.clientY);
+      mark();
+    };
+    const up = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      laneRefs.current.forEach((b) => b?.classList.remove('shift-from', 'shift-to'));
+      if (ev.type !== 'pointerup') return;
+      const to = laneAt(ev.clientX, ev.clientY);
+      if (to === lane || to === null) playLane(lane, ev.timeStamp);
+      else if (runner.running && runner.state.phase === 'playing') runner.send({ type: 'shift', from: lane, to }, ev.timeStamp);
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -980,6 +1023,25 @@ export function App() {
     setSelected(null);
     setHud(sampleHud(runner.state));
     startPlaying();
+  };
+
+  /** Pause or end of run → the title screen (S4.4). A run in progress stays saved, ready to resume. */
+  const goHome = () => {
+    runner.pause();
+    if (tutStepRef.current !== null) {
+      // Leaving the soundcheck early: it isn't marked done, and any saved run is still there.
+      tutStepRef.current = null;
+      setTutStep(null);
+      setNudge(null);
+      savedRun.current = loadRun();
+      setCanResume(savedRun.current !== null);
+    } else if (view === 'paused') {
+      saveRun(runner.state);
+      savedRun.current = null;
+      setCanResume(true);
+    }
+    setSelected(null);
+    setView('title');
   };
 
   /** Tour menus: the band stays muffled, so just send the choice. */
@@ -1324,7 +1386,9 @@ export function App() {
               className={`lane-btn${selected !== null ? ' armed' : ''}${coached('lanes') || coached(`lane-${lane}` as Target)}`}
               onPointerDown={(e) => {
                 e.preventDefault();
-                playLane(lane, e.timeStamp);
+                // Let the slide reach the other lane buttons (no implicit capture on touch).
+                if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+                pressLane(lane, e);
               }}
               onAnimationEnd={(e) => e.currentTarget.classList.remove('hit')}
             >
@@ -1394,7 +1458,8 @@ export function App() {
           state={runner.state}
           tutorial={tutStep !== null}
           onResume={() => startPlaying()}
-          onRestart={tutStep !== null ? finishTutorial : startNew}
+          onHome={goHome}
+          onSkipTutorial={finishTutorial}
           settings={settings}
           onToggle={toggleSetting}
         />
@@ -1423,13 +1488,14 @@ export function App() {
         <EventOverlay key={hud.menuKey} state={runner.state} onChoose={(option) => sendMenu({ type: 'event', option })} />
       )}
       {view === 'playing' && hud.phase === 'evolving' && !pickSent && <EvolveOverlay state={runner.state} onEvolve={evolve} />}
-      {view === 'over' && runner.state.mode === 'tour' && <TourEndOverlay state={runner.state} onAgain={startNew} progress={runProgress ?? undefined} />}
+      {view === 'over' && runner.state.mode === 'tour' && <TourEndOverlay state={runner.state} onAgain={startNew} onHome={goHome} progress={runProgress ?? undefined} />}
       {view === 'over' && runner.state.mode !== 'tour' && (
         <GameOverOverlay
           state={runner.state}
           bests={bests}
           newBest={newBest}
           onAgain={startNew}
+          onHome={goHome}
           progress={runProgress ?? undefined}
           daily={
             runner.state.daily

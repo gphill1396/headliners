@@ -1,5 +1,7 @@
 import {
   BEAT_UNITS,
+  BEATS_PER_BAR,
+  SHIFT_COST,
   frontEnemy,
   getCard,
   nextFloat,
@@ -100,6 +102,12 @@ export function createBot(config: BotConfig, rng: RngState): Bot {
         const target = s.tick + ticksPerBeat + drawOffsetMs() / MS_PER_TICK;
         plan = { tick: Math.max(s.tick + 1, Math.floor(target)), iid: choice.card.iid, lane: choice.lane };
       }
+      // Shift (S4.3): move firepower to a lane that's in trouble. SIM_NO_SHIFT=1 turns it off, to compare.
+      const shift = config.kind !== 'random' && !process.env.SIM_NO_SHIFT ? chooseShift(s) : null;
+      if (shift) {
+        inputs.push({ type: 'shift', ...shift });
+        botStats.shifts += 1;
+      }
       // A team picks the member whose ability fits the moment, then fires it.
       const lead = s.headliner.team && config.kind !== 'random' ? bestLead(config, s, rng) : null;
       if (lead && lead !== s.headliner.id && s.clock.beat >= s.headliner.activeUntilBeat) inputs.push({ type: 'lead', headliner: lead });
@@ -128,6 +136,32 @@ function laneThreat(s: EngineState): number[] {
   }
   return t;
 }
+
+/** Counters for the report (sim only). */
+export const botStats = { shifts: 0 };
+
+/**
+ * Shift when the most threatened lane has an enemy close to the stage and little firepower,
+ * and a lane with no threat at all has a lot more. Tokens don't count: they leave soon.
+ */
+function chooseShift(s: EngineState): { from: number; to: number } | null {
+  if (s.energy < SHIFT_COST + 2 || s.shiftBar === Math.floor(s.clock.beat / BEATS_PER_BAR)) return null;
+  const threat = laneThreat(s);
+  const power = [0, 0, 0];
+  for (const u of s.units) if (!u.token) power[u.lane]! += (u.damage * (u.pierce + 1)) / u.fireEvery;
+  const to = argmax(threat);
+  if (threat[to]! < 30 * s.wave.hpMult) return null;
+  if (!s.enemies.some((e) => e.lane === to && e.hp > 0 && e.depth > SHIFT_NEAR)) return null;
+  let from = -1;
+  for (let l = 0; l < 3; l++) {
+    if (l === to || threat[l]! > 0) continue;
+    if (power[l]! > power[to]! * 2 + 1 && (from < 0 || power[l]! > power[from]!)) from = l;
+  }
+  return from < 0 ? null : { from, to };
+}
+
+/** Depth past which an enemy counts as close to the stage (the field is 0..100,000). */
+const SHIFT_NEAR = 55_000;
 
 function argmax(xs: number[]): number {
   let best = 0;

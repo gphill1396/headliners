@@ -3,3 +3,4 @@ dist/
 sim/out/
 *.log
 .DS_Store
+__pycache__/

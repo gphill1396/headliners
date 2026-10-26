@@ -51,6 +51,11 @@ export interface Unit {
   priority?: boolean;
   /** Volume counters gained (each already added to damage). */
   volume?: number;
+  /** Shift (S4.3): walking to a new lane, so no firing before this beat. */
+  movedUntilBeat?: number;
+  /** Shift: the lane it walked over from, and when (in beats), for drawing the walk. */
+  movedFrom?: number;
+  movedAt?: number;
 }
 
 export interface Gate {
@@ -310,6 +315,8 @@ export interface EngineState {
   seenKinds?: EnemyKind[];
   /** Discard-cycle (SPEC §4.3): cards drawn by cycling can't be cycled again this bar. */
   cycle?: { bar: number; locked: number[] };
+  /** Shift (S4.3): the bar of the last Shift (one per bar). */
+  shiftBar?: number;
   headliner: HeadlinerState;
   stats: EngineStats;
 }

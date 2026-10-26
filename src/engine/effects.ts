@@ -449,6 +449,7 @@ export function fireUnitsOnEighth(state: EngineState, eighth: number): void {
   const fill = state.headliner.id === 'thrum' && state.clock.beat < state.headliner.activeUntilBeat;
   const mult = boostPct(state);
   for (const u of state.units) {
+    if (u.movedUntilBeat !== undefined && state.clock.beat < u.movedUntilBeat) continue;
     if (fill || eighth % u.fireEvery === 0) fireUnit(state, u, 1, mult);
   }
 }

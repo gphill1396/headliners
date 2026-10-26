@@ -24,6 +24,7 @@ import { PALETTE } from '../render/palette';
 import { CardTile } from './CardTile';
 import { cardText, KEYWORD_TEXT } from '../content/text';
 import { formatNumber } from './format';
+import { LoadInOverlay } from './LoadInOverlay';
 import { EvolveOverlay, GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay } from './Overlays';
 import { EventOverlay, MapOverlay, RestOverlay, ShopOverlay, TourEndOverlay } from './TourOverlays';
 import { CollectionOverlay } from './CollectionOverlay';
@@ -297,6 +298,7 @@ export function App() {
   const [mode, setMode] = useState<GameMode>(loadMode);
   const [collection, setCollection] = useState<Collection>(loadCollection);
   const [collectionOpen, setCollectionOpen] = useState(false);
+  const [loadInOpen, setLoadInOpen] = useState(false);
   const [deckChoice, setDeckChoice] = useState(loadDeckChoice);
   const [runProgress, setRunProgress] = useState<string | null>(null);
   /** What the last Tour fight paid, for the pick screen. */
@@ -1382,6 +1384,7 @@ export function App() {
             saveDeckChoice(next);
           }}
           onCollection={() => setCollectionOpen(true)}
+          onLoadIn={() => setLoadInOpen(true)}
           settings={settings}
           onToggle={toggleSetting}
         />
@@ -1439,6 +1442,7 @@ export function App() {
           }
         />
       )}
+      {loadInOpen && <LoadInOverlay onClose={() => setLoadInOpen(false)} />}
       {collectionOpen && (
         <CollectionOverlay
           collection={collection}

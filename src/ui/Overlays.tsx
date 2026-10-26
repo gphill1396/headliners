@@ -71,6 +71,7 @@ export function TitleOverlay({
   deckChoice,
   onDeckChoice,
   onCollection,
+  onLoadIn,
   team,
   onTeam,
   daily,
@@ -94,6 +95,7 @@ export function TitleOverlay({
   deckChoice: string | null;
   onDeckChoice: (id: string | null) => void;
   onCollection: () => void;
+  onLoadIn: () => void;
   /** Tour: the team of 3 being picked, in order (the first leads). */
   team: HeadlinerId[];
   onTeam: (id: HeadlinerId) => void;
@@ -256,6 +258,9 @@ export function TitleOverlay({
             </button>
             <button className="link-btn" onClick={onCollection}>
               Collection
+            </button>
+            <button className="link-btn" onClick={onLoadIn}>
+              Load-In
             </button>
           </div>
         )}

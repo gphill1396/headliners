@@ -675,9 +675,11 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 ### Phase 4 — Load-In + polish
 
 **S4.1 Load-In puzzles**
-- [ ] A sliding-block puzzle where you clear gear chests so the wagon can be loaded. Includes a daily puzzle and a pack of 30 hand-checked levels.
-- [ ] Every level is verified as solvable by a solver script, which also reports the minimum number of moves.
-- [ ] Includes undo, restart, and a move counter with par.
+- [x] A sliding-block puzzle where you clear gear chests so the wagon can be loaded. Includes a daily puzzle and a pack of 30 hand-checked levels.
+- [x] Every level is verified as solvable by a solver script, which also reports the minimum number of moves.
+- [x] Includes undo, restart, and a move counter with par.
+
+*As built:* opened from the title screen ("Load-In"). A 6×6 yard: slide chests along their length (one slide, however far, is one move) until the lute case reaches the wagon at the right end of row 3; barrels don't move. Logic and solver in `src/meta/loadin.ts` (breadth-first search for the fewest moves; the generator takes a random yard and finds its hardest start). The pack (`src/content/loadin-levels.ts`): 2 hand-made introductions plus 28 generated with `npm run loadin` and picked and ordered by hand, par 1 → 27; `tests/loadin-pack.test.ts` re-solves all 30 and checks par. Levels open in order; solving in par turns a level gold. The daily puzzle comes from the UTC date (par 12–30), same for everyone, made on the device (under a second in a desktop browser) and kept for the day. The yard sits in the bottom ~38% of the screen; Undo, Restart and the counters sit above it.
 
 **S4.2 Art pass (the Metroid Fusion bar)**
 *As Grant, I want the whole game to look like Thrum's portrait, so it feels finished.*

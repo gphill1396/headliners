@@ -23,6 +23,8 @@ import { cardText, KEYWORD_TEXT } from '../content/text';
 import { formatNumber } from './format';
 import { EvolveOverlay, GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay } from './Overlays';
 import { EventOverlay, MapOverlay, RestOverlay, ShopOverlay, TourEndOverlay } from './TourOverlays';
+import { CollectionOverlay } from './CollectionOverlay';
+import { deckProblems, EVOLVE_LEVEL, levelFor, recordRunInCollection, type Collection } from '../meta/collection';
 import { GameRunner, type CountIn } from './runner';
 import { mixFrom, playRiff, scheduleGroove, type MusicStyle } from '../audio/groove';
 import { Conductor } from '../audio/conductor';
@@ -33,11 +35,15 @@ import {
   markTutorialDone,
   tutorialDone as loadTutorialDone,
   loadBests,
+  loadCollection,
+  loadDeckChoice,
   loadHeadliner,
   loadMode,
   loadRun,
   loadSettings,
   recordRun,
+  saveCollection,
+  saveDeckChoice,
   saveHeadliner,
   saveMode,
   saveRun,
@@ -139,9 +145,21 @@ function sampleHud(s: EngineState): Hud {
   };
 }
 
-function newRun(settings: Settings, headliner: HeadlinerId, mode: GameMode = 'encore'): EngineState {
+function newRun(settings: Settings, headliner: HeadlinerId, mode: GameMode = 'encore', collection?: Collection, deckId?: string | null): EngineState {
   // The UI picks the seed; the engine never reads the clock itself.
-  return createState({ seed: `run-${new Date().toISOString()}`, relaxedTiming: settings.relaxedTiming, headliner, mode });
+  const seed = `run-${new Date().toISOString()}`;
+  if (mode === 'tour' || !collection) return createState({ seed, relaxedTiming: settings.relaxedTiming, headliner, mode });
+  // Encore can use a saved Workshop deck and the headliner's permanent evolution from the Collection.
+  const deck = collection.decks.find((d) => d.id === deckId && d.headliner === headliner);
+  const progress = collection.headliners[headliner];
+  return createState({
+    seed,
+    relaxedTiming: settings.relaxedTiming,
+    headliner,
+    mode,
+    ...(deck && deckProblems(deck, collection).length === 0 ? { deck: deck.cards } : {}),
+    ...(levelFor(progress.xp) >= EVOLVE_LEVEL && progress.evolution !== null ? { evolution: progress.evolution } : {}),
+  });
 }
 
 /** Phases where a menu is up and the band plays on, muffled, behind it. */
@@ -192,6 +210,10 @@ export function App() {
   const [headliner, setHeadliner] = useState<HeadlinerId>(loadHeadliner);
   const [inspect, setInspect] = useState<Inspect | null>(null);
   const [mode, setMode] = useState<GameMode>(loadMode);
+  const [collection, setCollection] = useState<Collection>(loadCollection);
+  const [collectionOpen, setCollectionOpen] = useState(false);
+  const [deckChoice, setDeckChoice] = useState(loadDeckChoice);
+  const [runProgress, setRunProgress] = useState<string | null>(null);
   /** What the last Tour fight paid, for the pick screen. */
   const lastReward = useRef<{ kind: string; merch: number } | null>(null);
   const [tutStep, setTutStep] = useState<number | null>(null);
@@ -341,6 +363,17 @@ export function App() {
     // The band fades out over two bars, leaving the metronome: the beat never stops.
     handToConductor('fade', s);
     const result = recordRun(s);
+    // The Collection: XP, unlocks and card history (SPEC S2.2).
+    if (s.mode !== 'tutorial') {
+      const rec = recordRunInCollection(loadCollection(), s);
+      saveCollection(rec.collection);
+      setCollection(rec.collection);
+      const name = HEADLINERS[s.headliner.id].name;
+      const parts = [`+${rec.xp} XP for ${name}`];
+      if (rec.levelAfter > rec.levelBefore) parts.push(`level ${rec.levelAfter}!`);
+      if (rec.newlyUnlocked.length) parts.push(`unlocked ${rec.newlyUnlocked.map((id) => getCard(id).name).join(', ')}`);
+      setRunProgress(parts.join(' · '));
+    }
     clearRun();
     setCanResume(false);
     setBests(result.bests);
@@ -828,7 +861,7 @@ export function App() {
     clearRun();
     savedRun.current = null;
     setCanResume(false);
-    runner.load(newRun(settings, headliner, mode));
+    runner.load(newRun(settings, headliner, mode, collection, deckChoice[headliner] ?? null));
     fxRef.current = createFx();
     overlayRef.current?.replaceChildren();
     setSelected(null);
@@ -1187,6 +1220,14 @@ export function App() {
             setMode(m);
             saveMode(m);
           }}
+          decks={collection.decks.filter((d) => d.headliner === headliner && deckProblems(d, collection).length === 0).map((d) => ({ id: d.id, name: d.name }))}
+          deckChoice={collection.decks.some((d) => d.id === deckChoice[headliner] && deckProblems(d, collection).length === 0) ? deckChoice[headliner]! : null}
+          onDeckChoice={(id) => {
+            const next = { ...deckChoice, [headliner]: id ?? undefined };
+            setDeckChoice(next);
+            saveDeckChoice(next);
+          }}
+          onCollection={() => setCollectionOpen(true)}
           settings={settings}
           onToggle={toggleSetting}
         />
@@ -1225,8 +1266,20 @@ export function App() {
         <EventOverlay key={hud.menuKey} state={runner.state} onChoose={(option) => sendMenu({ type: 'event', option })} />
       )}
       {view === 'playing' && hud.phase === 'evolving' && !pickSent && <EvolveOverlay state={runner.state} onEvolve={evolve} />}
-      {view === 'over' && runner.state.mode === 'tour' && <TourEndOverlay state={runner.state} onAgain={startNew} />}
-      {view === 'over' && runner.state.mode !== 'tour' && <GameOverOverlay state={runner.state} bests={bests} newBest={newBest} onAgain={startNew} />}
+      {view === 'over' && runner.state.mode === 'tour' && <TourEndOverlay state={runner.state} onAgain={startNew} progress={runProgress ?? undefined} />}
+      {view === 'over' && runner.state.mode !== 'tour' && (
+        <GameOverOverlay state={runner.state} bests={bests} newBest={newBest} onAgain={startNew} progress={runProgress ?? undefined} />
+      )}
+      {collectionOpen && (
+        <CollectionOverlay
+          collection={collection}
+          onChange={(c) => {
+            setCollection(c);
+            saveCollection(c);
+          }}
+          onClose={() => setCollectionOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { fromSnapshot, HEADLINERS, toSnapshot, type EngineState, type HeadlinerId } from '../engine';
+import { normalizeCollection, type Collection } from '../meta/collection';
 
 /**
  * On-device storage (SPEC §7). Run state is kept separate from settings and
@@ -141,4 +142,73 @@ export function loadMode(): GameMode {
 
 export function saveMode(mode: GameMode): void {
   write(MODE_KEY, JSON.stringify(mode));
+}
+
+// ---------------------------------------------------------------- Collection (SPEC S2.2)
+
+const COLLECTION_KEY = 'headliners.collection.v1';
+const DECK_CHOICE_KEY = 'headliners.deckchoice.v1';
+
+export function loadCollection(): Collection {
+  return normalizeCollection(read<Partial<Collection>>(COLLECTION_KEY));
+}
+
+export function saveCollection(collection: Collection): void {
+  write(COLLECTION_KEY, JSON.stringify(collection));
+}
+
+/** Which saved deck Encore uses, per headliner (missing = the starter deck). */
+export function loadDeckChoice(): Partial<Record<HeadlinerId, string>> {
+  return read<Partial<Record<HeadlinerId, string>>>(DECK_CHOICE_KEY) ?? {};
+}
+
+export function saveDeckChoice(choice: Partial<Record<HeadlinerId, string>>): void {
+  write(DECK_CHOICE_KEY, JSON.stringify(choice));
+}
+
+// ---------------------------------------------------------------- backup (SPEC §7)
+
+const SAVE_PREFIX = 'headliners.';
+
+/** Everything the game keeps on this device, as one JSON file. */
+export function exportSave(): string {
+  const data: Record<string, string> = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(SAVE_PREFIX)) data[key] = localStorage.getItem(key) ?? '';
+    }
+  } catch {
+    /* storage blocked: export what we could */
+  }
+  return JSON.stringify({ game: 'headliners', exported: new Date().toISOString(), data }, null, 1);
+}
+
+/** Check a backup file before using it. Returns the keys it would restore, or an error message. */
+export function parseSave(text: string): { data: Record<string, string> } | { error: string } {
+  try {
+    const parsed = JSON.parse(text) as { game?: string; data?: Record<string, unknown> };
+    if (parsed.game !== 'headliners' || !parsed.data || typeof parsed.data !== 'object') return { error: "That file isn't a Headliners backup." };
+    const data: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed.data)) if (k.startsWith(SAVE_PREFIX) && typeof v === 'string') data[k] = v;
+    if (Object.keys(data).length === 0) return { error: 'That backup is empty.' };
+    return { data };
+  } catch {
+    return { error: "That file couldn't be read." };
+  }
+}
+
+/** Replace this device's save with a backup. */
+export function restoreSave(data: Record<string, string>): void {
+  try {
+    const old: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(SAVE_PREFIX)) old.push(key);
+    }
+    for (const key of old) localStorage.removeItem(key);
+    for (const [k, v] of Object.entries(data)) localStorage.setItem(k, v);
+  } catch {
+    /* storage full or blocked */
+  }
 }

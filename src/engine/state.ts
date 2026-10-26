@@ -157,6 +157,8 @@ export interface HeadlinerState {
   lastTightBonusBar: number;
   /** Chosen evolution (index into the headliner's two), once it has evolved. Missing in older saves = not yet. */
   evolution?: 0 | 1 | null;
+  /** Collection's permanent evolution: Encore applies it after wave 5 instead of asking. */
+  presetEvolution?: 0 | 1 | null;
   /** Polyrhythm: the last non-echo play's beat and lane. */
   lastPlay?: { beat: number; lane: number };
   /** Load Out: the last beat a Riff came back. */
@@ -293,6 +295,8 @@ export interface CreateOptions {
   deck?: readonly string[];
   mode?: Mode;
   headliner?: HeadlinerId;
+  /** Encore: the headliner's permanent evolution from the Collection. */
+  evolution?: 0 | 1 | null;
 }
 
 export function emptyChain(): ChainState {
@@ -342,7 +346,7 @@ function baseState(opts: CreateOptions): EngineState {
     // Wave 0 is a short count-in; wave 1 starts on beat 4.
     wave: { index: 0, startBeat: 0, hpMult: 1, spawns: [], nextSpawn: 0, kinds: [] },
     pick: [],
-    headliner: { id: headliner, readyBeat: 0, activeUntilBeat: -1, lastTightBonusBar: -1 },
+    headliner: { id: headliner, readyBeat: 0, activeUntilBeat: -1, lastTightBonusBar: -1, ...(opts.evolution === 0 || opts.evolution === 1 ? { presetEvolution: opts.evolution } : {}) },
     stats: {
       tight: 0,
       good: 0,

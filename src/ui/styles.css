@@ -1443,3 +1443,296 @@ button:disabled {
   line-height: 1.3;
   color: var(--lilac);
 }
+
+/* ---------- Collection & Workshop ---------- */
+.collection {
+  display: flex;
+  flex-direction: column;
+  /* Sits on top of the title screen: fully opaque. */
+  background: var(--night);
+}
+
+.collection-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 2px 12px;
+  -webkit-overflow-scrolling: touch;
+  user-select: text;
+}
+
+.overlay-controls.compact {
+  min-height: 0;
+  gap: 10px;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.tab {
+  flex: 1;
+  padding: 0 4px;
+  min-height: 40px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--dim);
+  background: var(--panel);
+  box-shadow: inset 0 -3px 0 var(--line);
+}
+
+.tab.on {
+  color: var(--cream);
+  box-shadow: inset 0 -3px 0 var(--amber);
+}
+
+.tabs.small .tab {
+  min-height: 34px;
+  font-size: 14px;
+}
+
+.band-member {
+  border-left: 4px solid var(--hl);
+  padding: 4px 0 6px 12px;
+  margin-bottom: 18px;
+}
+
+.band-member p {
+  margin: 0 0 6px;
+}
+
+.small {
+  font-size: 13px;
+}
+
+.xp-bar {
+  height: 8px;
+  margin: 2px 0 4px;
+  background: var(--panel);
+}
+
+.xp-bar span {
+  display: block;
+  height: 100%;
+  background: var(--hl, var(--amber));
+}
+
+.evolve-pick {
+  display: flex;
+  gap: 10px;
+}
+
+.workshop {
+  display: grid;
+  gap: 12px;
+}
+
+.deck-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  padding: 10px 12px;
+  text-align: left;
+  background: var(--raised);
+  border-left: 4px solid var(--hl);
+}
+
+.deck-row .muted {
+  grid-column: 1;
+  font-size: 13px;
+}
+
+.deck-row .deck-ok,
+.deck-row .deck-bad {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  font-size: 13px;
+}
+
+.deck-name {
+  font-weight: 700;
+}
+
+.deck-ok {
+  color: var(--lyra);
+}
+
+.deck-bad {
+  color: var(--miss);
+}
+
+.deck-title {
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--cream);
+  background: var(--panel);
+  border: 0;
+  border-bottom: 3px solid var(--hl, var(--amber));
+  user-select: text;
+}
+
+.deck-stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: end;
+}
+
+.curve {
+  display: flex;
+  gap: 3px;
+  height: 56px;
+  align-items: flex-end;
+}
+
+.curve-col {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  width: 14px;
+  height: 100%;
+  align-items: end;
+}
+
+.curve-bar {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  background: var(--hl, var(--amber));
+}
+
+.curve-n {
+  font-size: 10px;
+  text-align: center;
+  color: var(--dim);
+}
+
+.deck-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font-size: 13px;
+}
+
+.synergies {
+  display: grid;
+  gap: 2px;
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--lilac);
+}
+
+.card-detail {
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  font-size: 13.5px;
+  line-height: 1.35;
+  background: var(--panel);
+}
+
+.card-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.card-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--line);
+}
+
+.card-row.locked {
+  opacity: 0.45;
+}
+
+.card-row.in .card-row-name {
+  color: var(--cream);
+}
+
+.card-row-name {
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  text-align: left;
+  font-size: 15px;
+  color: var(--lilac);
+}
+
+.card-row-cost {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--night);
+  background: var(--amber);
+}
+
+.card-row-count {
+  min-width: 28px;
+  font-size: 14px;
+  text-align: right;
+}
+
+.step-btn {
+  width: 40px;
+  height: 36px;
+  font-size: 20px;
+  font-weight: 700;
+  background: var(--raised);
+}
+
+.step-btn:disabled {
+  color: var(--dim);
+  opacity: 0.5;
+}
+
+.card-sig.inline {
+  position: static;
+  display: inline-block;
+}
+
+.group-title {
+  margin: 14px 0 4px;
+  font-size: 15px;
+  color: var(--amber);
+}
+
+.backup {
+  display: grid;
+  gap: 12px;
+}
+
+.run-progress {
+  margin: 10px 0 0;
+  color: var(--amber);
+}
+
+.title-links {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+}
+
+.deck-picker {
+  flex-wrap: wrap;
+}
+
+.deck-picker .hl-chip {
+  flex: 1 1 40%;
+  min-height: 40px;
+  font-size: 14px;
+}

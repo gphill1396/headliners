@@ -41,6 +41,10 @@ export function TitleOverlay({
   onHeadliner,
   mode,
   onMode,
+  decks,
+  deckChoice,
+  onDeckChoice,
+  onCollection,
   ...settings
 }: SettingsProps & {
   bests: Bests;
@@ -53,6 +57,11 @@ export function TitleOverlay({
   onHeadliner: (id: HeadlinerId) => void;
   mode: GameMode;
   onMode: (mode: GameMode) => void;
+  /** Encore: saved decks that are ready for this headliner. */
+  decks: { id: string; name: string }[];
+  deckChoice: string | null;
+  onDeckChoice: (id: string | null) => void;
+  onCollection: () => void;
 }) {
   const h = HEADLINERS[headliner];
   // A new run is played as the chosen headliner; a saved run keeps whoever it started with.
@@ -115,6 +124,15 @@ export function TitleOverlay({
             ))}
           </div>
         )}
+        {(choosing || canResume) && mode === 'encore' && decks.length > 0 && (
+          <div className="hl-picker deck-picker" role="radiogroup" aria-label="Deck">
+            {[{ id: null as string | null, name: 'Starter deck' }, ...decks].map((d) => (
+              <button key={d.id ?? 'starter'} role="radio" aria-checked={d.id === deckChoice} className={`hl-chip${d.id === deckChoice ? ' on mode-on' : ''}`} onClick={() => onDeckChoice(d.id)}>
+                {d.name}
+              </button>
+            ))}
+          </div>
+        )}
         {canResume ? (
           <>
             <button className="primary-btn" onClick={onResume}>
@@ -139,9 +157,14 @@ export function TitleOverlay({
           </>
         )}
         {(tutorialDone || canResume) && (
-          <button className="link-btn" onClick={onTutorial}>
-            How to play
-          </button>
+          <div className="title-links">
+            <button className="link-btn" onClick={onTutorial}>
+              How to play
+            </button>
+            <button className="link-btn" onClick={onCollection}>
+              Collection
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -264,11 +287,14 @@ export function GameOverOverlay({
   bests,
   newBest,
   onAgain,
+  progress,
 }: {
   state: EngineState;
   bests: Bests;
   newBest: { wave: boolean; score: boolean; chain: boolean };
   onAgain: () => void;
+  /** XP, level-ups and unlocks from this run. */
+  progress?: string;
 }) {
   const breakdown = Object.entries(state.stats.damageBySource)
     .filter(([, dmg]) => dmg >= 1)
@@ -280,6 +306,7 @@ export function GameOverOverlay({
     <div className="overlay over" role="dialog" aria-modal="true" aria-label="Run over">
       <div className="overlay-top">
         <h2 className="title small">The crowd went home</h2>
+        {progress && <p className="run-progress">{progress}</p>}
         <dl className="run-stats">
           <div>
             <dt>Wave</dt>

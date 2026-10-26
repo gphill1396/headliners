@@ -22,6 +22,7 @@ import { emptyChain, type EngineState } from './state';
 import type { EnemyKind } from './types';
 import { pickPool } from '../content/cards';
 import { ENEMIES } from '../content/enemies';
+import { HEADLINERS } from '../content/headliners';
 
 /** The wave each enemy first shows up in. One new enemy per wave through wave 8, so each gets introduced on its own. */
 export const DEBUT_WAVE: Record<EnemyKind, number> = {
@@ -48,7 +49,13 @@ export function onBeatWaves(state: EngineState, ctx: TickCtx): void {
     if (beat >= FIRST_WAVE_BEAT) startWave(state, ctx, 1);
   } else if (beat >= wave.startBeat + WAVE_BEATS && !state.boss) {
     // A boss wave lasts until The Hush is beaten or reaches the stage.
-    if (wave.index === EVOLVE_AFTER_WAVE && (state.headliner.evolution ?? null) === null) {
+    const preset = state.headliner.presetEvolution;
+    if (wave.index === EVOLVE_AFTER_WAVE && (state.headliner.evolution ?? null) === null && (preset === 0 || preset === 1)) {
+      // The Collection's permanent evolution: no need to ask.
+      state.headliner.evolution = preset;
+      ctx.events.push({ type: 'evolved', headliner: state.headliner.id, evolution: HEADLINERS[state.headliner.id].evolutions[preset].id });
+      startWave(state, ctx, wave.index + 1);
+    } else if (wave.index === EVOLVE_AFTER_WAVE && (state.headliner.evolution ?? null) === null) {
       state.phase = 'evolving';
       ctx.events.push({ type: 'evolveOffered' });
     } else if (wave.index % PICK_EVERY_WAVES === 0) offerPick(state, ctx);

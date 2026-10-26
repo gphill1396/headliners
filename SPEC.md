@@ -563,12 +563,24 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 - [x] Evolutions are chosen during the run when a headliner reaches the right level. *(After the act 1 boss, until Collection adds levels.)*
 - [x] You can save and resume at any point on the map or mid-fight.
 
+**Phase 2b — Collection & Workshop, as built** (`src/meta/collection.ts`, screens in `src/ui/CollectionOverlay.tsx`):
+- **Collection** opens from the title screen: Band, Workshop, Cards and Backup.
+- **Headliner XP and levels:** 10 XP per Encore wave; 15 per Tour stop plus 100 for winning a Tour. Levels 2–5 at 100, 250, 450 and 700 XP.
+  - At **level 3** you choose a permanent evolution. Encore then applies it after wave 5 without asking (same timing as before, so Encore balance is unchanged). Tours still choose fresh, per §4.7. At level 5 you can change it.
+- **Unlocks:** all three starter decks' cards are unlocked from the start. Any other card unlocks once a run ends with it in your deck (picked, bought or from an event). Card picks in runs always offer the full pool.
+- **Workshop:** up to 10 deck lists. A new deck starts as the headliner's starter deck. Shows the count against 20–30, the cost curve, average cost, card types, top keywords, and synergy links between cards, worked out from the card data (e.g. Load-In → Stage Dive: more Roadies to work with). A deck saves as a draft until it's legal (20–30 cards, max 2 copies, only that headliner's signature cards, unlocked cards only).
+- **Playing a deck:** in Encore, a ready deck for the chosen headliner appears as a choice on the title screen; Tours always start from the starter deck (§4.3).
+- **Card history:** runs played with it, average share of damage, Tour wins and best Encore wave; shown when you tap a card in the Workshop or the Cards tab.
+- **Backup (§7):** export everything the game keeps on this device to a JSON file, and restore from one.
+- End-of-run screens show XP gained, level-ups and new unlocks.
+- The simulator still plays starter decks, so D1–D8 are unchanged (all pass).
+
 **S2.2 Collection & Workshop**
 *As Grant, I want to tinker with decks the way I tune Commander decks, with real stats.*
-- [ ] Deck builder enforces 20–30 cards, max 2 copies, and limits signature cards to your active headliners.
-- [ ] Deck stats show: cost curve, keyword counts, card types, and synergy links between cards.
-- [ ] Each card tracks its history: games played, average damage share, and wins.
-- [ ] You can save up to 10 deck lists.
+- [x] Deck builder enforces 20–30 cards, max 2 copies, and limits signature cards to your active headliners.
+- [x] Deck stats show: cost curve, keyword counts, card types, and synergy links between cards.
+- [x] Each card tracks its history: games played, average damage share, and wins.
+- [x] You can save up to 10 deck lists.
 
 **S2.3 Content expansion**
 - [ ] 2 new headliners, 4 new enemies and 2 bosses are added, all following §4 and §6.

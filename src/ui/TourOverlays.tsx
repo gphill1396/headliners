@@ -256,7 +256,7 @@ export function EventOverlay({ state, onChoose }: { state: EngineState; onChoose
   );
 }
 
-export function TourEndOverlay({ state, onAgain }: { state: EngineState; onAgain: () => void }) {
+export function TourEndOverlay({ state, onAgain, progress }: { state: EngineState; onAgain: () => void; progress?: string }) {
   const tour = state.tour!;
   const won = state.phase === 'won';
   const h = HEADLINERS[state.headliner.id];
@@ -267,6 +267,7 @@ export function TourEndOverlay({ state, onAgain }: { state: EngineState; onAgain
         <p className="lede">
           {won ? `${h.name} played all ${TOUR_ACTS} acts and beat The Hush every time.` : `${h.name} made it to act ${tour.act}.`}
         </p>
+        {progress && <p className="run-progress">{progress}</p>}
         <dl className="run-stats">
           <div>
             <dt>Stops</dt>

@@ -6,7 +6,7 @@ import { formatNumber } from './format';
 import type { Bests, GameMode, Settings, ToggleKey } from './storage';
 import type { DailyResult } from '../meta/daily';
 import { HEAT_RULES } from '../content/heat';
-import { IntroCutscene, type IntroSound } from './IntroCutscene';
+import { IntroCutscene, type IntroFrom, type IntroSound } from './IntroCutscene';
 
 /** A headliner's animated portrait (only those drawn at the new art bar so far). Plays its frames at a steady 120 bpm. */
 function Portrait({ headliner }: { headliner: HeadlinerId }) {
@@ -128,7 +128,7 @@ function SettingsList({ settings, onToggle }: SettingsProps) {
 const INTRO = 'Mid-encore at the Grand Faire, a portal swallowed the stage: band, crowd and all. Now monsters march on the show.';
 const INTRO_2 = 'Play on the beat. Keep the crowd safe.';
 
-export type TitleScreen = 'splash' | 'intro' | 'menu' | 'new' | 'options';
+export type TitleScreen = 'splash' | 'menu' | 'new' | 'options';
 
 /** A classic menu window (S4.6): framed, one item per row, a cursor beside the one in focus. */
 function MenuWindow({ items, label }: { items: { label: string; onPick: () => void; hint?: string }[]; label: string }) {
@@ -217,6 +217,28 @@ export function TitleOverlay({
   daily: { team: HeadlinerId[]; played: boolean; result: DailyResult | null; streak: number; onShare: (() => void) | null; note: string | null };
 }) {
   const [screen, setScreen] = useState<TitleScreen>(startAt);
+  /** The intro playing over the splash or the menu, and the picture it grows from (S4.11). */
+  const [intro, setIntro] = useState<{ from: IntroFrom | null; covered?: boolean } | null>(null);
+  const playIntro = (picture: Element | null) => {
+    const r = picture?.getBoundingClientRect();
+    setIntro({ from: r ? { x: r.x, y: r.y, width: r.width, height: r.height } : null });
+  };
+  const introLayer = intro && (
+    <IntroCutscene
+      from={intro.from}
+      onCovered={() => {
+        // The intro now covers the page: put the menu behind it (its picture back in place for the fade-out).
+        setScreen('menu');
+        setIntro((i) => (i ? { ...i, covered: true } : i));
+      }}
+      onDone={() => {
+        setIntro(null);
+        setScreen('menu');
+      }}
+      onSound={onIntroSound}
+      reduceFlash={settings.settings.reduceFlash}
+    />
+  );
   const h = HEADLINERS[headliner];
   const touring = mode === 'tour';
   const isDaily = mode === 'daily';
@@ -225,20 +247,19 @@ export function TitleOverlay({
 
   if (screen === 'splash') {
     return (
-      <button className="overlay title-splash" aria-label="Headliners. Tap to begin" onClick={() => setScreen('intro')}>
-        <span className="splash-scene" aria-hidden="true" />
-        <span className="logo-banner">
-          <span className="title logo">Headliners</span>
-        </span>
-        <span className="splash-intro">{INTRO}</span>
-        <span className="splash-intro strong">{INTRO_2}</span>
-        <span className="tap-to-begin">Tap to begin</span>
-      </button>
+      <>
+        <button className={`overlay title-splash${intro && !intro.covered ? ' intro-on' : ''}`} aria-label="Headliners. Tap to begin" onClick={(e) => playIntro(e.currentTarget.querySelector('.splash-scene'))}>
+          <span className="splash-scene" aria-hidden="true" />
+          <span className="logo-banner">
+            <span className="title logo">Headliners</span>
+          </span>
+          <span className="splash-intro">{INTRO}</span>
+          <span className="splash-intro strong">{INTRO_2}</span>
+          <span className="tap-to-begin">Tap to begin</span>
+        </button>
+        {introLayer}
+      </>
     );
-  }
-
-  if (screen === 'intro') {
-    return <IntroCutscene onDone={() => setScreen('menu')} onSound={onIntroSound} reduceFlash={settings.settings.reduceFlash} />;
   }
 
   if (screen === 'options') {
@@ -274,9 +295,11 @@ export function TitleOverlay({
     items.push({ label: 'Load-In', onPick: onLoadIn, hint: 'puzzles' });
     items.push({ label: 'Options', onPick: () => setScreen('options') });
     return (
-      <div className="overlay title-menu" role="dialog" aria-modal="true" aria-label="Headliners">
+      <>
+      <div className={`overlay title-menu${intro && !intro.covered ? ' intro-on' : ''}`} role="dialog" aria-modal="true" aria-label="Headliners">
         <div className="overlay-top">
-          <span className="splash-scene small" aria-hidden="true" />
+          {/* Tap the picture to watch the intro again. */}
+          <button className="splash-scene small" aria-label="Watch the intro" onClick={(e) => playIntro(e.currentTarget)} />
           <span className="logo-banner">
             <h1 className="title logo">Headliners</h1>
           </span>
@@ -290,6 +313,8 @@ export function TitleOverlay({
           <MenuWindow items={items} label="Main menu" />
         </div>
       </div>
+      {introLayer}
+      </>
     );
   }
 

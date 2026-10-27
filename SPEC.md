@@ -790,11 +790,13 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 
 **S4.11 The intro: through the portal**
 *As a new player, I want to see the band fall through the portal into the land of monsters, so the setup makes sense before the menu.*
-- [x] After "Tap to begin", a short pixel-art scene (about 5 seconds): the band plays the Grand Faire at night; a portal tears open over the stage and pulls them up; they fall through a tunnel of rings and stars; they land on the stage in front of the monsters' cave, where eyes open in the dark.
-- [x] One short caption per beat of the story, nothing else on screen but a faint "tap to skip". A tap skips to the menu.
+- [x] After "Tap to begin", the title's picture of the faire grows smoothly out of its window to fill the screen and becomes the first shot (the page around it darkens; nothing jumps).
+- [x] A short pixel-art scene (about 8½ seconds): the faire at night; a portal tears open over the stage and lifts the band out of the picture one by one; they fall through a tunnel of rings and stars; they land on the stage in front of the monsters' cave, where eyes open in the dark. It fades out onto the menu.
+- [x] One short caption per beat of the story, each on screen about two seconds, nothing else but a faint "tap to skip". A tap skips to the menu.
+- [x] Tapping the picture on the home menu plays the intro again, growing from that picture.
 - [x] Sound cues if Sound is on (the portal's rush, the fall, the landing) over the bare beat; silent otherwise. "Calmer flashes" drops the flash; reduced motion skips the scene.
 
-*As built:* `ui/IntroCutscene.tsx`, drawn at 240×320 game pixels on a canvas and scaled up pixelated. It reuses the headliner portraits and the field's own land (`land()` in `render/field.ts`, now exported). It plays each time the splash is tapped (once per launch); coming back from a run goes straight to the menu.
+*As built:* `ui/IntroCutscene.tsx`, drawn at 240×320 game pixels on a canvas and scaled up pixelated. The title scene (`--ui-scene`, 240×128) sits in the canvas's middle rows; at the start the canvas is transformed to sit exactly over the tapped picture and eases to its place in 0.8 s (a FLIP transition), while the sky and crowd around the scene fade in. The band in the intro is the title picture's four performers, drawn separately over an empty-stage copy of the scene (`--ui-scene-empty`, `art/ui.py`), so they can be lifted out; they're shown at 2× through the fall and landing. The landing reuses the field's own land (`land()` in `render/field.ts`). Once the intro covers the page the menu is put behind it, so the fade-out lands on the menu. Slowed on Oct 27 (5.4 s → 8.6 s) so the captions can be read.
 
 **S4.12 Shots on the beat**
 *As a player, I want my band's shots to sound exactly on the beat they fire.*

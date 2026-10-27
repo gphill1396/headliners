@@ -1,31 +1,48 @@
-import { useEffect, useRef } from 'react';
-import type { HeadlinerId } from '../engine';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { ART } from '../render/art';
 import { land } from '../render/field';
 import { PALETTE } from '../render/palette';
-import { drawAnim, PORTRAITS, type AnimSprite } from '../render/portraits';
+import { drawAnim } from '../render/portraits';
 
 /**
- * The intro (S4.11): after "Tap to begin", the band plays the Grand Faire, a portal tears open over the
- * stage, they fall through it, and land in front of the monsters' cave. About five seconds; a tap skips it.
- * Drawn at 240×320 game pixels and scaled up, like the field.
+ * The intro (S4.11): after "Tap to begin", the title's window onto the Grand Faire grows to fill the
+ * screen and becomes the first shot. A portal tears open over the stage and lifts the band, they fall
+ * through it, and land in front of the monsters' cave. About eight seconds; a tap skips it. Tapping the
+ * picture on the home menu plays it again.
+ *
+ * Drawn at 240×320 game pixels and scaled up, like the field. The title scene (240×128, `--ui-scene`)
+ * sits in the middle rows, so at the start the canvas lines up exactly with the window it came from.
  */
 
 const W = 240;
 const H = 320;
+/** Where the title scene sits in the canvas (its rows SCENE_Y…SCENE_Y+128). */
+const SCENE_Y = 104;
+const SCENE_H = 128;
+/** The landing stage's top edge. */
 const STAGE_Y = 262;
-const BAND: HeadlinerId[] = ['lyra', 'clatter', 'thrum', 'aria', 'riot'];
+/** The four performers in the title scene, where art/ui.py drew them (top-left, in scene pixels). */
+const PERFORMERS = ['kick-drum', 'arpeggiator', 'guitar-tech', 'soprano'].map((id, i) => ({ id, x: 72 + i * 27, y: 85 }));
 
-/** When each beat of the story starts, in ms. */
-export const INTRO_TIMES = { portal: 1100, fall: 2300, land: 3600, end: 5400 } as const;
+/** When each beat of the story starts, in ms. Slowed so the captions can be read (Grant, Oct 27). */
+export const INTRO_TIMES = { grow: 800, portal: 1900, lift: 2800, fall: 3900, land: 6000, end: 8600 } as const;
 
 const CAPTIONS: { at: number; text: string }[] = [
-  { at: 0, text: 'The Grand Faire. The last encore.' },
+  { at: 400, text: 'The Grand Faire. The last encore.' },
   { at: INTRO_TIMES.portal, text: 'Then the sky tore open.' },
   { at: INTRO_TIMES.fall, text: 'Down, down, down…' },
-  { at: INTRO_TIMES.land + 300, text: '…into the land of monsters.' },
+  { at: INTRO_TIMES.land + 500, text: '…into the land of monsters.' },
 ];
 
 export type IntroSound = 'portal' | 'fall' | 'land';
+
+/** Where the intro grows from: the on-screen box of the title scene that was tapped. */
+export interface IntroFrom {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 function hash(x: number, y: number): number {
   let v = (Math.imul(x, 374761393) + Math.imul(y, 668265263)) >>> 0;
@@ -33,64 +50,55 @@ function hash(x: number, y: number): number {
   return ((v ^ (v >>> 16)) >>> 0) / 4294967296;
 }
 
-/** Each portrait pre-drawn to its own small canvas (both frames), so it can be moved, turned and scaled cheaply. */
-function portraitCanvases(): { id: HeadlinerId; frames: HTMLCanvasElement[] }[] {
-  return BAND.flatMap((id) => {
-    const sprite: AnimSprite | undefined = PORTRAITS[id];
+const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
+
+/** Each performer pre-drawn to small canvases (every frame), so they can be moved, turned and scaled cheaply. */
+function performerCanvases(): HTMLCanvasElement[][] {
+  return PERFORMERS.map(({ id }) => {
+    const sprite = ART[`unit:${id}`];
     if (!sprite) return [];
-    const frames = sprite.frames.map((rows, f) => {
+    return sprite.frames.map((rows, f) => {
       const c = document.createElement('canvas');
       c.width = rows[0]!.length;
       c.height = rows.length;
       drawAnim(c.getContext('2d')!, sprite, f, 0, 0, 1);
       return c;
     });
-    return [{ id, frames }];
   });
 }
 
-const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
-const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
+/** The title scene with an empty stage (the intro draws the band itself), read from the UI kit's CSS. */
+function loadEmptyScene(): HTMLImageElement | null {
+  if (typeof getComputedStyle !== 'function') return null;
+  const value = getComputedStyle(document.documentElement).getPropertyValue('--ui-scene-empty');
+  const m = /url\(["']?([^"')]+)["']?\)/.exec(value);
+  if (!m) return null;
+  const img = new Image();
+  img.src = m[1]!;
+  return img;
+}
 
-/** The faire at night: stars, tents, bunting and the stage. */
-function drawFaire(g: CanvasRenderingContext2D, now: number): void {
+/** The faire shot: the title scene, with night sky above it and the crowd's dark below. */
+function drawFaire(g: CanvasRenderingContext2D, scene: HTMLImageElement | null, now: number): void {
   g.fillStyle = '#16101f';
   g.fillRect(0, 0, W, H);
-  for (let i = 0; i < 70; i++) {
+  for (let i = 0; i < 40; i++) {
     const twinkle = hash(i, Math.floor(now / 400)) < 0.15;
     g.fillStyle = twinkle ? '#8f82a8' : '#f6ecd6';
-    g.fillRect(Math.floor(hash(i, 1) * W), Math.floor(hash(i, 2) * 170), 1, 1);
+    g.fillRect(Math.floor(hash(i, 1) * W), Math.floor(hash(i, 2) * (SCENE_Y - 4)), 1, 1);
   }
-  // Tents on the skyline: striped cones.
-  for (let k = 0; k < 4; k++) {
-    const cx = 30 + k * 60;
-    const top = 168 + (k % 2) * 8;
-    for (let y = top; y < 214; y++) {
-      const half = Math.round((y - top) * 0.75);
-      for (let x = cx - half; x <= cx + half; x++) {
-        const stripe = Math.floor((x - cx + 64) / 5) % 2 === 0;
-        g.fillStyle = stripe ? (k % 2 ? '#8c2420' : '#3a64a8') : '#e8d3a2';
-        g.fillRect(x, y, 1, 1);
-      }
-    }
-    g.fillStyle = '#e0b04a';
-    g.fillRect(cx, top - 6, 1, 6);
-    g.fillRect(cx + 1, top - 6, 3, 2);
-  }
-  g.fillStyle = '#2a1f33';
-  g.fillRect(0, 214, W, STAGE_Y - 214);
-  // Bunting across the top of the stage.
-  for (let x = 0; x < W; x++) {
-    const sag = Math.round(Math.sin((x / W) * Math.PI) * 10);
-    g.fillStyle = '#4e3826';
-    g.fillRect(x, 150 + sag, 1, 1);
-    if (x % 10 < 6) {
-      g.fillStyle = ['#8c2420', '#e0b04a', '#3a64a8', '#4f8a3a'][Math.floor(x / 10) % 4]!;
-      const len = 6 - (x % 10);
-      g.fillRect(x, 151 + sag, 1, Math.max(1, Math.min(x % 10 + 1, len)));
+  if (scene?.complete) g.drawImage(scene, 0, SCENE_Y);
+  // Two more rows of the crowd below the scene's own front row: heads and shoulders, darker further forward.
+  for (let row = 0; row < 2; row++) {
+    for (let i = 0; i < 26; i++) {
+      const cx = Math.round(i * 9.6 + hash(i, 7 + row) * 5 + row * 4) - 4;
+      const cy = SCENE_Y + SCENE_H + 4 + row * 12 + Math.floor(hash(i, 9 + row) * 4);
+      g.fillStyle = row === 0 ? (i % 3 ? '#2f2547' : '#3f3360') : i % 3 ? '#211934' : '#2f2547';
+      g.fillRect(cx - 2, cy - 3, 5, 4);
+      g.fillRect(cx - 4, cy + 1, 9, 6);
     }
   }
-  drawStage(g);
 }
 
 function drawStage(g: CanvasRenderingContext2D): void {
@@ -135,7 +143,7 @@ function drawTunnel(g: CanvasRenderingContext2D, t: number): void {
   const cy = H * 0.42;
   for (let k = 0; k < 7; k++) {
     // Each ring grows from the centre out past the screen, then starts again.
-    const p = ((t / 900 + k / 7) % 1 + 1) % 1;
+    const p = ((t / 1100 + k / 7) % 1 + 1) % 1;
     const r = 4 + p * p * 260;
     g.strokeStyle = ['#6b3fa0', '#4fd1c5', '#2a1f4a', '#d6caef'][k % 4]!;
     g.lineWidth = Math.max(1, Math.round(p * 5));
@@ -145,7 +153,7 @@ function drawTunnel(g: CanvasRenderingContext2D, t: number): void {
   }
   for (let i = 0; i < 50; i++) {
     const x = Math.floor(hash(i, 3) * W);
-    const speed = 0.25 + hash(i, 4) * 0.45;
+    const speed = 0.2 + hash(i, 4) * 0.35;
     const y = H - ((t * speed + hash(i, 5) * H) % (H + 30));
     g.fillStyle = hash(i, 6) < 0.3 ? '#4fd1c5' : '#f6ecd6';
     g.fillRect(x, Math.floor(y), 1, 3 + Math.floor(speed * 8));
@@ -160,23 +168,23 @@ function drawLanding(g: CanvasRenderingContext2D, t: number): void {
   drawStage(g);
   // Eyes in the dark of the cave, opening one pair at a time.
   const eyes: [number, number, number][] = [
-    [W / 2 - 18, 48, 500],
-    [W / 2 + 9, 52, 750],
-    [W / 2 - 4, 43, 1000],
-    [W / 2 + 26, 50, 1250],
+    [W / 2 - 18, 48, 700],
+    [W / 2 + 9, 52, 1000],
+    [W / 2 - 4, 43, 1300],
+    [W / 2 + 26, 50, 1600],
   ];
   for (const [x, y, at] of eyes) {
     if (t < at) continue;
-    const blink = Math.floor((t + at) / 160) % 17 === 0;
-    if (blink) continue;
+    if (Math.floor((t + at) / 160) % 17 === 0) continue; // a blink
     g.fillStyle = '#e2574c';
     g.fillRect(Math.round(x), y, 2, 1);
     g.fillRect(Math.round(x) + 5, y, 2, 1);
   }
 }
 
-/** Draw a portrait canvas centred at (x, y), turned by `angle` and scaled by `s`. */
-function drawMember(g: CanvasRenderingContext2D, img: HTMLCanvasElement, x: number, y: number, angle = 0, s = 1): void {
+/** Draw a sprite canvas centred at (x, y), turned by `angle` and scaled by `s`. */
+function drawMember(g: CanvasRenderingContext2D, img: HTMLCanvasElement | undefined, x: number, y: number, angle = 0, s = 1): void {
+  if (!img) return;
   g.save();
   g.translate(Math.round(x), Math.round(y));
   if (angle) g.rotate(angle);
@@ -185,12 +193,58 @@ function drawMember(g: CanvasRenderingContext2D, img: HTMLCanvasElement, x: numb
   g.restore();
 }
 
-export function IntroCutscene({ onDone, onSound, reduceFlash }: { onDone: () => void; onSound?: (s: IntroSound) => void; reduceFlash?: boolean }) {
+/** How long the intro takes to fade out at the end, revealing the menu. */
+const FADE_OUT_MS = 500;
+
+export function IntroCutscene({
+  from,
+  onCovered,
+  onDone,
+  onSound,
+  reduceFlash,
+}: {
+  from?: IntroFrom | null;
+  /** Called once the intro fully covers the page, so the menu can be put behind it. */
+  onCovered?: () => void;
+  onDone: () => void;
+  onSound?: (s: IntroSound) => void;
+  reduceFlash?: boolean;
+}) {
+  const root = useRef<HTMLButtonElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
   const soundRef = useRef(onSound);
   soundRef.current = onSound;
+  const coveredRef = useRef(onCovered);
+  coveredRef.current = onCovered;
+
+  // Grow from the window: start the canvas scaled and placed so its scene rows sit exactly over the
+  // picture that was tapped, then let it ease to its own place (a FLIP transition).
+  useLayoutEffect(() => {
+    const c = canvas.current;
+    const el = root.current;
+    if (!c || !el) return;
+    el.classList.add('growing');
+    // Measure the canvas where it will end up (clear any transform first: dev mode runs effects twice).
+    c.style.transition = 'none';
+    c.style.transform = 'none';
+    if (from && from.width > 0) {
+      const r = c.getBoundingClientRect();
+      const s = from.width / r.width;
+      const sceneTop = (SCENE_Y / H) * r.height;
+      c.style.transformOrigin = '0 0';
+      c.style.transform = `translate(${from.x - r.x}px, ${from.y - r.y - s * sceneTop}px) scale(${s})`;
+    }
+    const id = requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        c.style.transition = `transform ${INTRO_TIMES.grow}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+        c.style.transform = 'none';
+        el.classList.remove('growing');
+      }),
+    );
+    return () => cancelAnimationFrame(id);
+  }, [from]);
 
   useEffect(() => {
     const c = canvas.current;
@@ -202,8 +256,8 @@ export function IntroCutscene({ onDone, onSound, reduceFlash }: { onDone: () => 
     }
     const g = c.getContext('2d')!;
     g.imageSmoothingEnabled = false;
-    const band = portraitCanvases();
-    const n = band.length;
+    const band = performerCanvases();
+    const scene = loadEmptyScene();
     let start = -1;
     let raf = 0;
     const played = new Set<IntroSound>();
@@ -213,7 +267,10 @@ export function IntroCutscene({ onDone, onSound, reduceFlash }: { onDone: () => 
       soundRef.current?.(s);
     };
     let captionShown = '';
-    const caption = c.parentElement?.querySelector<HTMLElement>('.intro-caption');
+    const caption = root.current?.querySelector<HTMLElement>('.intro-caption');
+    let covered = false;
+    const portalX = W / 2;
+    const portalY = SCENE_Y - 30;
 
     const frame = (now: number) => {
       if (start < 0) start = now;
@@ -222,64 +279,85 @@ export function IntroCutscene({ onDone, onSound, reduceFlash }: { onDone: () => 
         doneRef.current();
         return;
       }
+      if (!covered && t > INTRO_TIMES.grow + 100) {
+        covered = true;
+        coveredRef.current?.();
+      }
+      // Fade out at the end onto the menu.
+      const el = root.current;
+      if (el) el.style.opacity = t > INTRO_TIMES.end - FADE_OUT_MS ? ((INTRO_TIMES.end - t) / FADE_OUT_MS).toFixed(3) : '';
       g.save();
       // A shake as the portal opens and when the band hits the ground.
-      const shake = (t > INTRO_TIMES.portal + 600 && t < INTRO_TIMES.fall) || (t > INTRO_TIMES.land + 380 && t < INTRO_TIMES.land + 560);
+      const shake = (t > INTRO_TIMES.portal + 700 && t < INTRO_TIMES.fall) || (t > INTRO_TIMES.land + 520 && t < INTRO_TIMES.land + 720);
       if (shake) g.translate(Math.round(Math.sin(t * 0.09) * 2), Math.round(Math.cos(t * 0.13)));
 
       if (t < INTRO_TIMES.fall) {
-        drawFaire(g, now);
-        const portalT = clamp01((t - INTRO_TIMES.portal) / 900);
+        drawFaire(g, scene, now);
+        const portalT = clamp01((t - INTRO_TIMES.portal) / 1100);
         if (portalT > 0) sound('portal');
-        drawPortal(g, W / 2, 100, ease(portalT) * 78, t / 260);
-        // The band plays, then is lifted up into the portal.
-        const lift = clamp01((t - INTRO_TIMES.portal - 550) / 650);
-        band.forEach((m, i) => {
-          const x0 = 24 + i * ((W - 48) / Math.max(1, n - 1));
-          const y0 = STAGE_Y - 24;
-          const k = ease(clamp01(lift * 1.3 - i * 0.06));
-          const x = x0 + (W / 2 - x0) * k;
-          const y = y0 + (100 - y0) * k;
-          const img = m.frames[Math.floor(t / 300 + i) % m.frames.length]!;
-          drawMember(g, img, x, y, k * (i % 2 ? 1.2 : -1.2), 1 - 0.6 * k);
+        drawPortal(g, portalX, portalY, ease(portalT) * 72, t / 300);
+        // The band plays on, then is lifted up into the portal one by one.
+        const lift = clamp01((t - INTRO_TIMES.lift) / (INTRO_TIMES.fall - INTRO_TIMES.lift));
+        band.forEach((frames, i) => {
+          const p = PERFORMERS[i]!;
+          const x0 = p.x + 8;
+          const y0 = SCENE_Y + p.y + 8;
+          const k = ease(clamp01(lift * 1.4 - i * 0.12));
+          const x = x0 + (portalX - x0) * k;
+          const y = y0 + (portalY - y0) * k;
+          // Frame 0 until the window has grown, so the first shot matches the title picture exactly.
+          const f = t < INTRO_TIMES.grow ? 0 : Math.floor(t / 300 + i) % Math.max(1, frames.length);
+          drawMember(g, frames[f], x, y, k * (i % 2 ? 2 : -2), 1 - 0.5 * k);
         });
       } else if (t < INTRO_TIMES.land) {
         sound('fall');
         const ft = t - INTRO_TIMES.fall;
         drawTunnel(g, ft);
-        band.forEach((m, i) => {
-          const a = (i / n) * Math.PI * 2 + ft / 700;
-          const x = W / 2 + Math.cos(a) * 58;
-          const y = H * 0.42 + Math.sin(a) * 40 + Math.sin(ft / 200 + i) * 4;
-          drawMember(g, m.frames[0]!, x, y, ft / (350 + i * 60) + i, 0.8);
+        band.forEach((frames, i) => {
+          const a = (i / band.length) * Math.PI * 2 + ft / 900;
+          const x = W / 2 + Math.cos(a) * 60;
+          const y = H * 0.42 + Math.sin(a) * 42 + Math.sin(ft / 240 + i) * 4;
+          drawMember(g, frames[0], x, y, ft / (420 + i * 70) + i, 2);
         });
         // A flash as they go through.
-        if (!reduceFlash && ft < 140) {
-          g.fillStyle = `rgba(246, 236, 214, ${(1 - ft / 140).toFixed(2)})`;
+        if (!reduceFlash && ft < 160) {
+          g.fillStyle = `rgba(246, 236, 214, ${(1 - ft / 160).toFixed(2)})`;
           g.fillRect(0, 0, W, H);
         }
       } else {
         const lt = t - INTRO_TIMES.land;
         drawLanding(g, lt);
-        band.forEach((m, i) => {
-          const x = 24 + i * ((W - 48) / Math.max(1, n - 1));
-          const groundY = STAGE_Y - 24;
-          const drop = clamp01((lt - i * 70) / 380);
+        band.forEach((frames, i) => {
+          const x = 42 + i * 52;
+          const groundY = STAGE_Y - 16;
+          const drop = clamp01((lt - i * 90) / 480);
           const y = -40 + (groundY + 40) * drop * drop;
           // A little bounce on landing.
-          const after = lt - i * 70 - 380;
-          const bounce = after > 0 && after < 160 ? -Math.sin((after / 160) * Math.PI) * 5 : 0;
+          const after = lt - i * 90 - 480;
+          const bounce = after > 0 && after < 200 ? -Math.sin((after / 200) * Math.PI) * 6 : 0;
           if (after > 0) sound('land');
-          drawMember(g, m.frames[after > 0 ? Math.floor(lt / 300 + i) % m.frames.length : 0]!, x, y + bounce);
+          const f = after > 0 ? Math.floor(lt / 300 + i) % Math.max(1, frames.length) : 0;
+          drawMember(g, frames[f], x, y + bounce, 0, 2);
           // Dust where they land.
-          if (after > 0 && after < 300) {
+          if (after > 0 && after < 360) {
             g.fillStyle = '#c4a46c';
-            const spread = Math.round(after / 18);
-            for (const side of [-1, 1]) g.fillRect(Math.round(x + side * (14 + spread)), STAGE_Y - 2 - Math.round(after / 120), 2, 2);
+            const spread = Math.round(after / 20);
+            for (const side of [-1, 1]) g.fillRect(Math.round(x + side * (14 + spread)), STAGE_Y - 2 - Math.round(after / 140), 2, 2);
           }
         });
       }
       g.restore();
+
+      // While the window grows, only the scene itself shows; the sky and crowd around it fade in.
+      if (t < INTRO_TIMES.grow) {
+        const fade = 1 - ease(t / INTRO_TIMES.grow);
+        g.save();
+        g.globalCompositeOperation = 'destination-out';
+        g.fillStyle = `rgba(0, 0, 0, ${fade.toFixed(3)})`;
+        g.fillRect(0, 0, W, SCENE_Y);
+        g.fillRect(0, SCENE_Y + SCENE_H, W, H - SCENE_Y - SCENE_H);
+        g.restore();
+      }
 
       let text = '';
       for (const cap of CAPTIONS) if (t >= cap.at) text = cap.text;
@@ -294,7 +372,7 @@ export function IntroCutscene({ onDone, onSound, reduceFlash }: { onDone: () => 
   }, [reduceFlash]);
 
   return (
-    <button className="overlay intro" aria-label="The band falls through a portal into the land of monsters. Tap to skip" onClick={() => doneRef.current()}>
+    <button ref={root} className="overlay intro" aria-label="The band falls through a portal into the land of monsters. Tap to skip" onClick={() => doneRef.current()}>
       <canvas ref={canvas} className="intro-canvas" width={W} height={H} aria-hidden="true" />
       <span className="intro-caption" aria-hidden="true" />
       <span className="intro-skip" aria-hidden="true">

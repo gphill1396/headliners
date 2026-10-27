@@ -3360,6 +3360,37 @@ h1.title::first-letter {
   background: #0b0712;
   color: var(--vellum);
   cursor: pointer;
+  /* It grows out of the title picture: the screen around it darkens as it does. */
+  transition: background-color 0.8s ease;
+  z-index: 20;
+}
+
+.overlay.intro.growing {
+  background-color: rgba(11, 7, 18, 0);
+  transition: none;
+}
+
+.overlay.intro .intro-caption,
+.overlay.intro .intro-skip {
+  transition: opacity 0.6s ease 0.4s;
+}
+
+.overlay.intro.growing .intro-caption,
+.overlay.intro.growing .intro-skip {
+  opacity: 0;
+  transition: none;
+}
+
+/* Once the intro has lifted the picture off the page, the page's own copy is hidden (no ghost behind it). */
+.intro-on .splash-scene {
+  visibility: hidden;
+}
+
+/* The home menu's picture is a button: tap it to watch the intro again. */
+button.splash-scene {
+  padding: 0;
+  border: 0;
+  cursor: pointer;
 }
 
 .intro-canvas {

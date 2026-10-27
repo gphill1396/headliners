@@ -1,5 +1,6 @@
 import { fromSnapshot, HEADLINERS, toSnapshot, type EngineState, type HeadlinerId } from '../engine';
 import type { DailyHistory } from '../meta/daily';
+import { addToLog, tourLogEntry, type TourLogEntry } from '../meta/tourlog';
 import { normalizeCollection, type Collection } from '../meta/collection';
 
 /**
@@ -193,6 +194,28 @@ export function saveMode(mode: GameMode): void {
 const DAILY_KEY = 'headliners.daily.v1';
 
 /** Every day played on this device: whether the scored attempt was used, and its result. */
+const TOUR_LOG_KEY = 'headliners.tourlog.v1';
+
+/** The Tour log (S4.13), newest first. */
+export function loadTourLog(): TourLogEntry[] {
+  const raw = read<TourLogEntry[]>(TOUR_LOG_KEY);
+  return Array.isArray(raw) ? raw : [];
+}
+
+/** Add a finished Tour to the log; anything else is ignored. `date` is the local YYYY-MM-DD. */
+export function logTour(state: EngineState, date: string): TourLogEntry[] {
+  const entry = tourLogEntry(state, date);
+  const log = loadTourLog();
+  if (!entry) return log;
+  const next = addToLog(log, entry);
+  write(TOUR_LOG_KEY, JSON.stringify(next));
+  return next;
+}
+
+export function clearTourLog(): void {
+  write(TOUR_LOG_KEY, '[]');
+}
+
 export function loadDaily(): DailyHistory {
   const raw = read<DailyHistory>(DAILY_KEY);
   return raw && typeof raw === 'object' ? raw : {};

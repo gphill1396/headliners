@@ -3419,3 +3419,39 @@ button.splash-scene {
 .calibrate .overlay-top {
   text-align: center;
 }
+
+/* ---------------------------------------------------------------- Tour log (S4.13) */
+
+.tour-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tour-log-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-left: 6px solid var(--crimson-lt);
+  background: var(--vellum-lt);
+  color: var(--ink);
+}
+
+.tour-log-row.won {
+  border-left-color: var(--gilt);
+}
+
+.tour-log-band {
+  font-weight: bold;
+}
+
+.tour-log-heat {
+  text-align: right;
+}
+
+.tour-log-meta {
+  grid-column: 1 / -1;
+  font-size: 0.8em;
+}

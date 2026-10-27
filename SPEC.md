@@ -806,6 +806,16 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 
 *As built:* `scheduleGroove` plays units at `tBeat`, keeper and signature parts at the swung `t` (`audio/groove.ts`); attack times in `audio/synth.ts` (`voice` takes an `attack`). Tests: shots stay on the grid in Clatter's jig; moving units drop out of the mix.
 
+
+**S4.13 Tour log**
+*As Grant playtesting Tour balance, I want every finished Tour recorded, so I can send real results without writing them down.*
+- [x] Each finished Tour (won or lost; not the Daily Setlist) is logged on the device: date, band (lead first), Heat, won or where it was lost (act and stop), stops cleared, crowd left, and Tight / Good / Off share.
+- [x] Options → Tour log lists them, newest first, one short card each (band, Heat, result, date, Tight %).
+- [x] "Copy log" copies the whole log as plain text, one Tour a line, ready to paste into a message.
+- [x] "Clear log" needs a press and hold. The log keeps the 50 most recent Tours.
+
+*As built:* `src/meta/tourlog.ts` (pure: `tourLogEntry`, `addToLog`, `logText`), stored under `headliners.tourlog.v1` (`logTour` in `ui/storage.ts`, called from `finishRun`), shown by `ui/TourLogOverlay.tsx`. The Tight % is there to compare human timing with the sim bots' (timingSkill 0.7).
+
 **Band balance pass (Oct 26, after S4.3):** T4 added (no solved band). The report now lists every band at Heat 0/5/10.
 - **Found:** Riot's passive had no limit. In a band with Thrum it won back about 40 crowd a Tour (the max crowd is 30), and Thrum + Lyra + Riot won 100% at Heat 5. *Shipped:* Riot wins back at most 2 crowd a wave (`RIOT_CROWD_PER_WAVE`). Thrum + Lyra + Riot 100% → 90%, Thrum + Aria + Riot 90% → 90% (noise), solo Riot 68% → 63%.
 - **Shipped:** Aria's Hold recharges in 13 beats (was 16). Solo Aria 73% → 79%; most Aria bands rose a few points.
@@ -815,7 +825,7 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 - **Bot audit (Oct 27):** no misplay found. What separates Clatter from Thrum is energy, not damage. The Thrum bot sits at the 10-energy cap on 45% of beats; the Clatter bot on 8%: he is always short. Thrum's band also fires about 2.5× the raw damage (Fill and volleys), at a lower hit rate. Tested: Squires that walk to the busiest lane (they stood in empty lanes 66% of the time) made solo Clatter worse (57%); cheaper Clatter cards made it worse (55%); +2 energy on All Hands barely helped (65%); a Squire bringing 1 energy every other bar, 64%; every Tight-hit Squire bringing 1 energy (once per bar, like Thrum's refund), **79%**. *Shipped:* "A Tight hit calls a Squire to that lane, with 1 energy (once per bar)" (`CLATTER_SUPPLY_BARS = 1`). In a band with Thrum, both refunds pay.
 - **Result:** solo Thrum 88%, Clatter 79%, Aria 79%, Lyra 70%, Riot 61% (T1 1.43×). T4 passes: 2.45× (best Thrum + Aria + Riot 90%, worst Clatter + Aria + Riot 37%). **T2 fails on the easy side:** bands win 89% at Heat 0 and 63% at Heat 5 (caps 85% and 60%); Heat 10 26% is in range. Heat 3 Tournaments went to +60% health (it moved Heat 5 from 65% to 63%). Tried for overall difficulty, all reverted: Tournaments at +40% from Heat 0 (widened every gap: Thrum 93%, Riot 49%), Tour bosses +20% health (Thrum up, others down), a 26-crowd Tour meter (no change). Health-based difficulty favours Thrum's volume of fire. Encore at 200 runs: D1–D8 all pass.
 - **Energy cap on Tour (Oct 27, tried, not shipped):** since Thrum's bot sat at the cap so often, a Tour-only cap of 9 and of 8 energy were tested (30 per team). Cap 9: solo T1 1.32×, bands 93% / 66% / 31%, T4 2.23×. Cap 8: T1 1.34×, bands 93% / 67% / 32%, T4 2.33×. Overall difficulty didn't move (before: 92% / 64% / 30%), so the surplus energy isn't what wins Tours; the T4 change is within noise. Reverted. Every band, Thrum or not, wins 80–100% at Heat 0, so Heat 0 is easy for everyone, not just Thrum.
-- **Decision (Oct 27, Grant):** playtest before any more Tour tuning. Grant and Cass play a few Tours, noting band, Heat and result.
+- **Decision (Oct 27, Grant):** playtest before any more Tour tuning. Grant and Cass play a few Tours; the Tour log (S4.13) records band, Heat, result and timing, and Copy log sends it.
 - **Open:** whether the gap is the game or the bot (the sim bot may simply play Thrum's cards better). Real Tour plays by Grant and Cass, noting band and Heat, would settle it before more tuning.
 ---
 

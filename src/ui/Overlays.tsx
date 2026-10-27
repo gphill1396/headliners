@@ -172,6 +172,7 @@ export function TitleOverlay({
   onLoadIn,
   onSongbook,
   onCalibrate,
+  onTourLog,
   onIntroSound,
   team,
   onTeam,
@@ -204,6 +205,8 @@ export function TitleOverlay({
   onSongbook: () => void;
   /** Options → Calibrate timing (S4.10). */
   onCalibrate: () => void;
+  /** Options → Tour log (S4.13). */
+  onTourLog: () => void;
   /** The intro's sound cues (S4.11). */
   onIntroSound?: (s: IntroSound) => void;
   /** Tour: the team of 3 being picked, in order (the first leads). */
@@ -274,6 +277,9 @@ export function TitleOverlay({
           </div>
           <button className="secondary-btn" onClick={onCalibrate}>
             Calibrate timing
+          </button>
+          <button className="secondary-btn" onClick={onTourLog}>
+            Tour log
           </button>
           <button className="secondary-btn" onClick={() => setScreen('menu')}>
             Back

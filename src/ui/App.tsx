@@ -30,6 +30,7 @@ import { LoadInOverlay } from './LoadInOverlay';
 import { EvolveOverlay, GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay, type TitleScreen } from './Overlays';
 import { SongbookOverlay } from './SongbookOverlay';
 import { CalibrateOverlay } from './CalibrateOverlay';
+import { TourLogOverlay } from './TourLogOverlay';
 import { EventOverlay, MapOverlay, RestOverlay, ShopOverlay, TourEndOverlay } from './TourOverlays';
 import { CollectionOverlay } from './CollectionOverlay';
 import { deckProblems, EVOLVE_LEVEL, levelFor, recordRunInCollection, unlockedHeat, type Collection } from '../meta/collection';
@@ -56,6 +57,7 @@ import {
   loadRun,
   loadSettings,
   recordRun,
+  logTour,
   saveCollection,
   saveDeckChoice,
   saveHeadliner,
@@ -312,6 +314,7 @@ export function App() {
   /** The Songbook (S4.6): null when shut; from Pause it opens on the run's deck. */
   const [songbook, setSongbook] = useState<{ deck?: string[] } | null>(null);
   const [calibrating, setCalibrating] = useState(false);
+  const [tourLogOpen, setTourLogOpen] = useState(false);
   /** On the title: who's picked, so the waiting beat plays their style. Null during a run. */
   const titlePickRef = useRef<{ headliner: HeadlinerId; team?: HeadlinerId[] } | null>(null);
   /** Where the title screen opens: the splash on launch, the menu when coming back from a run. */
@@ -476,6 +479,11 @@ export function App() {
     // The band fades out over two bars, leaving the metronome: the beat never stops.
     handToConductor('fade', s);
     const result = recordRun(s);
+    // The Tour log (S4.13), for playtesting: dated by the player's own calendar day.
+    if (s.mode === 'tour' && !s.daily) {
+      const d = new Date();
+      logTour(s, `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    }
     // Daily Setlist: the day's scored attempt keeps its result (practice runs don't).
     if (s.daily?.scored) {
       const history = loadDaily();
@@ -1447,6 +1455,7 @@ export function App() {
           startAt={titleStart}
           onSongbook={() => setSongbook({})}
           onCalibrate={() => setCalibrating(true)}
+          onTourLog={() => setTourLogOpen(true)}
           onIntroSound={(cue) => {
             const synth = settingsRef.current.sound ? synthRef.current : null;
             if (!synth) return;
@@ -1570,6 +1579,7 @@ export function App() {
       )}
       {loadInOpen && <LoadInOverlay onClose={() => setLoadInOpen(false)} />}
       {songbook && <SongbookOverlay deck={songbook.deck} onClose={() => setSongbook(null)} />}
+      {tourLogOpen && <TourLogOverlay onClose={() => setTourLogOpen(false)} />}
       {calibrating && (
         <CalibrateOverlay
           soundOn={settings.sound}

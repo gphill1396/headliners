@@ -3274,3 +3274,117 @@ h1.title::first-letter {
   background: var(--ui-bunting) 0 0 / 48px 12px repeat-x;
   pointer-events: none;
 }
+
+/* ---------------------------------------------------------------- Calibrate timing (S4.10) */
+
+.calibrate .overlay-top {
+  gap: 14px;
+}
+
+.cal-lights {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  margin: 14px 0 10px;
+}
+
+.cal-light {
+  width: 18px;
+  height: 18px;
+  background: var(--oak-dk);
+  box-shadow: inset 0 0 0 2px var(--iron), 0 2px 0 var(--iron);
+}
+
+.cal-light.one {
+  width: 22px;
+  height: 22px;
+}
+
+.cal-light.on {
+  background: var(--gilt);
+  box-shadow: inset 0 0 0 2px var(--gilt-dk), 0 0 10px var(--gilt);
+}
+
+.cal-pips {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.cal-pip {
+  width: 10px;
+  height: 10px;
+  background: var(--oak);
+  box-shadow: inset 0 0 0 2px var(--iron);
+}
+
+.cal-pip.on {
+  background: var(--crimson-lt);
+}
+
+.cal-now {
+  font-size: 0.85em;
+}
+
+/* The drum: a big round tabor skin to tap, in the bottom of the screen with the other play input. */
+.cal-drum {
+  align-self: center;
+  width: min(46vw, 180px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 0;
+  background: radial-gradient(circle at 50% 45%, var(--vellum-lt) 0 52%, var(--vellum-dk) 53% 60%, var(--crimson) 61% 72%, var(--gilt-dk) 73% 76%, var(--crimson) 77%);
+  box-shadow: 0 6px 0 var(--iron), inset 0 0 0 4px var(--iron);
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.cal-drum:active {
+  transform: translateY(3px);
+  box-shadow: 0 3px 0 var(--iron), inset 0 0 0 4px var(--iron);
+}
+
+/* ---------------------------------------------------------------- The intro (S4.11) */
+
+.overlay.intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: calc(12px + env(safe-area-inset-top)) 0 calc(16px + env(safe-area-inset-bottom));
+  border: 0;
+  background: #0b0712;
+  color: var(--vellum);
+  cursor: pointer;
+}
+
+.intro-canvas {
+  display: block;
+  width: min(100vw, calc((100dvh - 110px) * 0.75), 480px);
+  aspect-ratio: 240 / 320;
+  image-rendering: pixelated;
+}
+
+.intro-caption {
+  min-height: 1.4em;
+  padding: 0 16px;
+  font-family: var(--display);
+  font-size: 1.35rem;
+  text-align: center;
+  color: var(--vellum-lt);
+  text-shadow: 0 2px 0 var(--iron);
+}
+
+.intro-skip {
+  font-size: 0.75rem;
+  color: var(--dim);
+  opacity: 0.8;
+}
+
+.calibrate .overlay-top {
+  text-align: center;
+}

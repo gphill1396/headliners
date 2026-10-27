@@ -174,8 +174,8 @@ const LAND = {
 
 let landCache: { w: number; h: number; canvas: HTMLCanvasElement } | null = null;
 
-/** The still parts of the land, drawn once per canvas size. */
-function land(w: number, h: number): HTMLCanvasElement {
+/** The monster land (cave, roads, hillside), drawn once per size. Also the intro cutscene's landing (S4.11). */
+export function land(w: number, h: number): HTMLCanvasElement {
   if (landCache && landCache.w === w && landCache.h === h) return landCache.canvas;
   const c = document.createElement('canvas');
   c.width = w;

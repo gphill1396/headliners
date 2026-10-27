@@ -123,13 +123,19 @@ export class Synth {
    * only advances in ~3 ms blocks, so the offset between the two clocks is
    * measured with getOutputTimestamp where available and smoothed.
    */
+  /**
+   * Timing calibration (S4.10): the music is played this many ms early, so a player who hears and taps
+   * late (a slow speaker, Bluetooth, a laggy screen) still lands on the engine's beat.
+   */
+  latencyMs = 0;
+
   audioTimeAt(perfNowMs: number): number {
     let sample: number;
     const ts = typeof this.ctx.getOutputTimestamp === 'function' ? this.ctx.getOutputTimestamp() : null;
     if (ts && ts.performanceTime && ts.contextTime !== undefined) sample = ts.contextTime - ts.performanceTime / 1000;
     else sample = this.ctx.currentTime - performance.now() / 1000;
     this.offset = this.offset === null || Math.abs(sample - this.offset) > 0.05 ? sample : this.offset * 0.95 + sample * 0.05;
-    return Math.max(this.ctx.currentTime, this.offset + perfNowMs / 1000);
+    return Math.max(this.ctx.currentTime, this.offset + (perfNowMs - this.latencyMs) / 1000);
   }
 
   /** Muffle the whole band (card pick screen) or bring it back, at audio time `t`. */
@@ -299,8 +305,9 @@ export class Synth {
     bp.frequency.setValueAtTime(up ? 900 : 3_200, t);
     bp.frequency.exponentialRampToValueAtTime(up ? 4_200 : 700, t + dur);
     const gain = this.ctx.createGain();
+    // Loudest right at the start (8 ms), so the shot is heard on its beat, then the hiss trails off.
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.linearRampToValueAtTime(0.32 * level, t + dur * 0.35);
+    gain.gain.linearRampToValueAtTime(0.32 * level, t + 0.008);
     gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
     src.connect(bp).connect(gain).connect(dest);
     src.start(t, (t * 3.1) % 0.8);
@@ -345,8 +352,11 @@ export class Synth {
 
   // ---------------------------------------------------------------- Aria's voices, Riot's pipes
 
-  /** A sung vowel (Aria): a saw through two formant band-passes, with a soft attack. 'oo' is dark, 'ah' is open. */
-  voice(t: number, midi: number, dur: number, level = 1, dest: AudioNode = this.master, vowel: 'oo' | 'ah' = 'oo'): void {
+  /**
+   * A sung vowel (Aria): a saw through two formant band-passes. 'oo' is dark, 'ah' is open.
+   * The attack is soft for backing parts; a singer firing as a unit passes a quick one so she's heard on the beat.
+   */
+  voice(t: number, midi: number, dur: number, level = 1, dest: AudioNode = this.master, vowel: 'oo' | 'ah' = 'oo', attack = 0.08): void {
     const osc = this.ctx.createOscillator();
     osc.type = 'sawtooth';
     osc.frequency.value = midiToHz(midi);
@@ -357,7 +367,7 @@ export class Synth {
     vib.connect(vibAmt).connect(osc.detune);
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.linearRampToValueAtTime(0.18 * level, t + Math.min(0.08, dur / 3));
+    gain.gain.linearRampToValueAtTime(0.18 * level, t + Math.min(attack, dur / 3));
     gain.gain.setValueAtTime(0.18 * level, t + dur * 0.7);
     gain.gain.linearRampToValueAtTime(0.0001, t + dur);
     for (const [f, q] of vowel === 'oo' ? [[350, 6], [800, 8]] : [[750, 6], [1200, 8]]) {
@@ -528,7 +538,7 @@ export class Synth {
     lp.frequency.value = 2_400;
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.linearRampToValueAtTime(0.08 * level, t + 0.03);
+    gain.gain.linearRampToValueAtTime(0.08 * level, t + 0.012);
     gain.gain.setValueAtTime(0.08 * level, t + dur * 0.8);
     gain.gain.linearRampToValueAtTime(0.0001, t + dur);
     // The dog: a fast rattle on the volume for the first moment of the note.
@@ -560,7 +570,7 @@ export class Synth {
     const f = midiToHz(midi);
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.linearRampToValueAtTime(0.1 * level, t + Math.min(0.03, dur / 3));
+    gain.gain.linearRampToValueAtTime(0.1 * level, t + Math.min(0.015, dur / 3));
     gain.gain.setValueAtTime(0.1 * level, t + dur * 0.75);
     gain.gain.linearRampToValueAtTime(0.0001, t + dur);
     gain.connect(dest);
@@ -612,7 +622,7 @@ export class Synth {
     lp.frequency.setValueAtTime(1_400, t);
     lp.frequency.exponentialRampToValueAtTime(260, t + dur);
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.linearRampToValueAtTime(0.32 * level, t + Math.min(0.04, dur / 4));
+    gain.gain.linearRampToValueAtTime(0.32 * level, t + Math.min(0.012, dur / 4));
     gain.gain.setValueAtTime(0.32 * level, t + dur * 0.7);
     gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
     osc.connect(lp).connect(gain).connect(dest);

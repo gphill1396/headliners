@@ -19,6 +19,21 @@ export interface Settings {
   relaxedTiming: boolean;
   scientific: boolean;
   reduceFlash: boolean;
+  /**
+   * Timing calibration (S4.10), in ms: how late this player hears and taps the beat on this device.
+   * The music plays this much earlier so their taps land on the engine's beat. 0 until calibrated.
+   */
+  latencyMs?: number;
+}
+
+/** The on/off settings (everything but the calibration number). */
+export type ToggleKey = Exclude<keyof Settings, 'latencyMs'>;
+
+/** Calibration is kept to a sane range: a wild measurement can't wreck the timing. */
+export const LATENCY_MIN_MS = -150;
+export const LATENCY_MAX_MS = 250;
+export function clampLatency(ms: number): number {
+  return Number.isFinite(ms) ? Math.round(Math.max(LATENCY_MIN_MS, Math.min(LATENCY_MAX_MS, ms))) : 0;
 }
 
 export interface Bests {
@@ -50,7 +65,7 @@ function write(key: string, value: string): void {
 
 export function loadSettings(): Settings {
   const s = read<Partial<Settings>>(SETTINGS_KEY) ?? {};
-  return { sound: s.sound !== false, chillMusic: s.chillMusic === true, relaxedTiming: s.relaxedTiming === true, scientific: s.scientific === true, reduceFlash: s.reduceFlash === true };
+  return { sound: s.sound !== false, chillMusic: s.chillMusic === true, relaxedTiming: s.relaxedTiming === true, scientific: s.scientific === true, reduceFlash: s.reduceFlash === true, latencyMs: clampLatency(typeof s.latencyMs === 'number' ? s.latencyMs : 0) };
 }
 
 export function saveSettings(settings: Settings): void {

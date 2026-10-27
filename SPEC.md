@@ -778,6 +778,32 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 
 *As built:* `render/field.ts`: `CAVE_FRACTION` 0.2, tilt `Z_FAR` 2.4 (the cave end of a road is drawn as if 2.4× as far as the stage end), `scaleAt`, `laneX`, `fieldPoint`; the land is drawn once per canvas size (`land()`), monsters are cached per frame and drawn with nearest-neighbour scaling (`drawScaled`). Assuming: "longer roads" means looking longer and further away, not a slower walk; monster travel times are unchanged.
 
+
+**S4.10 Calibrate timing**
+*As a player on a phone with a slow speaker or Bluetooth headphones, I want the game to learn how late I hear and tap the beat, so Tight means Tight.*
+- [x] Options has "Calibrate timing": tap a drum along with the bare beat 8 times, with beat lights to watch.
+- [x] It shows the result in a few words ("You tap 42 ms late") with Save, Try again, Reset to 0 and Back. Scattered taps don't count ("Try again?").
+- [x] Once saved, the music plays that much earlier, so taps made in time with what you hear land on the engine's beat. It is saved on the device.
+- [x] Calibration never touches the engine: grading, windows and the sims are unchanged. It needs Sound on (it says so if Sound is off).
+
+*As built:* `Settings.latencyMs` (`ui/storage.ts`, clamped to −150…250 ms). `Synth.latencyMs` shifts every scheduled note earlier (`audioTimeAt`), and both schedulers look that much further ahead and skip a note that would already be late. `ui/calibrate.ts` does the sums: offsets from the nearest Conductor beat, the median, taps more than 80 ms from it dropped as slips, at least 5 must agree, and the result adds back the calibration already in force (so recalibrating converges). `ui/CalibrateOverlay.tsx` is the screen. *Deviation (asked for "subtract latency from tap timestamps"):* shifting the taps backward would put most of them in ticks the engine has already simulated, where they can't be graded; moving the music earlier gives the same result and keeps the engine's input path unchanged. Sound effects for your own taps still play at once.
+
+**S4.11 The intro: through the portal**
+*As a new player, I want to see the band fall through the portal into the land of monsters, so the setup makes sense before the menu.*
+- [x] After "Tap to begin", a short pixel-art scene (about 5 seconds): the band plays the Grand Faire at night; a portal tears open over the stage and pulls them up; they fall through a tunnel of rings and stars; they land on the stage in front of the monsters' cave, where eyes open in the dark.
+- [x] One short caption per beat of the story, nothing else on screen but a faint "tap to skip". A tap skips to the menu.
+- [x] Sound cues if Sound is on (the portal's rush, the fall, the landing) over the bare beat; silent otherwise. "Calmer flashes" drops the flash; reduced motion skips the scene.
+
+*As built:* `ui/IntroCutscene.tsx`, drawn at 240×320 game pixels on a canvas and scaled up pixelated. It reuses the headliner portraits and the field's own land (`land()` in `render/field.ts`, now exported). It plays each time the splash is tapped (once per launch); coming back from a run goes straight to the menu.
+
+**S4.12 Shots on the beat**
+*As a player, I want my band's shots to sound exactly on the beat they fire.*
+- [x] Every unit's sound lands on the straight eighth the engine fires it on. A style's swing (Clatter's jig, Aria's shanty) applies only to the backing parts, never to shots.
+- [x] Each shot's sound is loudest at its start: whooshes peak in 8 ms (they swelled for up to 80 ms), sung units start in 12 ms (80), and the hurdy-gurdy, bass and recorder start in 12–15 ms (30–40). The Page's thud is on the beat (it came 100 ms after), with the whoosh behind it.
+- [x] A unit sliding to another lane (Shift) is silent until it fires again, as it doesn't fire.
+
+*As built:* `scheduleGroove` plays units at `tBeat`, keeper and signature parts at the swung `t` (`audio/groove.ts`); attack times in `audio/synth.ts` (`voice` takes an `attack`). Tests: shots stay on the grid in Clatter's jig; moving units drop out of the mix.
+
 **Band balance pass (Oct 26, after S4.3):** T4 added (no solved band). The report now lists every band at Heat 0/5/10.
 - **Found:** Riot's passive had no limit. In a band with Thrum it won back about 40 crowd a Tour (the max crowd is 30), and Thrum + Lyra + Riot won 100% at Heat 5. *Shipped:* Riot wins back at most 2 crowd a wave (`RIOT_CROWD_PER_WAVE`). Thrum + Lyra + Riot 100% → 90%, Thrum + Aria + Riot 90% → 90% (noise), solo Riot 68% → 63%.
 - **Shipped:** Aria's Hold recharges in 13 beats (was 16). Solo Aria 73% → 79%; most Aria bands rose a few points.

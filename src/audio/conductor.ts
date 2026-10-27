@@ -118,6 +118,13 @@ export class Conductor {
     this.resumeEighth = 2 * engineBeat;
   }
 
+  /** How far `t` (performance.now() time) is from the nearest beat, in ms: positive is late. For calibration. */
+  offsetFromBeat(t: number): number {
+    const beatMs = 60_000 / this.bpm;
+    const elapsed = (t - this.beat0) / beatMs;
+    return (elapsed - Math.round(elapsed)) * beatMs;
+  }
+
   /** Where the virtual clock is: beat in bar (0–3) and 0–1 progress, for the beat lights. */
   position(now: number): { beat: number; phase: number } {
     const elapsed = (now - this.beat0) / (60_000 / this.bpm);
@@ -145,13 +152,15 @@ export class Conductor {
         if (synth) synth.resetBand(synth.audioTimeAt(at));
         return { eighth: this.resumeEighth, at };
       }
-      if (tK - now > LOOKAHEAD_MS) return null;
+      // Calibrated music plays early (S4.10), so look that much further ahead.
+      const early = synth?.latencyMs ?? 0;
+      if (tK - now > LOOKAHEAD_MS + Math.max(0, early)) return null;
 
       if (this.mode === 'fade' && tK >= this.fadeEnd) {
         this.mode = 'metronome';
         if (synth) synth.resetBand(synth.audioTimeAt(tK));
       }
-      if (synth && tK > now - 40) {
+      if (synth && tK - early > now - 40) {
         const eighth = 2 * this.beatOffset + this.k;
         const at = synth.audioTimeAt(tK);
         const m = mix();

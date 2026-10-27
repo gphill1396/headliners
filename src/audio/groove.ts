@@ -34,6 +34,8 @@ export interface BoardMix {
 export function mixFrom(s: EngineState): BoardMix {
   const groups = new Map<string, BoardMix['groups'][number]>();
   for (const u of s.units) {
+    // A unit still sliding to its new lane (Shift) doesn't fire, so it doesn't play.
+    if (u.movedUntilBeat !== undefined && s.clock.beat < u.movedUntilBeat) continue;
     const key = `${u.cardId}:${u.lane}`;
     const g = groups.get(key);
     if (g) g.count += 1;
@@ -57,7 +59,9 @@ export function mixFrom(s: EngineState): BoardMix {
   };
 }
 
-/** Schedule everything that plays on one eighth note at audio time `t`. */
+/** A singer's attack when she's a unit firing: quick, so the note is heard on its beat. */
+const SHOT_ATTACK = 0.012;
+
 export type MusicStyle = 'full' | 'chill';
 
 /**
@@ -99,8 +103,10 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, tBea
   if (!hasKick && onBeat && inBar === 0) synth.boom(t, 0.7);
   if (filling && (!chill || onBeat)) synth.snare(t, onBeat ? 0.8 : 0.55);
 
-  // The band: each unit plays when it fires.
+  // The band: each unit plays when it fires, dead on the grid. Shots never swing: the engine fires
+  // them on the straight eighth, so their sound must land there too (only the backing parts swing).
   for (const g of mix.groups) {
+    const tu = tBeat;
     const fires = filling || eighth % g.fireEvery === 0;
     if (!fires) continue;
     const dest = synth.lane(g.lane);
@@ -108,120 +114,120 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, tBea
     const v = level(g.count);
     switch (g.cardId) {
       case 'stagehand': {
-        // Page: throws rocks. A whoosh, and a thud where it lands (louder on the backbeat).
+        // Page: throws rocks. A thud on the beat (louder on the backbeat), with a whoosh behind it.
         const backbeat = onBeat && (inBar === 1 || inBar === 3);
         if (chill && !backbeat) break;
-        synth.whoosh(t, 0.5 * v, dest, false, 0.12);
-        synth.tom(t + 0.1, 50, (backbeat ? 0.7 : 0.3) * v, dest);
-        if (copy && !chill) synth.tom(t + 0.13, 55, 0.3 * v, dest); // doubled: a second stone
+        synth.tom(tu, 50, (backbeat ? 0.7 : 0.3) * v, dest);
+        synth.whoosh(tu, 0.35 * v, dest, false, 0.1);
+        if (copy && !chill) synth.tom(tu + sixteenth, 55, 0.3 * v, dest); // doubled: a second stone
         break;
       }
       case 'kick-drum':
         // War Drum: a big boom, with its downbeat burst as a 16th-note pickup.
-        synth.boom(t, v, dest);
+        synth.boom(tu, v, dest);
         if (onBeat && inBar === 0 && !filling && !chill) {
-          synth.kick(t + sixteenth, 0.55 * v, dest);
-          synth.kick(t + 2 * sixteenth, 0.65 * v, dest);
+          synth.kick(tu + sixteenth, 0.55 * v, dest);
+          synth.kick(tu + 2 * sixteenth, 0.65 * v, dest);
         }
-        if (copy && !chill) synth.tom(t + sixteenth, 45, 0.5 * v, dest);
+        if (copy && !chill) synth.tom(tu + sixteenth, 45, 0.5 * v, dest);
         break;
       case 'bassline': {
         const dur = (filling ? 1 : g.fireEvery) * eighthSec * 0.92;
-        synth.bass(t, chord.root, dur, v, dest);
-        if (copy && !chill) synth.bass(t, chord.root + 12, dur, 0.5 * v, dest);
+        synth.bass(tu, chord.root, dur, v, dest);
+        if (copy && !chill) synth.bass(tu, chord.root + 12, dur, 0.5 * v, dest);
         break;
       }
       case 'arpeggiator': {
         // Up the chord an eighth at a time; a copy gate adds the next chord tone as a harmony.
         if (chill && !onBeat) break;
         const i = ((eighth % 4) + 4) % 4;
-        synth.keys(t, chord.notes[i]! + 12, eighthSec * 1.6, 0.8 * v, dest);
-        if (copy && !chill) synth.keys(t, chord.notes[(i + 1) % 4]! + 12, eighthSec * 1.6, 0.4 * v, dest);
+        synth.keys(tu, chord.notes[i]! + 12, eighthSec * 1.6, 0.8 * v, dest);
+        if (copy && !chill) synth.keys(tu, chord.notes[(i + 1) % 4]! + 12, eighthSec * 1.6, 0.4 * v, dest);
         break;
       }
       case 'crew-chief':
         // Quartermaster: the hurdy-gurdy's melody string, a chord tone a beat at a time.
         if (chill && inBar % 2 === 1) break;
-        if (onBeat) synth.gurdy(t, chord.notes[inBar % 4]! + 12, eighthSec * 1.8, (inBar === 0 ? 1 : 0.75) * v, dest);
-        if (copy && !chill && onBeat) synth.gurdy(t, chord.notes[(inBar + 2) % 4]! + 12, eighthSec * 1.8, 0.4 * v, dest);
+        if (onBeat) synth.gurdy(tu, chord.notes[inBar % 4]! + 12, eighthSec * 1.8, (inBar === 0 ? 1 : 0.75) * v, dest);
+        if (copy && !chill && onBeat) synth.gurdy(tu, chord.notes[(inBar + 2) % 4]! + 12, eighthSec * 1.8, 0.4 * v, dest);
         break;
       case 'roadie': {
         // A pile of Roadies is a pile of scrap: each lane's crew clanks at its own pitch.
         if (chill && !(onBeat && inBar % 2 === 1)) break;
-        synth.clank(t, 0.8 * v, dest, [0.85, 1, 1.2][g.lane] ?? 1);
-        if (copy && !chill) synth.shaker(t + sixteenth, 0.6 * v, dest);
+        synth.clank(tu, 0.8 * v, dest, [0.85, 1, 1.2][g.lane] ?? 1);
+        if (copy && !chill) synth.shaker(tu + sixteenth, 0.6 * v, dest);
         break;
       }
       case 'hype-man':
         // Town Crier: rings his handbell on 2 and 4, louder as it gains Volume.
-        if (onBeat && inBar % 2 === 1) synth.bell(t, chord.notes[0]! + 12, 0.5, 0.8 * v, dest);
+        if (onBeat && inBar % 2 === 1) synth.bell(tu, chord.notes[0]! + 12, 0.5, 0.8 * v, dest);
         break;
       case 'double-kick':
         // Kettle Drums: low and tuned, alternating root and fifth.
         if (chill && !onBeat) break;
-        synth.tom(t, onBeat ? 40 : 47, (onBeat ? 0.8 : 0.55) * v, dest);
+        synth.tom(tu, onBeat ? 40 : 47, (onBeat ? 0.8 : 0.55) * v, dest);
         break;
       case 'tuning-fork':
         // Struck, it rings a pure tone a fifth above the chord root.
         if (chill && !onBeat) break;
-        synth.bell(t, chord.root + 43, eighthSec * 2, 0.45 * v, dest, true);
+        synth.bell(tu, chord.root + 43, eighthSec * 2, 0.45 * v, dest, true);
         break;
       case 'guitar-tech':
         // Luthier: tries a string, then another, tuning as she goes.
         if (chill && inBar % 2 === 1) break;
-        synth.lute(t, chord.notes[inBar % 4]! - 12, eighthSec * 1.2, 0.6 * v, dest);
+        synth.lute(tu, chord.notes[inBar % 4]! - 12, eighthSec * 1.2, 0.6 * v, dest);
         break;
       case 'security':
         // Gate Guard: the halberd's butt on the boards, and a ring of steel.
         if (chill && !onBeat) break;
-        synth.tom(t, 40, 0.55 * v, dest);
-        synth.clank(t, 0.4 * v, dest, 0.7);
+        synth.tom(tu, 40, 0.55 * v, dest);
+        synth.clank(tu, 0.4 * v, dest, 0.7);
         break;
       case 'rigger':
         // Slinger: the sling whirls and lets go.
         if (chill && !onBeat) break;
-        synth.whoosh(t, 0.45 * v, dest, true, 0.1);
+        synth.whoosh(tu, 0.45 * v, dest, true, 0.1);
         break;
       case 'backup-singer':
         // Oohs on 2 and 4, a chord tone above the root.
-        if (onBeat && inBar % 2 === 1) synth.voice(t, chord.notes[1]! + 12, eighthSec * 1.8, 0.6 * v, dest);
-        if (copy && !chill && onBeat && inBar % 2 === 1) synth.voice(t, chord.notes[2]! + 12, eighthSec * 1.8, 0.35 * v, dest);
+        if (onBeat && inBar % 2 === 1) synth.voice(tu, chord.notes[1]! + 12, eighthSec * 1.8, 0.6 * v, dest, 'oo', SHOT_ATTACK);
+        if (copy && !chill && onBeat && inBar % 2 === 1) synth.voice(tu, chord.notes[2]! + 12, eighthSec * 1.8, 0.35 * v, dest, 'oo', SHOT_ATTACK);
         break;
       case 'soprano':
         if (chill && inBar % 2 === 1) break;
-        if (onBeat) synth.voice(t, chord.notes[(inBar + 2) % 4]! + 24, eighthSec * 1.6, 0.5 * v, dest, 'ah');
-        if (onBeat && copy && !chill) synth.recorder(t, chord.notes[(inBar + 3) % 4]! + 24, eighthSec * 1.6, 0.4 * v, dest);
+        if (onBeat) synth.voice(tu, chord.notes[(inBar + 2) % 4]! + 24, eighthSec * 1.6, 0.5 * v, dest, 'ah', SHOT_ATTACK);
+        if (onBeat && copy && !chill) synth.recorder(tu, chord.notes[(inBar + 3) % 4]! + 24, eighthSec * 1.6, 0.4 * v, dest);
         break;
       case 'skater':
         // Jester: bells on the cap, and a squeak of the pipes.
         if (chill && !onBeat) break;
-        synth.jingle(t, onBeat, dest);
-        if (onBeat) synth.pipes(t, chord.root + 24, eighthSec * 0.5, 0.35 * v, dest, true);
+        synth.jingle(tu, onBeat, dest);
+        if (onBeat) synth.pipes(tu, chord.root + 24, eighthSec * 0.5, 0.35 * v, dest, true);
         break;
       case 'bottle-rocket':
         // Fire Arrow: loosed with a rising hiss.
         if (chill && !onBeat) break;
-        synth.whoosh(t, 0.55 * v, dest, true, 0.2);
+        synth.whoosh(tu, 0.55 * v, dest, true, 0.2);
         break;
       case 'bouncer':
         // Bouncer: a big man stamping, and a grunt from the pipes.
         if (chill && inBar % 2 === 1) break;
-        synth.boom(t, 0.6 * v, dest);
-        if (onBeat) synth.pipes(t, chord.root + 12, eighthSec * 1.2, 0.35 * v, dest);
+        synth.boom(tu, 0.6 * v, dest);
+        if (onBeat) synth.pipes(tu, chord.root + 12, eighthSec * 1.2, 0.35 * v, dest);
         break;
       case 'pyro':
         // Fire Juggler: torches whirling through the air.
         if (chill && !onBeat) break;
-        synth.whoosh(t, 0.4 * v, dest, false, 0.22);
-        synth.shaker(t + 0.05, 0.6 * v, dest);
+        synth.whoosh(tu, 0.4 * v, dest, false, 0.22);
+        synth.shaker(tu + sixteenth, 0.6 * v, dest);
         break;
       case 'spotlight':
         // Lantern Bearer: the lantern's chime, a bright chord tone.
         if (chill && inBar % 2 === 1) break;
-        synth.bell(t, chord.notes[2]! + 12, 0.7, 0.7 * v, dest);
+        synth.bell(tu, chord.notes[2]! + 12, 0.7, 0.7 * v, dest);
         break;
       default:
-        synth.tom(t, 48, 0.7 * v, dest);
+        synth.tom(tu, 48, 0.7 * v, dest);
     }
   }
 

@@ -3,9 +3,10 @@ import { drawAnim, PORTRAITS } from '../render/portraits';
 import { getCard, HEADLINERS, type EngineState, type HeadlinerId } from '../engine';
 import { CardTile } from './CardTile';
 import { formatNumber } from './format';
-import type { Bests, GameMode, Settings } from './storage';
+import type { Bests, GameMode, Settings, ToggleKey } from './storage';
 import type { DailyResult } from '../meta/daily';
 import { HEAT_RULES } from '../content/heat';
+import { IntroCutscene, type IntroSound } from './IntroCutscene';
 
 /** A headliner's animated portrait (only those drawn at the new art bar so far). Plays its frames at a steady 120 bpm. */
 function Portrait({ headliner }: { headliner: HeadlinerId }) {
@@ -109,7 +110,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 
 interface SettingsProps {
   settings: Settings;
-  onToggle: (key: keyof Settings) => void;
+  onToggle: (key: ToggleKey) => void;
 }
 
 function SettingsList({ settings, onToggle }: SettingsProps) {
@@ -127,7 +128,7 @@ function SettingsList({ settings, onToggle }: SettingsProps) {
 const INTRO = 'Mid-encore at the Grand Faire, a portal swallowed the stage: band, crowd and all. Now monsters march on the show.';
 const INTRO_2 = 'Play on the beat. Keep the crowd safe.';
 
-export type TitleScreen = 'splash' | 'menu' | 'new' | 'options';
+export type TitleScreen = 'splash' | 'intro' | 'menu' | 'new' | 'options';
 
 /** A classic menu window (S4.6): framed, one item per row, a cursor beside the one in focus. */
 function MenuWindow({ items, label }: { items: { label: string; onPick: () => void; hint?: string }[]; label: string }) {
@@ -170,6 +171,8 @@ export function TitleOverlay({
   onDecks,
   onLoadIn,
   onSongbook,
+  onCalibrate,
+  onIntroSound,
   team,
   onTeam,
   daily,
@@ -199,6 +202,10 @@ export function TitleOverlay({
   onDecks: () => void;
   onLoadIn: () => void;
   onSongbook: () => void;
+  /** Options → Calibrate timing (S4.10). */
+  onCalibrate: () => void;
+  /** The intro's sound cues (S4.11). */
+  onIntroSound?: (s: IntroSound) => void;
   /** Tour: the team of 3 being picked, in order (the first leads). */
   team: HeadlinerId[];
   onTeam: (id: HeadlinerId) => void;
@@ -218,7 +225,7 @@ export function TitleOverlay({
 
   if (screen === 'splash') {
     return (
-      <button className="overlay title-splash" aria-label="Headliners. Tap to begin" onClick={() => setScreen('menu')}>
+      <button className="overlay title-splash" aria-label="Headliners. Tap to begin" onClick={() => setScreen('intro')}>
         <span className="splash-scene" aria-hidden="true" />
         <span className="logo-banner">
           <span className="title logo">Headliners</span>
@@ -228,6 +235,10 @@ export function TitleOverlay({
         <span className="tap-to-begin">Tap to begin</span>
       </button>
     );
+  }
+
+  if (screen === 'intro') {
+    return <IntroCutscene onDone={() => setScreen('menu')} onSound={onIntroSound} reduceFlash={settings.settings.reduceFlash} />;
   }
 
   if (screen === 'options') {
@@ -240,6 +251,9 @@ export function TitleOverlay({
           <div className="menu-window options-window">
             <SettingsList {...settings} />
           </div>
+          <button className="secondary-btn" onClick={onCalibrate}>
+            Calibrate timing
+          </button>
           <button className="secondary-btn" onClick={() => setScreen('menu')}>
             Back
           </button>

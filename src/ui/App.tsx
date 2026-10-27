@@ -29,6 +29,7 @@ import { formatNumber } from './format';
 import { LoadInOverlay } from './LoadInOverlay';
 import { EvolveOverlay, GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay, type TitleScreen } from './Overlays';
 import { SongbookOverlay } from './SongbookOverlay';
+import { CalibrateOverlay } from './CalibrateOverlay';
 import { EventOverlay, MapOverlay, RestOverlay, ShopOverlay, TourEndOverlay } from './TourOverlays';
 import { CollectionOverlay } from './CollectionOverlay';
 import { deckProblems, EVOLVE_LEVEL, levelFor, recordRunInCollection, unlockedHeat, type Collection } from '../meta/collection';
@@ -65,6 +66,8 @@ import {
   type Bests,
   type GameMode,
   type Settings,
+  type ToggleKey,
+  clampLatency,
 } from './storage';
 
 const LANE_NAMES = ['Left', 'Mid', 'Right'] as const;
@@ -308,6 +311,7 @@ export function App() {
   const setCollectionOpen = (open: boolean | 'workshop') => setCollectionOpenTab(open === false ? null : open === true ? 'headliners' : open);
   /** The Songbook (S4.6): null when shut; from Pause it opens on the run's deck. */
   const [songbook, setSongbook] = useState<{ deck?: string[] } | null>(null);
+  const [calibrating, setCalibrating] = useState(false);
   /** On the title: who's picked, so the waiting beat plays their style. Null during a run. */
   const titlePickRef = useRef<{ headliner: HeadlinerId; team?: HeadlinerId[] } | null>(null);
   /** Where the title screen opens: the splash on launch, the menu when coming back from a run. */
@@ -326,6 +330,7 @@ export function App() {
   const lastEighthScheduled = useRef(-1);
   /** Keeps the beat going whenever the engine isn't driving the music (title, pause, picks, game over). */
   const conductorRef = useRef<Conductor>(new Conductor());
+  const beatPosition = useCallback((now: number) => conductorRef.current.position(now), []);
   const tutorialTick = useRef<((events: EngineEvent[], s: EngineState) => void) | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -391,6 +396,7 @@ export function App() {
     const loop = (now: number) => {
       const conductor = conductorRef.current;
       const synth = settingsRef.current.sound ? synthRef.current : null;
+      if (synth) synth.latencyMs = settingsRef.current.latencyMs ?? 0;
       const style: MusicStyle = settingsRef.current.chillMusic ? 'chill' : 'full';
       // On the title, the waiting beat is in the style of whoever you've picked (S4.7).
       const handoff = conductor.tick(now, synth, style, () => {
@@ -701,8 +707,10 @@ export function App() {
         for (let next = lastEighthScheduled.current + 1; ; next++) {
           const tickAt = s.tick + (next * (BEAT_UNITS / 2) - pos) / s.clock.bpm;
           const at = runner.realTimeOfTick(tickAt);
-          if (at - now >= MUSIC_LOOKAHEAD_MS) break;
+          // Calibrated music plays early (S4.10): look that much further ahead, and skip a note that would already be late.
+          if (at - now >= MUSIC_LOOKAHEAD_MS + Math.max(0, synth.latencyMs)) break;
           lastEighthScheduled.current = next;
+          if (at - synth.latencyMs < now - 10) continue;
           scheduleGroove(synth, mix, next, synth.audioTimeAt(at), 30 / s.clock.bpm, style);
         }
       }
@@ -1204,7 +1212,7 @@ export function App() {
     return null;
   })();
 
-  const toggleSetting = (key: keyof Settings) => {
+  const toggleSetting = (key: ToggleKey) => {
     const next = { ...settings, [key]: !settings[key] };
     setSettings(next);
     saveSettings(next);
@@ -1438,6 +1446,19 @@ export function App() {
         <TitleOverlay
           startAt={titleStart}
           onSongbook={() => setSongbook({})}
+          onCalibrate={() => setCalibrating(true)}
+          onIntroSound={(cue) => {
+            const synth = settingsRef.current.sound ? synthRef.current : null;
+            if (!synth) return;
+            const t = synth.ctx.currentTime;
+            // The portal tearing open, the rush of the fall, and the band hitting the ground.
+            if (cue === 'portal') synth.whoosh(t, 1.4, undefined, true, 1.1);
+            else if (cue === 'fall') synth.whoosh(t, 1.1, undefined, false, 1.2);
+            else {
+              synth.boom(t, 0.9);
+              synth.crash(t + 0.02);
+            }
+          }}
           bests={bests}
           canResume={canResume}
           tutorialDone={tutorialDone}
@@ -1549,6 +1570,21 @@ export function App() {
       )}
       {loadInOpen && <LoadInOverlay onClose={() => setLoadInOpen(false)} />}
       {songbook && <SongbookOverlay deck={songbook.deck} onClose={() => setSongbook(null)} />}
+      {calibrating && (
+        <CalibrateOverlay
+          soundOn={settings.sound}
+          currentMs={settings.latencyMs ?? 0}
+          offsetFromBeat={(t) => conductorRef.current.offsetFromBeat(t)}
+          beatPosition={beatPosition}
+          onSave={(ms) => {
+            const next = { ...settings, latencyMs: clampLatency(ms) };
+            setSettings(next);
+            saveSettings(next);
+            setCalibrating(false);
+          }}
+          onClose={() => setCalibrating(false)}
+        />
+      )}
       {collectionOpen && (
         <CollectionOverlay
           startTab={collectionOpen}

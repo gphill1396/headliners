@@ -189,6 +189,32 @@ test("each headliner's units have their own instrument family, and each band its
   assert.ok(Math.abs(offbeat.t - EIGHTH * 1.33) < 1e-9);
 });
 
+test("shots never swing: in Clatter's jig the band's backing leans late, but every unit sound lands on the straight eighth", () => {
+  const mix = emptyMix();
+  mix.headliner = 'clatter';
+  mix.groups = [
+    { cardId: 'roadie', lane: 1, count: 1, fireEvery: 1 },
+    { cardId: 'rigger', lane: 0, count: 1, fireEvery: 1 },
+    { cardId: 'backup-singer', lane: 2, count: 1, fireEvery: 1 },
+  ];
+  const b = bar(mix);
+  const onGrid = (t: number) => Math.abs(t / EIGHTH - Math.round(t / EIGHTH)) < 1e-9;
+  const shots = b.calls.filter((c) => c.dest === 'lane0' || c.dest === 'lane1' || c.dest === 'lane2');
+  assert.ok(shots.length >= 16);
+  for (const c of shots) assert.ok(onGrid(c.t), `${c.voice} at ${c.t} is off the grid`);
+  // The jig's shaker still swings.
+  assert.ok(b.calls.some((c) => c.voice === 'shaker' && !onGrid(c.t)));
+});
+
+test('a unit sliding to a new lane (Shift) is silent until it lands, as it does not fire', () => {
+  const s = testState('shift-quiet');
+  noWaves(s);
+  playOnBeat(s, 'stagehand', 0);
+  assert.equal(mixFrom(s).groups.length, 1);
+  s.units[0]!.movedUntilBeat = s.clock.beat + 1;
+  assert.equal(mixFrom(s).groups.length, 0);
+});
+
 test('only Thrum\'s Fill makes the band fire on every eighth', () => {
   const s = testState('fill-lyra');
   s.headliner.id = 'lyra';

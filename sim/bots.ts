@@ -351,13 +351,14 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
   }
 }
 
-/** How much a fresh Roadie in this lane is worth: its damage over its short stay. */
+/** How much a fresh Squire in this lane is worth: its damage over its short stay (stats read from the card). */
 function roadieValue(s: EngineState, lane: number): number {
+  const squire = getCard('roadie').unit!;
   const gates = s.gates.filter((g) => g.lane === lane);
-  let dmg = 3 + gates.filter((g) => g.kind === 'damage').reduce((sum, g) => sum + g.amount, 0);
+  let dmg = squire.damage + gates.filter((g) => g.kind === 'damage').reduce((sum, g) => sum + g.amount, 0);
   const copies = gates.filter((g) => g.kind === 'copy').reduce((m, g) => m * g.amount, 1);
   const shred = gates.some((g) => g.kind === 'shred');
-  const enemies = s.enemies.filter((e) => e.lane === lane && e.depth >= 0);
+  const enemies = s.enemies.filter((e) => e.lane === lane && e.depth >= 0 && (squire.antiAir || !ENEMIES[e.kind].flying));
   const armor = shred ? 0 : enemies.reduce((m, e) => Math.max(m, e.armor), 0);
   dmg = Math.max(0.5, dmg - armor) * copies;
   const busy = enemies.length > 0 ? 1 : 0.4;

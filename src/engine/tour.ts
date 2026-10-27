@@ -146,6 +146,17 @@ export function deckCards(state: EngineState): CardInstance[] {
   return [...state.draw, ...state.hand, ...state.discard];
 }
 
+/**
+ * Every card the band owns: the piles plus the gear left set up on stage between
+ * fights (units, gates, amps). Tokens aren't cards. This is the deck the player sees.
+ */
+export function ownedCards(state: EngineState): CardInstance[] {
+  return [...deckCards(state), ...state.units.filter((u) => !u.token).map((u) => u.card), ...state.gates.map((g) => g.card), ...state.amps.map((a) => a.card)];
+}
+
+/** The smallest a Tour deck can be cut down to. */
+export const MIN_DECK = 6;
+
 // ---------------------------------------------------------------- the map
 
 export function reachable(state: EngineState): number[] {
@@ -324,13 +335,20 @@ export function rest(state: EngineState, ctx: TickCtx, choice: 'heal' | 'cut', i
   state.phase = 'map';
 }
 
+/** Cut a card from anywhere the band owns it, including gear still set up on stage. */
 function removeCard(state: EngineState, iid: number | undefined): boolean {
-  const deck = deckCards(state);
-  if (iid === undefined || deck.length <= 6) return false;
+  if (iid === undefined || ownedCards(state).length <= MIN_DECK) return false;
   for (const pile of [state.draw, state.hand, state.discard]) {
     const i = pile.findIndex((c) => c.iid === iid);
     if (i !== -1) {
       pile.splice(i, 1);
+      return true;
+    }
+  }
+  for (const list of [state.units, state.gates, state.amps] as { card: CardInstance }[][]) {
+    const i = list.findIndex((x) => x.card.iid === iid && !(x as { token?: boolean }).token);
+    if (i !== -1) {
+      list.splice(i, 1);
       return true;
     }
   }
@@ -423,8 +441,9 @@ function applyTourEffect(state: EngineState, ctx: TickCtx, effect: TourEffect): 
       return;
     }
     case 'removeRandom': {
+      // A random card from the piles (not gear on stage), down to the usual minimum.
       const deck = deckCards(state);
-      if (deck.length > 6) removeCard(state, deck[nextInt(state.rng, 0, deck.length)]!.iid);
+      if (deck.length > 0 && ownedCards(state).length > MIN_DECK) removeCard(state, deck[nextInt(state.rng, 0, deck.length)]!.iid);
       return;
     }
     case 'duplicateRandom': {

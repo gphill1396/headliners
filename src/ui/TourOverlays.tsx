@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { END_LOCKOUT_MS } from './Overlays';
 import {
-  deckCards,
+  MIN_DECK,
+  ownedCards,
   getCard,
   HEADLINERS,
   reachable,
   TOUR_ACTS,
   TOUR_REST_HEAL,
+  HEAT_REST_HEAL,
   TOUR_SHOP_HEAL,
   TOUR_SHOP_HEAL_PRICE,
   TOUR_SHOP_REMOVE_PRICE,
@@ -61,7 +63,7 @@ function TourStatus({ state }: { state: EngineState }) {
         </span>
       )}
       <span>
-        Deck <b>{deckCards(state).length + state.units.filter((u) => !u.token).length + state.gates.length + state.amps.length}</b>
+        Deck <b>{ownedCards(state).length}</b>
       </span>
     </p>
   );
@@ -123,7 +125,8 @@ export function MapOverlay({ state, onTravel }: { state: EngineState; onTravel: 
 /** Choose a card from your deck (to cut at a rest stop or remove at a shop). */
 function DeckPicker({ state, verb, onChoose, onCancel }: { state: EngineState; verb: string; onChoose: (iid: number) => void; onCancel: () => void }) {
   const [chosen, setChosen] = useState<number | null>(null);
-  const cards = deckCards(state).slice().sort((a, b) => getCard(a.cardId).name.localeCompare(getCard(b.cardId).name));
+  // The whole deck, including gear still set up on stage (cutting it takes it off the stage).
+  const cards = ownedCards(state).slice().sort((a, b) => getCard(a.cardId).name.localeCompare(getCard(b.cardId).name));
   const chosenCard = cards.find((c) => c.iid === chosen);
   return (
     <>
@@ -132,8 +135,8 @@ function DeckPicker({ state, verb, onChoose, onCancel }: { state: EngineState; v
           <CardTile key={c.iid} def={getCard(c.cardId)} selected={chosen === c.iid} activateOn="click" onSelect={() => setChosen(c.iid)} />
         ))}
       </div>
-      <button className="primary-btn" disabled={!chosenCard || cards.length <= 6} onClick={() => chosenCard && onChoose(chosenCard.iid)}>
-        {cards.length <= 6 ? 'Deck is as small as it gets' : chosenCard ? `${verb} ${getCard(chosenCard.cardId).name}` : 'Choose a card'}
+      <button className="primary-btn" disabled={!chosenCard || cards.length <= MIN_DECK} onClick={() => chosenCard && onChoose(chosenCard.iid)}>
+        {cards.length <= MIN_DECK ? 'Deck is as small as it gets' : chosenCard ? `${verb} ${getCard(chosenCard.cardId).name}` : 'Choose a card'}
       </button>
       <button className="secondary-btn" onClick={onCancel}>
         Back
@@ -145,6 +148,7 @@ function DeckPicker({ state, verb, onChoose, onCancel }: { state: EngineState; v
 export function RestOverlay({ state, onRest }: { state: EngineState; onRest: (choice: 'heal' | 'cut', iid?: number) => void }) {
   const armed = useArmed();
   const [cutting, setCutting] = useState(false);
+  const restHeal = (state.tour?.heat ?? 0) >= 5 ? HEAT_REST_HEAL : TOUR_REST_HEAL;
   return (
     <div className={`overlay${armed ? '' : ' arming'}`} role="dialog" aria-modal="true" aria-label="Inn">
       <div className="overlay-top">
@@ -157,8 +161,9 @@ export function RestOverlay({ state, onRest }: { state: EngineState; onRest: (ch
           <DeckPicker state={state} verb="Cut" onChoose={(iid) => onRest('cut', iid)} onCancel={() => setCutting(false)} />
         ) : (
           <>
-            <button className="primary-btn" disabled={!armed || state.crowd >= state.maxCrowd} onClick={() => armed && onRest('heal')}>
-              Rest: +{TOUR_REST_HEAL} crowd
+            {/* Always a way out: at full crowd, resting just moves on. */}
+            <button className="primary-btn" disabled={!armed} onClick={() => armed && onRest('heal')}>
+              {state.crowd >= state.maxCrowd ? 'Crowd is full: move on' : `Rest: +${restHeal} crowd`}
             </button>
             <button className="secondary-btn" disabled={!armed} onClick={() => armed && setCutting(true)}>
               Cut a card from your deck

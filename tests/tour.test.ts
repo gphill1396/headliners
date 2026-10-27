@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createState, deckCards, fromSnapshot, hashState, reachable, step, toSnapshot, type EngineState, type TourNodeKind } from '../src/engine';
+import { createState, deckCards, ownedCards, fromSnapshot, hashState, reachable, step, toSnapshot, type EngineState, type TourNodeKind } from '../src/engine';
 import { TOUR_EVENTS } from '../src/content/events';
 
 function tour(seed = 'tour'): EngineState {
@@ -154,4 +154,28 @@ test('a Tour saves and restores exactly, on the map and mid-fight', () => {
     step(b);
   }
   assert.equal(hashState(b), hashState(s));
+});
+
+test('an Inn always has a way out: at full crowd Rest moves on, and gear on stage can be cut', () => {
+  const s = tour('inn-stuck');
+  goTo(s, 'rest');
+  // Most of the deck is set up on stage (as between fights in an act); only a few cards are in the piles.
+  const piles = deckCards(s);
+  while (deckCards(s).length > 5) {
+    const c = s.draw.pop() ?? s.hand.pop() ?? s.discard.pop();
+    s.units.push({ id: s.nextId++, card: c!, cardId: c!.cardId, lane: 0, slot: 0, damage: 1, fireEvery: 2, pierce: 0, splash: false, placedBeat: 0 });
+  }
+  assert.ok(piles.length > 6);
+  const owned = ownedCards(s).length;
+  const onStage = s.units[0]!.card.iid;
+  step(s, [{ type: 'rest', choice: 'cut', iid: onStage }]);
+  assert.equal(s.phase, 'map');
+  assert.equal(ownedCards(s).length, owned - 1);
+  assert.ok(!s.units.some((u) => u.card.iid === onStage));
+  // Full crowd: Rest still leaves the Inn.
+  const t = tour('inn-full');
+  goTo(t, 'rest');
+  t.crowd = t.maxCrowd;
+  step(t, [{ type: 'rest', choice: 'heal' }]);
+  assert.equal(t.phase, 'map');
 });

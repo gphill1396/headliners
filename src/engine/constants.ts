@@ -116,6 +116,8 @@ export const BANSHEE_PCT = 150;
 export const SLOW_SHOT_PCT = 50;
 export const SLOW_SHOT_BEATS = 2;
 /** Riot's passive: this many kills win back 1 crowd. */
+/** Clatter's Tight-hit Squire also brings 1 energy, on every Nth bar (1 = every bar it comes). */
+export const CLATTER_SUPPLY_BARS = 1;
 export const RIOT_KILLS_PER_CROWD = 5;
 /** Riot's passive wins back at most this much crowd a wave (a band with Thrum won back 40 a Tour without it). */
 export const RIOT_CROWD_PER_WAVE = 2;
@@ -181,7 +183,7 @@ export const CLEAN_SET_CROWD = 1;
 export const HEAT_START_CROWD = 25;
 /** Heat 2: monster health. Heat 3: Tournaments on top. Heat 6: bosses. */
 export const HEAT_HP = 1.15;
-export const HEAT_ELITE_HP = 1.5;
+export const HEAT_ELITE_HP = 1.6;
 export const HEAT_BOSS_HP = 1.35;
 /** Heat 5: what an Inn wins back. */
 export const HEAT_REST_HEAL = 5;

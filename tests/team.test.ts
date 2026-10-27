@@ -59,12 +59,12 @@ test('all three passives are on, whoever leads', () => {
   // (Count only this shot: Clatter's passive also called a Squire on that Tight play.)
   assert.ok(e.hp < 1_000);
   assert.equal(s.stats.damageBySource.t, 10 + 5 + 2);
-  // Thrum's and Clatter's Tight passives both pay out on the same Tight hit.
+  // Thrum's and Clatter's Tight passives both pay out on the same Tight hit (each +1 energy; Clatter's comes with a Squire).
   const t = teamField(TEAM, 'tight');
   t.energy = 5;
   t.headliner.lastTightBonusBar = -1;
   const ev = playOnBeat(t, 'stagehand', 2);
-  assert.equal(ofType(ev, 'energy').filter((x) => x.reason === 'tight').length, 1);
+  assert.equal(ofType(ev, 'energy').filter((x) => x.reason === 'tight').length, 2);
   assert.ok(t.units.some((u) => u.token && u.lane === 2));
 });
 

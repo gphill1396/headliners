@@ -42,7 +42,7 @@ export const HEADLINERS: Record<HeadlinerId, HeadlinerDef> = {
     id: 'clatter',
     name: 'Clatter',
     title: 'the kobold tinker',
-    passive: 'A Tight hit calls a Squire to that lane (once per bar).',
+    passive: 'A Tight hit calls a Squire to that lane, with 1 energy (once per bar).',
     active: {
       name: 'All Hands',
       text: 'Put a Squire on stage in every lane.',

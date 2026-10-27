@@ -176,3 +176,12 @@ test("Thrum's Fill only works for Thrum", () => {
   step(s, [{ type: 'activate', permille: 0 }]);
   assert.equal(countShots(s, 72), normal);
 });
+
+test("Clatter's Tight hit calls a Squire with 1 energy, once per bar", () => {
+  const s = as('clatter', 'supply');
+  s.energy = 4;
+  s.headliner.lastTightBonusBar = -1;
+  const ev = playOnBeat(s, 'paradiddle', 0);
+  assert.equal(ofType(ev, 'energy').filter((e) => e.reason === 'tight').length, 1);
+  assert.ok(s.units.some((u) => u.token && u.lane === 0));
+});

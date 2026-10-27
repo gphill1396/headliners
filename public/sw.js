@@ -4,7 +4,7 @@
  * - Built assets (hashed file names): cache first, they never change.
  * - Fonts are self-hosted (public/fonts), so they're cached like any other asset.
  */
-const CACHE = 'headliners-v31';
+const CACHE = 'headliners-v32';
 const CORE = ['./', './manifest.webmanifest', './icons/icon-192.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {

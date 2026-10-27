@@ -1,6 +1,6 @@
 import { accuracyPct, advanceClock, beatInBar, chainStepPct, gradeInput, inPocket, isDownbeat, setTempo, type Grade } from './clock';
 import { moveEnemies, moveProjectiles, smashGates, sweepDead } from './combat';
-import { ABILITY_RETRY_BEATS, BEAT_UNITS, BEATS_PER_BAR, CHAIN_STEP_GOOD_PCT, CYCLE_COST, LANES, SHIFT_COST, SHIFT_PAUSE_BEATS, MAX_ENERGY, METRONOME_WIDEN_PCT, POCKET_MAX, SUBTICK } from './constants';
+import { ABILITY_RETRY_BEATS, BEAT_UNITS, BEATS_PER_BAR, CHAIN_STEP_GOOD_PCT, CYCLE_COST, CLATTER_SUPPLY_BARS, LANES, SHIFT_COST, SHIFT_PAUSE_BEATS, MAX_ENERGY, METRONOME_WIDEN_PCT, POCKET_MAX, SUBTICK } from './constants';
 import { evolvedInto, hasMember, unevolved } from './evolution';
 import { createCtx, flushDamage, type TickCtx } from './context';
 import { addCardToDeck, drawCards, refillHand } from './deck';
@@ -254,6 +254,11 @@ function commit(state: EngineState, ctx: TickCtx, input: { iid: number; lane: nu
       if (hasMember(state, 'clatter')) {
         paid = true;
         createToken(state, ctx, 'roadie', input.lane);
+        // The Squire brings supplies (+1 energy): Clatter's band ran short of energy, not damage (SPEC band balance pass).
+        if (bar % CLATTER_SUPPLY_BARS === 0 && state.energy < MAX_ENERGY) {
+          state.energy += 1;
+          ctx.events.push({ type: 'energy', amount: 1, reason: 'tight' });
+        }
       }
       if (paid) state.headliner.lastTightBonusBar = bar;
     }

@@ -1,5 +1,6 @@
 import type { EngineState, HeadlinerId } from '../engine';
 import type { Synth } from './synth';
+import { chordIn, STYLES, styleOf, type StyleCtx } from './styles';
 
 /**
  * The adaptive groove: the board is the band. Every unit is an instrument that
@@ -7,17 +8,9 @@ import type { Synth } from './synth';
  * panned left/center/right, and the chain brings in extra layers.
  */
 
-/** I – vi – IV – V in D, voiced a bit wistful: Dmaj7, Bm7, Gmaj7, A6. One chord per bar. */
-const CHORDS = [
-  { root: 38, notes: [62, 66, 69, 73] },
-  { root: 35, notes: [59, 62, 66, 69] },
-  { root: 31, notes: [55, 59, 62, 66] },
-  { root: 33, notes: [57, 61, 64, 66] },
-] as const;
-
-export function chordAt(beat: number) {
-  const bar = Math.floor(beat / 4);
-  return CHORDS[((bar % 4) + 4) % 4]!;
+/** The chord for a beat, in the style of whoever leads (S4.7). Thrum's by default. */
+export function chordAt(beat: number, lead?: HeadlinerId) {
+  return chordIn(styleOf(lead), beat);
 }
 
 export interface BoardMix {
@@ -28,8 +21,10 @@ export interface BoardMix {
   chain: number;
   /** Beat until which Fill (Thrum) is active. */
   fillUntil: number;
-  /** Whose band this is: sets the time-keeping voices. Defaults to Thrum. */
+  /** Who leads: sets the song style (chords, swing, time-keeping). Defaults to Thrum. */
   headliner?: HeadlinerId;
+  /** A Tour band: every member's signature part plays (S4.7). */
+  team?: HeadlinerId[];
   /** Beat until which Swell (Lyra) is active. */
   swellUntil?: number;
   /** The Hush, phase 2: the beat is muted. Drums drop out; only a quiet chord remains. */
@@ -56,6 +51,7 @@ export function mixFrom(s: EngineState): BoardMix {
     chain: s.chain.links,
     fillUntil: s.headliner.id === 'thrum' ? s.headliner.activeUntilBeat : -1,
     headliner: s.headliner.id,
+    ...(s.headliner.team ? { team: [...s.headliner.team] } : {}),
     swellUntil: s.headliner.id === 'lyra' ? s.headliner.activeUntilBeat : -1,
     hushed: s.boss?.phase === 2 && (s.boss.kind ?? 'hush') === 'hush',
   };
@@ -69,13 +65,16 @@ export type MusicStyle = 'full' | 'chill';
  * 'chill' keeps the same band but plays it sparser: no ghost notes, bursts,
  * flams or lead line, quarter-note hats, softer effects.
  */
-export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: number, eighthSec: number, style: MusicStyle = 'full'): void {
+export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, tBeat: number, eighthSec: number, style: MusicStyle = 'full'): void {
   const chill = style === 'chill';
   const beat = Math.floor(eighth / 2);
   const onBeat = eighth % 2 === 0;
   const inBar = ((beat % 4) + 4) % 4;
   const sixteenth = eighthSec / 2;
-  const chord = chordAt(beat);
+  const song = styleOf(mix.headliner);
+  // Swing: the off-beat eighths lean late (Clatter's jig most of all).
+  const t = onBeat ? tBeat : tBeat + song.swing * eighthSec;
+  const chord = chordIn(song, beat);
   const filling = beat < mix.fillUntil;
   const level = (count: number) => Math.min(1.25, 0.75 + 0.25 * (count - 1));
 
@@ -87,33 +86,14 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
     return;
   }
 
-  // Time-keeping: an empty stage is just a quarter-note tambourine and a war drum on 1. It fills in as the band grows.
-  // Clatter's crew keeps time on a shaker instead.
-  const shaker = mix.headliner === 'clatter';
-  const tick = (at: number, accent: boolean, open = false) => (shaker ? synth.shaker(at, accent ? 1 : 0.7) : synth.jingle(at, accent || open));
-  if (chill) {
-    if (onBeat) tick(t, false);
-  } else if (mix.blast) {
-    tick(t, onBeat);
-    tick(t + sixteenth, false);
-  } else if (mix.chain >= 8) {
-    tick(t, onBeat, !onBeat);
-  } else if (mix.groups.length > 0 || onBeat) {
-    tick(t, onBeat);
-  }
-  // Aria's band: a soft "ooh" on the chord root every bar. Riot's: the pipes' drone, with a crash every other bar.
-  // Clatter's: the hurdy-gurdy's drone, cranked a bar at a time.
-  if (mix.headliner === 'aria' && onBeat && inBar === 0) synth.voice(t, chord.root + 24, eighthSec * 7, chill ? 0.4 : 0.6);
-  if (mix.headliner === 'riot' && onBeat && inBar === 0) {
-    synth.drone(t, eighthSec * 7.9, chill ? 0.5 : 0.8);
-    if (beat % 8 === 0 && !chill) synth.crash(t);
-  }
-  if (mix.headliner === 'clatter' && onBeat && inBar === 0) synth.drone(t, eighthSec * 7.6, chill ? 0.45 : 0.7, undefined, true);
-  // Lyra's band keeps a soft low chord tone on 1 under everything.
-  if (mix.headliner === 'lyra' && onBeat && inBar === 0) synth.keys(t, chord.root + 24, eighthSec * 3, chill ? 0.5 : 0.7);
+  // The song style: the lead's time-keeping, and each member's signature part (S4.7).
+  const ctx: StyleCtx = { t, onBeat, inBar, bar: Math.floor(beat / 4), eighth, sixteenth, eighthSec, chord, chill, hot: mix.chain >= 8 || mix.blast };
+  song.keeper(synth, ctx);
+  const lead = mix.headliner ?? 'thrum';
+  for (const member of mix.team ?? [lead]) STYLES[member].signature(synth, ctx, member === lead ? 1 : 0.55);
   // Swell: the lute ripples up the chord on every sixteenth.
   if (mix.swellUntil !== undefined && beat < mix.swellUntil) {
-    for (let k = 0; k < 2; k++) synth.keys(t + k * sixteenth, chord.notes[(eighth * 2 + k) % 4]! + 24, sixteenth * 2, 0.45);
+    for (let k = 0; k < 2; k++) synth.keys(t + k * sixteenth, chord.notes[(eighth * 2 + k) % 4]! + 12, sixteenth * 2, 0.45);
   }
   const hasKick = mix.groups.some((g) => g.cardId === 'kick-drum');
   if (!hasKick && onBeat && inBar === 0) synth.boom(t, 0.7);
@@ -128,10 +108,12 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
     const v = level(g.count);
     switch (g.cardId) {
       case 'stagehand': {
+        // Page: throws rocks. A whoosh, and a thud where it lands (louder on the backbeat).
         const backbeat = onBeat && (inBar === 1 || inBar === 3);
         if (chill && !backbeat) break;
-        synth.snare(t, backbeat ? v : 0.3 * v, dest);
-        if (copy && !chill) synth.snare(t + 0.028, (backbeat ? 0.5 : 0.18) * v, dest); // doubled: a flam
+        synth.whoosh(t, 0.5 * v, dest, false, 0.12);
+        synth.tom(t + 0.1, 50, (backbeat ? 0.7 : 0.3) * v, dest);
+        if (copy && !chill) synth.tom(t + 0.13, 55, 0.3 * v, dest); // doubled: a second stone
         break;
       }
       case 'kick-drum':
@@ -171,8 +153,8 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
         break;
       }
       case 'hype-man':
-        // Claps on 2 and 4, getting louder as it gains Volume.
-        if (onBeat && inBar % 2 === 1) synth.snare(t, 0.5 * v, dest);
+        // Town Crier: rings his handbell on 2 and 4, louder as it gains Volume.
+        if (onBeat && inBar % 2 === 1) synth.bell(t, chord.notes[0]! + 12, 0.5, 0.8 * v, dest);
         break;
       case 'double-kick':
         // Kettle Drums: low and tuned, alternating root and fifth.
@@ -180,21 +162,25 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
         synth.tom(t, onBeat ? 40 : 47, (onBeat ? 0.8 : 0.55) * v, dest);
         break;
       case 'tuning-fork':
-        // A pure high tone, a fifth above the chord root.
+        // Struck, it rings a pure tone a fifth above the chord root.
         if (chill && !onBeat) break;
-        synth.recorder(t, chord.root + 43, eighthSec * 0.9, 0.4 * v, dest);
+        synth.bell(t, chord.root + 43, eighthSec * 2, 0.45 * v, dest, true);
         break;
       case 'guitar-tech':
+        // Luthier: tries a string, then another, tuning as she goes.
         if (chill && inBar % 2 === 1) break;
-        synth.stab(t, [chord.root + 24, chord.root + 31], eighthSec * 0.6, 0.6 * v, dest);
+        synth.lute(t, chord.notes[inBar % 4]! - 12, eighthSec * 1.2, 0.6 * v, dest);
         break;
       case 'security':
+        // Gate Guard: the halberd's butt on the boards, and a ring of steel.
         if (chill && !onBeat) break;
-        synth.tom(t, 43, 0.6 * v, dest);
+        synth.tom(t, 40, 0.55 * v, dest);
+        synth.clank(t, 0.4 * v, dest, 0.7);
         break;
       case 'rigger':
+        // Slinger: the sling whirls and lets go.
         if (chill && !onBeat) break;
-        synth.clank(t, 0.45 * v, dest, 1.5);
+        synth.whoosh(t, 0.45 * v, dest, true, 0.1);
         break;
       case 'backup-singer':
         // Oohs on 2 and 4, a chord tone above the root.
@@ -207,30 +193,32 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
         if (onBeat && copy && !chill) synth.recorder(t, chord.notes[(inBar + 3) % 4]! + 24, eighthSec * 1.6, 0.4 * v, dest);
         break;
       case 'skater':
-        // Palm-muted eighths on the root.
+        // Jester: bells on the cap, and a squeak of the pipes.
         if (chill && !onBeat) break;
-        synth.punk(t, chord.root + 12, eighthSec, 0.7 * v, dest, true);
+        synth.jingle(t, onBeat, dest);
+        if (onBeat) synth.pipes(t, chord.root + 24, eighthSec * 0.5, 0.35 * v, dest, true);
         break;
       case 'bottle-rocket':
+        // Fire Arrow: loosed with a rising hiss.
         if (chill && !onBeat) break;
-        synth.jingle(t, true, dest);
-        synth.punk(t, chord.root + 24, eighthSec * 0.5, 0.4 * v, dest, true);
+        synth.whoosh(t, 0.55 * v, dest, true, 0.2);
         break;
       case 'bouncer':
+        // Bouncer: a big man stamping, and a grunt from the pipes.
         if (chill && inBar % 2 === 1) break;
-        synth.kick(t, 0.6 * v, dest);
-        synth.punk(t, chord.root + 12, eighthSec * 1.5, 0.5 * v, dest);
+        synth.boom(t, 0.6 * v, dest);
+        if (onBeat) synth.pipes(t, chord.root + 12, eighthSec * 1.2, 0.35 * v, dest);
         break;
       case 'pyro':
-        // A sizzle and a pop, like a torch being twirled.
+        // Fire Juggler: torches whirling through the air.
         if (chill && !onBeat) break;
-        synth.jingle(t, false, dest);
-        synth.tom(t, 60, 0.45 * v, dest);
+        synth.whoosh(t, 0.4 * v, dest, false, 0.22);
+        synth.shaker(t + 0.05, 0.6 * v, dest);
         break;
       case 'spotlight':
-        // A bright chord tone picked out on the beat.
+        // Lantern Bearer: the lantern's chime, a bright chord tone.
         if (chill && inBar % 2 === 1) break;
-        synth.stab(t, [chord.notes[2]! + 12], eighthSec * 0.8, 0.8 * v, dest);
+        synth.bell(t, chord.notes[2]! + 12, 0.7, 0.7 * v, dest);
         break;
       default:
         synth.tom(t, 48, 0.7 * v, dest);
@@ -249,10 +237,10 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, t: n
 }
 
 /** A riff card sounds when it resolves, in its lane. */
-export function playRiff(synth: Synth, cardId: string, lane: number, beat: number, bpm: number, level = 1): void {
+export function playRiff(synth: Synth, cardId: string, lane: number, beat: number, bpm: number, level = 1, lead?: HeadlinerId): void {
   const t = synth.ctx.currentTime;
   const sixteenth = 60 / bpm / 4;
-  const chord = chordAt(beat);
+  const chord = chordAt(beat, lead);
   const dest = synth.lane(lane);
   switch (cardId) {
     case 'power-chord': {

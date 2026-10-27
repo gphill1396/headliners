@@ -88,6 +88,15 @@ function useArmed(ms: number): boolean {
   return armed;
 }
 
+const MODE_NAME = { encore: 'Encore', tour: 'Tour', daily: 'Daily' } as const;
+
+/** One line per mode, under the mode picker: what you're signing up for. */
+const MODE_BLURB = {
+  encore: 'Endless waves with one headliner. Play until the crowd goes home; chase your best wave.',
+  tour: 'A band of 3 across 3 acts: shows, markets, inns, and a boss at the end of each. Win it, or lose it.',
+  daily: "Today's band and waves, the same for everyone. Your first run is scored; then it's practice.",
+} as const;
+
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
   return (
     <label className="toggle">
@@ -114,7 +123,36 @@ function SettingsList({ settings, onToggle }: SettingsProps) {
   );
 }
 
+/** The ren faire setup, in two short lines (S4.6). */
+const INTRO = 'Mid-encore at the Grand Faire, a portal swallowed the stage: band, crowd and all. Now monsters march on the show.';
+const INTRO_2 = 'Play on the beat. Keep the crowd safe.';
+
+export type TitleScreen = 'splash' | 'menu' | 'new' | 'options';
+
+/** A classic menu window (S4.6): framed, one item per row, a cursor beside the one in focus. */
+function MenuWindow({ items, label }: { items: { label: string; onPick: () => void; hint?: string }[]; label: string }) {
+  const [focus, setFocus] = useState(0);
+  return (
+    <nav className="menu-window" aria-label={label}>
+      {items.map((item, i) => (
+        <button
+          key={item.label}
+          className={`menu-item${i === focus ? ' focus' : ''}`}
+          onPointerEnter={() => setFocus(i)}
+          onFocus={() => setFocus(i)}
+          onClick={item.onPick}
+        >
+          <span className="menu-cursor" aria-hidden="true" />
+          <span className="menu-label">{item.label}</span>
+          {item.hint && <span className="menu-hint">{item.hint}</span>}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
 export function TitleOverlay({
+  startAt = 'splash',
   bests,
   canResume,
   tutorialDone,
@@ -130,6 +168,7 @@ export function TitleOverlay({
   onDeckChoice,
   onCollection,
   onLoadIn,
+  onSongbook,
   team,
   onTeam,
   daily,
@@ -138,6 +177,8 @@ export function TitleOverlay({
   onHeat,
   ...settings
 }: SettingsProps & {
+  /** Where the title starts: the splash on launch, the menu when coming back from a run. */
+  startAt?: TitleScreen;
   bests: Bests;
   canResume: boolean;
   tutorialDone: boolean;
@@ -154,6 +195,7 @@ export function TitleOverlay({
   onDeckChoice: (id: string | null) => void;
   onCollection: () => void;
   onLoadIn: () => void;
+  onSongbook: () => void;
   /** Tour: the team of 3 being picked, in order (the first leads). */
   team: HeadlinerId[];
   onTeam: (id: HeadlinerId) => void;
@@ -164,28 +206,97 @@ export function TitleOverlay({
   /** Daily Setlist: today's band and how today went. */
   daily: { team: HeadlinerId[]; played: boolean; result: DailyResult | null; streak: number; onShare: (() => void) | null; note: string | null };
 }) {
+  const [screen, setScreen] = useState<TitleScreen>(startAt);
   const h = HEADLINERS[headliner];
   const touring = mode === 'tour';
   const isDaily = mode === 'daily';
   const dailyNames = daily.team.map((id) => HEADLINERS[id].name).join(', ');
   const teamReady = team.length === 3;
-  // A new run is played as the chosen headliner; a saved run keeps whoever it started with.
-  const choosing = !canResume && tutorialDone;
+
+  if (screen === 'splash') {
+    return (
+      <button className="overlay title-splash" aria-label="Headliners. Tap to begin" onClick={() => setScreen('menu')}>
+        <span className="splash-scene" aria-hidden="true" />
+        <span className="logo-banner">
+          <span className="title logo">Headliners</span>
+        </span>
+        <span className="splash-intro">{INTRO}</span>
+        <span className="splash-intro strong">{INTRO_2}</span>
+        <span className="tap-to-begin">Tap to begin</span>
+      </button>
+    );
+  }
+
+  if (screen === 'options') {
+    return (
+      <div className="overlay" role="dialog" aria-modal="true" aria-label="Options">
+        <div className="overlay-top">
+          <h2 className="title small">Options</h2>
+        </div>
+        <div className="overlay-controls">
+          <div className="menu-window options-window">
+            <SettingsList {...settings} />
+          </div>
+          <button className="secondary-btn" onClick={() => setScreen('menu')}>
+            Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === 'menu') {
+    const items: { label: string; onPick: () => void; hint?: string }[] = [];
+    if (!tutorialDone) items.push({ label: 'Learn to play', onPick: onTutorial, hint: '2 min' });
+    if (canResume) items.push({ label: 'Continue', onPick: onResume });
+    items.push({ label: 'New show', onPick: () => setScreen('new') });
+    if (tutorialDone) items.push({ label: 'How to play', onPick: onTutorial });
+    items.push({ label: 'Songbook', onPick: onSongbook, hint: 'every card' });
+    items.push({ label: 'Collection', onPick: onCollection });
+    items.push({ label: 'Load-In', onPick: onLoadIn, hint: 'puzzles' });
+    items.push({ label: 'Options', onPick: () => setScreen('options') });
+    return (
+      <div className="overlay title-menu" role="dialog" aria-modal="true" aria-label="Headliners">
+        <div className="overlay-top">
+          <span className="splash-scene small" aria-hidden="true" />
+          <span className="logo-banner">
+            <h1 className="title logo">Headliners</h1>
+          </span>
+          {bests.runs > 0 && (
+            <p className="muted menu-best">
+              Best: wave {bests.wave} · {formatNumber(bests.score)}
+            </p>
+          )}
+        </div>
+        <div className="overlay-controls">
+          <MenuWindow items={items} label="Main menu" />
+        </div>
+      </div>
+    );
+  }
+
+  // New show: pick the mode, then who plays.
   return (
-    <div className="overlay" role="dialog" aria-modal="true" aria-label="Headliners">
+    <div className="overlay title-new" role="dialog" aria-modal="true" aria-label="New show">
       <div className="overlay-top">
-        <h1 className="title">Headliners</h1>
-        <p className="lede">
-          {tutorialDone
-            ? 'Tap a card, then tap a lane on the beat. Units shoot up their lane, gates multiply the shots, and plays on back-to-back beats chain together.'
-            : 'Your ren faire band fell through a portal into a land of monsters. Play to the beat, hold back the horde, keep your crowd. New here? The soundcheck teaches it in about two minutes.'}
-        </p>
+        <h2 className="title small">New show</h2>
+        <div className="mode-list" role="radiogroup" aria-label="Mode">
+          {(['encore', 'tour', 'daily'] as const).map((m) => (
+            <button key={m} role="radio" aria-checked={m === mode} className={`mode-row${m === mode ? ' on' : ''}`} onClick={() => onMode(m)}>
+              <span className="menu-cursor" aria-hidden="true" />
+              <span className="mode-name">{MODE_NAME[m]}</span>
+              <span className="mode-blurb">
+                {MODE_BLURB[m]}
+                {m === 'tour' && maxHeat === 0 ? ' Win one to unlock Heat.' : ''}
+              </span>
+            </button>
+          ))}
+        </div>
         {isDaily ? (
           <div className={`headliner hl-${daily.team[0]}`}>
             <Portrait headliner={daily.team[0]!} />
             <p className="headliner-name">Today's setlist</p>
             <p>{dailyNames}</p>
-            <p className="muted">Same waves, deck and band for everyone today. Your first run counts; after that it's practice.</p>
             {daily.result ? (
               <p>
                 Today: wave {daily.result.wave}, {daily.result.chain}-link chain{daily.streak > 1 ? ` · ${daily.streak}-day streak` : ''}
@@ -198,44 +309,26 @@ export function TitleOverlay({
             {daily.note && <p className="muted">{daily.note}</p>}
           </div>
         ) : (
-        <div className={`headliner hl-${headliner}`}>
-          <Portrait headliner={headliner} />
-          <p className="headliner-name">
-            {h.name}, {h.title}
-          </p>
-          <p className="muted">{h.style}</p>
-          <p>{h.passive}</p>
-          <p>
-            <strong>{h.active.name}:</strong> {h.active.text}
-          </p>
-          <p className="muted">Sound: {h.sound}</p>
-        </div>
+          <div className={`headliner hl-${headliner}`}>
+            <Portrait headliner={headliner} />
+            <p className="headliner-name">
+              {h.name}, {h.title}
+            </p>
+            <p className="muted">{h.style}</p>
+            <p>{h.passive}</p>
+            <p>
+              <strong>{h.active.name}:</strong> {h.active.text}
+            </p>
+          </div>
         )}
-        {mode === 'encore' && bests.runs > 0 && (
+        {mode === 'tour' && (bests.tours ?? 0) > 0 && (
           <p className="muted">
-            Best: wave {bests.wave}, {formatNumber(bests.score)} score, {bests.chain}-link chain
-          </p>
-        )}
-        {mode === 'tour' && (
-          <p className="muted">
-            Tour: take a band of 3 across the realm. Pick three below; the first leads. 3 acts of shows, markets and inns, with a boss at the end of each.
-            {maxHeat === 0 ? ' Win a Tour to unlock Heat.' : ''}
-            {(bests.tours ?? 0) > 0 ? ` Tours won: ${bests.toursWon ?? 0} of ${bests.tours}.` : ''}
+            Tours won: {bests.toursWon ?? 0} of {bests.tours}.
           </p>
         )}
       </div>
       <div className="overlay-controls">
-        <SettingsList {...settings} />
-        {(choosing || canResume) && (
-          <div className="hl-picker mode-picker" role="radiogroup" aria-label="Mode for a new run">
-            {(['encore', 'tour', 'daily'] as const).map((m) => (
-              <button key={m} role="radio" aria-checked={m === mode} className={`hl-chip${m === mode ? ' on mode-on' : ''}`} onClick={() => onMode(m)}>
-                {m === 'encore' ? 'Encore' : m === 'tour' ? 'Tour' : 'Daily'}
-              </button>
-            ))}
-          </div>
-        )}
-        {(choosing || canResume) && !isDaily && (
+        {!isDaily && (
           <div className="hl-picker" role={touring ? 'group' : 'radiogroup'} aria-label={touring ? 'Your band of 3 for the Tour' : 'Headliner for a new run'}>
             {(Object.keys(HEADLINERS) as HeadlinerId[]).map((id) => {
               const slot = team.indexOf(id);
@@ -256,7 +349,7 @@ export function TitleOverlay({
             })}
           </div>
         )}
-        {(choosing || canResume) && touring && maxHeat > 0 && (
+        {touring && maxHeat > 0 && (
           <div className="heat-picker" role="group" aria-label="Heat">
             <button className="hl-chip" aria-label="Less heat" disabled={heat <= 0} onClick={() => onHeat(heat - 1)}>
               ◀
@@ -270,7 +363,7 @@ export function TitleOverlay({
             </button>
           </div>
         )}
-        {(choosing || canResume) && mode === 'encore' && decks.length > 0 && (
+        {mode === 'encore' && decks.length > 0 && (
           <div className="hl-picker deck-picker" role="radiogroup" aria-label="Deck">
             {[{ id: null as string | null, name: 'Starter deck' }, ...decks].map((d) => (
               <button key={d.id ?? 'starter'} role="radio" aria-checked={d.id === deckChoice} className={`hl-chip${d.id === deckChoice ? ' on mode-on' : ''}`} onClick={() => onDeckChoice(d.id)}>
@@ -279,57 +372,32 @@ export function TitleOverlay({
             ))}
           </div>
         )}
-        {canResume ? (
-          <>
-            <button className="primary-btn" onClick={onResume}>
-              Resume run
-            </button>
-            {touring && !teamReady ? (
-              <button className="secondary-btn" disabled>
-                {`Pick 3 for a new tour (${team.length}/3)`}
-              </button>
-            ) : (
-              <HoldButton
-                className="secondary-btn"
-                onConfirm={onNew}
-                label={isDaily ? (daily.played ? "Practice today's setlist" : "Play today's setlist") : touring ? 'New tour' : `New run as ${h.name}`}
-              />
-            )}
-          </>
-        ) : tutorialDone ? (
-          <>
-            {isDaily && daily.onShare && (
-              <button className="secondary-btn" onClick={daily.onShare}>
-                Share today's result
-              </button>
-            )}
-            <button className="primary-btn" disabled={touring && !teamReady} onClick={onNew}>
-              {isDaily ? (daily.played ? "Practice today's setlist" : "Play today's setlist") : touring ? (teamReady ? 'Start the tour' : `Pick 3 to tour (${team.length}/3)`) : `Start as ${h.name}`}
-            </button>
-          </>
-        ) : (
-          <>
-            <button className="primary-btn" onClick={onTutorial}>
-              Learn to play
-            </button>
-            <button className="secondary-btn" onClick={onNew}>
-              Skip and play
-            </button>
-          </>
+        {isDaily && daily.onShare && (
+          <button className="secondary-btn" onClick={daily.onShare}>
+            Share today's result
+          </button>
         )}
-        {(tutorialDone || canResume) && (
-          <div className="title-links">
-            <button className="link-btn" onClick={onTutorial}>
-              How to play
+        {(() => {
+          const label = isDaily ? (daily.played ? "Practice today's setlist" : "Play today's setlist") : touring ? 'Start the tour' : `Start as ${h.name}`;
+          if (touring && !teamReady) {
+            return (
+              <button className="primary-btn" disabled>
+                {`Pick 3 to tour (${team.length}/3)`}
+              </button>
+            );
+          }
+          // Starting over a saved run ends it: that takes a press and hold (S4.4).
+          return canResume ? (
+            <HoldButton className="primary-btn" onConfirm={onNew} label={label} />
+          ) : (
+            <button className="primary-btn" onClick={onNew}>
+              {label}
             </button>
-            <button className="link-btn" onClick={onCollection}>
-              Collection
-            </button>
-            <button className="link-btn" onClick={onLoadIn}>
-              Load-In
-            </button>
-          </div>
-        )}
+          );
+        })()}
+        <button className="secondary-btn" onClick={() => setScreen('menu')}>
+          Back
+        </button>
       </div>
     </div>
   );
@@ -341,8 +409,9 @@ export function PauseOverlay({
   onResume,
   onHome,
   onSkipTutorial,
+  onSongbook,
   ...settings
-}: SettingsProps & { state: EngineState; tutorial: boolean; onResume: () => void; onHome: () => void; onSkipTutorial: () => void }) {
+}: SettingsProps & { state: EngineState; tutorial: boolean; onResume: () => void; onHome: () => void; onSkipTutorial: () => void; onSongbook: () => void }) {
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Paused">
       <div className="overlay-top">
@@ -355,6 +424,9 @@ export function PauseOverlay({
       </div>
       <div className="overlay-controls">
         <SettingsList {...settings} />
+        <button className="secondary-btn" onClick={onSongbook}>
+          Songbook: what each card does
+        </button>
         {tutorial && (
           <button className="secondary-btn" onClick={onSkipTutorial}>
             Skip soundcheck

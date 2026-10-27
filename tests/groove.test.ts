@@ -30,6 +30,10 @@ function fakeSynth(): { synth: Synth; calls: Call[]; fx: Map<number, { drive: nu
     voice: (t: number, note: number, _d: number, level = 1, dest = 'master') => calls.push({ voice: 'voice', t, note, level, dest }),
     punk: (t: number, note: number, _d: number, level = 1, dest = 'master') => calls.push({ voice: 'punk', t, note, level, dest }),
     crash: (t: number) => calls.push({ voice: 'crash', t }),
+    whoosh: (t: number, level = 1, dest = 'master') => calls.push({ voice: 'whoosh', t, level, dest }),
+    bell: (t: number, note: number, _d: number, level = 1, dest = 'master') => calls.push({ voice: 'bell', t, note, level, dest }),
+    lute: (t: number, note: number, _d: number, level = 1, dest = 'master') => calls.push({ voice: 'lute', t, note, level, dest }),
+    pipes: (t: number, note: number, _d: number, level = 1, dest = 'master') => calls.push({ voice: 'pipes', t, note, level, dest }),
   };
   return { synth: fake as unknown as Synth, calls, fx };
 }
@@ -51,33 +55,32 @@ function bar(mix: BoardMix, barIndex = 0) {
   return { ...f, count };
 }
 
-test('an empty stage is a quarter-note tambourine and a war drum on 1', () => {
+test("an empty stage is Thrum's war march: tabor on 2 and 4, war drum on 1 and 3", () => {
   const b = bar(emptyMix());
-  assert.equal(b.count('jingle'), 4);
-  assert.equal(b.count('boom'), 1);
-  assert.equal(b.count('snare'), 0);
+  assert.equal(b.count('jingle'), 0);
+  assert.equal(b.count('boom'), 2);
+  assert.equal(b.count('snare'), 2);
+  // Every other bar ends with a tabor roll into the next.
+  assert.equal(bar(emptyMix(), 1).count('snare'), 4);
 });
 
-test('Stagehand plays snare when it fires: backbeat on 2 and 4, ghost notes on 1 and 3, from its lane', () => {
+test('Page throws rocks when it fires: a whoosh and a thud, heavier on 2 and 4, from its lane', () => {
   const mix = emptyMix();
   mix.groups = [{ cardId: 'stagehand', lane: 0, count: 1, fireEvery: 2 }];
   const b = bar(mix);
-  const snares = b.calls.filter((c) => c.voice === 'snare');
-  assert.equal(snares.length, 4);
-  assert.deepEqual(snares.map((c) => c.level), [0.3 * 0.75, 0.75, 0.3 * 0.75, 0.75]);
-  assert.ok(snares.every((c) => c.dest === 'lane0'));
-  // The band filling in makes the tambourine play eighths.
-  assert.equal(b.count('jingle'), 8);
+  assert.equal(b.count('whoosh', (c) => c.dest === 'lane0'), 4);
+  const thuds = b.calls.filter((c) => c.voice === 'tom');
+  assert.deepEqual(thuds.map((c) => c.level), [0.3 * 0.75, 0.7 * 0.75, 0.3 * 0.75, 0.7 * 0.75]);
 });
 
-test('War Drum replaces the empty-stage boom and adds its beat-1 burst', () => {
+test('War Drum replaces the empty-stage boom on 1 and adds its beat-1 burst', () => {
   const mix = emptyMix();
   mix.groups = [{ cardId: 'kick-drum', lane: 1, count: 1, fireEvery: 4 }];
   const b = bar(mix);
-  // Beat 1: boom + 2 pickup kicks; beat 3: boom.
-  assert.equal(b.count('boom'), 2);
+  // Its own booms on 1 and 3, plus the march's on 3; the pickup kicks on beat 1.
+  assert.equal(b.count('boom', (c) => c.dest === 'lane1'), 2);
+  assert.equal(b.count('boom'), 3);
   assert.equal(b.count('kick'), 2);
-  assert.ok(b.calls.filter((c) => c.voice === 'kick' || c.voice === 'boom').every((c) => c.dest === 'lane1'));
 });
 
 test('Bassline follows the chord progression, one root per bar', () => {
@@ -85,7 +88,7 @@ test('Bassline follows the chord progression, one root per bar', () => {
   mix.groups = [{ cardId: 'bassline', lane: 2, count: 1, fireEvery: 4 }];
   const roots = [0, 1, 2, 3].map((i) => bar(mix, i).calls.find((c) => c.voice === 'bass')?.note);
   assert.deepEqual(roots, [0, 1, 2, 3].map((i) => chordAt(i * 4).root));
-  assert.equal(new Set(roots).size, 4);
+  assert.ok(new Set(roots).size >= 3);
 });
 
 test('gates color their lane: Double Stop doubles parts, Overdrive and Fuzz set lane effects', () => {
@@ -98,7 +101,7 @@ test('gates color their lane: Double Stop doubles parts, Overdrive and Fuzz set 
   mix.lanes[2] = { copy: true, drive: false, fuzz: true };
   const b = bar(mix);
   assert.equal(b.count('bass'), 4); // 2 notes × (root + octave double)
-  assert.equal(b.count('snare'), 8); // 4 hits × flam
+  assert.equal(b.count('tom'), 8); // 4 thuds, each with a second stone
   assert.ok(b.fx.get(0)!.drive > 0);
   assert.equal(b.fx.get(1)!.drive, 0);
   assert.equal(b.fx.get(2)!.fuzz, true);
@@ -140,7 +143,7 @@ test('mixFrom reads the board: units grouped by lane, gates by lane, chain', () 
   assert.equal(mix.chain, s.chain.links);
 });
 
-test('Chill music: same band, sparser — no ghosts, bursts, flams or lead; quarter-note tambourine', () => {
+test('Chill music: same band, sparser — no bursts, doubles or lead; backbeat only', () => {
   const mix = emptyMix();
   mix.groups = [
     { cardId: 'stagehand', lane: 0, count: 1, fireEvery: 2 },
@@ -151,23 +154,23 @@ test('Chill music: same band, sparser — no ghosts, bursts, flams or lead; quar
   const f = fakeSynth();
   for (let e = 0; e < 8; e++) scheduleGroove(f.synth, mix, e, e * EIGHTH, EIGHTH, 'chill');
   const count = (v: string) => f.calls.filter((c) => c.voice === v).length;
-  assert.equal(count('jingle'), 4);
-  assert.equal(count('snare'), 2); // backbeat only, no ghosts, no flams
-  assert.equal(count('boom'), 2); // beats 1 and 3, no burst
+  assert.equal(count('whoosh'), 2); // the Page only on the backbeat
+  assert.equal(count('tom'), 2); // no second stones
+  assert.equal(count('boom'), 2); // War Drum on 1 and 3, no burst
   assert.equal(count('kick'), 0);
   assert.equal(count('lead'), 0);
   assert.equal(count('pad'), 4); // chain pad stays, softer
   assert.ok(f.fx.get(0)!.drive < 0.55);
 });
 
-test("each headliner's units have their own instrument family", () => {
+test("each headliner's units have their own instrument family, and each band its own song", () => {
   const lyra = emptyMix();
   lyra.headliner = 'lyra';
   lyra.groups = [{ cardId: 'arpeggiator', lane: 2, count: 1, fireEvery: 1 }];
   const l = bar(lyra);
-  // 8 arpeggio notes plus the low chord tone on 1.
+  // 8 arpeggio notes, plus the ballad's low chord tone on 1 and its ripple on 3.
   assert.equal(l.count('keys', (c) => c.dest === 'lane2'), 8);
-  assert.equal(l.count('keys'), 9);
+  assert.equal(l.count('keys'), 12);
 
   const clatter = emptyMix();
   clatter.headliner = 'clatter';
@@ -177,11 +180,13 @@ test("each headliner's units have their own instrument family", () => {
   ];
   const c = bar(clatter);
   assert.equal(c.count('gurdy'), 4); // the Quartermaster's hurdy-gurdy, every beat
-  assert.equal(c.count('drone'), 1); // and its drone under the bar
-  assert.equal(c.count('clank'), 4);
-  // Clatter keeps time on a shaker, not a tambourine.
+  assert.equal(c.count('drone'), 1); // the jig's drone under the bar
+  assert.equal(c.count('clank'), 5); // Squires every beat, and a spanner at the end of the bar
+  // Clatter's jig keeps time on a shaker, every eighth, and swings: off-beats lean late.
   assert.equal(c.count('jingle'), 0);
-  assert.ok(c.count('shaker') >= 4);
+  assert.equal(c.count('shaker'), 8);
+  const offbeat = c.calls.find((x) => x.voice === 'shaker' && x.t > EIGHTH * 0.5 && x.t < EIGHTH * 2)!;
+  assert.ok(Math.abs(offbeat.t - EIGHTH * 1.33) < 1e-9);
 });
 
 test('only Thrum\'s Fill makes the band fire on every eighth', () => {
@@ -211,6 +216,23 @@ test('Aria sings and Riot plays the bagpipes', () => {
   riot.headliner = 'riot';
   riot.groups = [{ cardId: 'skater', lane: 1, count: 1, fireEvery: 2 }];
   const r = bar(riot);
-  assert.equal(r.count('punk'), 4); // one clipped pipe note each time it fires (every beat)
-  assert.equal(r.count('drone'), 1); // over the pipes' drone
+  assert.equal(r.count('pipes'), 4); // the Jester's pipe squeak each beat
+  assert.equal(r.count('drone'), 1); // over the reel's drone
+});
+
+test("a Tour band blends its styles: the lead's time-keeping, every member's signature", () => {
+  const band = emptyMix();
+  band.headliner = 'thrum';
+  band.team = ['thrum', 'lyra', 'riot'];
+  const b = bar(band);
+  assert.equal(b.count('snare'), 2); // Thrum's march keeps time
+  assert.equal(b.count('jingle'), 0);
+  assert.ok(b.count('keys') >= 1); // Lyra's lute
+  assert.equal(b.count('drone'), 1); // Riot's pipes
+  assert.equal(b.count('crash'), 0); // only a lead's crash
+  // Riot takes the lead: the reel's driving eighths take over the time-keeping.
+  band.headliner = 'riot';
+  const r = bar(band);
+  assert.equal(r.count('jingle'), 8);
+  assert.equal(r.count('crash'), 1);
 });

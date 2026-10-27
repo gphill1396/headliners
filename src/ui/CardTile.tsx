@@ -1,29 +1,19 @@
 import type React from 'react';
 import { HEADLINERS, type CardDef } from '../engine';
 import { cardText } from '../content/text';
-import { GATE_COLORS } from '../render/field';
-import { PALETTE } from '../render/palette';
 
-export function cardAccent(def: CardDef): string {
-  switch (def.type) {
-    case 'unit':
-      // Oak: units are the band themselves (cream vanished on the vellum card face).
-      return '#7a5130';
-    case 'gate':
-      return GATE_COLORS[def.gate!.kind];
-    case 'riff':
-      return '#b49ce0';
-    case 'amp':
-      return PALETTE.miss;
-  }
-}
+/**
+ * Card types are colour-coded like heraldry (S4.6), the same everywhere a card appears:
+ * Units forest green, Gates royal blue, Riffs gold, Amps crimson. Each also has a small badge.
+ */
+export const TYPE_COLOR: Record<CardDef['type'], string> = { unit: '#4f8a3a', gate: '#3a64a8', riff: '#e0b04a', amp: '#b33c2c' };
 
 /** Crowd a card costs to play (Feedback cards), shown as a small red mark so the loss is never a surprise. */
 export function crowdCost(def: CardDef): number {
   return (def.onPlay ?? []).reduce((n, e) => n + (e.do === 'loseCrowd' ? e.amount : 0), 0);
 }
 
-const TYPE_LABEL: Record<CardDef['type'], string> = { unit: 'Unit', gate: 'Gate', riff: 'Riff', amp: 'Amp' };
+export const TYPE_LABEL: Record<CardDef['type'], string> = { unit: 'Unit', gate: 'Gate', riff: 'Riff', amp: 'Amp' };
 
 interface Props {
   def: CardDef;
@@ -47,8 +37,8 @@ export function CardTile({ def, selected = false, affordable = true, large = fal
   return (
     <button
       type="button"
-      className={`card${selected ? ' selected' : ''}${affordable ? '' : ' poor'}${large ? ' large' : ''}${coach ? ' coach' : ''}`}
-      style={{ ['--accent' as string]: cardAccent(def) }}
+      className={`card type-${def.type}${selected ? ' selected' : ''}${affordable ? '' : ' poor'}${large ? ' large' : ''}${coach ? ' coach' : ''}`}
+      style={{ ['--accent' as string]: TYPE_COLOR[def.type] }}
       onPointerDown={(e) => {
         if (activateOn !== 'pointerdown') return;
         e.preventDefault();
@@ -69,6 +59,7 @@ export function CardTile({ def, selected = false, affordable = true, large = fal
       )}
       {def.headliner && <span className={`card-sig hl-${def.headliner}`} title={`${HEADLINERS[def.headliner].name} signature card`} />}
       <span className="card-name">{def.name}</span>
+      <span className={`type-badge type-${def.type}`} aria-hidden="true" />
       {/* In hand, just the name: what it does shows above the hand when you select it. */}
       {large && <span className="card-text">{cardText(def)}</span>}
       {large && <span className="card-type">{TYPE_LABEL[def.type]}</span>}

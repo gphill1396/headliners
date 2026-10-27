@@ -290,6 +290,44 @@ export class Synth {
     src.stop(t + 0.07);
   }
 
+  /** Something thrown or loosed (a rock, a sling stone, an arrow, a twirled torch): a band-passed noise sweep. `up` rises (arrows), else it falls. */
+  whoosh(t: number, level = 1, dest: AudioNode = this.master, up = false, dur = 0.16): void {
+    const src = this.noiseSource();
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 3;
+    bp.frequency.setValueAtTime(up ? 900 : 3_200, t);
+    bp.frequency.exponentialRampToValueAtTime(up ? 4_200 : 700, t + dur);
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.32 * level, t + dur * 0.35);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(bp).connect(gain).connect(dest);
+    src.start(t, (t * 3.1) % 0.8);
+    src.stop(t + dur + 0.02);
+  }
+
+  /**
+   * A struck bell: a sine with two inharmonic partials (lantern chimes, the town crier's handbell).
+   * `pure` drops the partials for a tuning fork's clean tone.
+   */
+  bell(t: number, midi: number, dur: number, level = 1, dest: AudioNode = this.master, pure = false): void {
+    const f = midiToHz(midi);
+    const partials = pure ? [[1, 1]] : [[1, 1], [2.76, 0.35], [5.4, 0.15]];
+    for (const [ratio, amp] of partials) {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = f * ratio!;
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.linearRampToValueAtTime(0.22 * level * amp!, t + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + dur / ratio!);
+      osc.connect(gain).connect(dest);
+      osc.start(t);
+      osc.stop(t + dur + 0.02);
+    }
+  }
+
   /** Shaker: soft high noise with a little swell at the front. */
   shaker(t: number, level = 1, dest: AudioNode = this.master): void {
     const src = this.noiseSource();

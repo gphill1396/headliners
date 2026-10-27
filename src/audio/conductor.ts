@@ -8,8 +8,10 @@ import type { Synth } from './synth';
  * pause, card pick, game over), the Conductor keeps a virtual clock going and
  * plays the right thing on it:
  *
- * - 'metronome' — title screen and after the band fades at game over.
- * - 'muffled'   — pause and card pick: the band from backstage, with the metronome on top.
+ * - 'metronome' — title screen and after the band fades at game over: the bare-bones
+ *                 beat a run starts with (the headliner's time-keeping, nothing on stage).
+ *                 Not a click: Grant asked for the band's own beat on every waiting screen.
+ * - 'muffled'   — pause and card pick: the band from backstage.
  * - 'fade'      — game over: the band fades out over two bars into the metronome.
  * - 'engine'    — a run is playing; the engine's clock drives the music.
  *
@@ -25,7 +27,21 @@ export interface Handoff {
   at: number;
 }
 
-const LOOKAHEAD_MS = 120;
+const LOOKAHEAD_MS = 220;
+
+/** The beat a run starts with before anything is played: same band and style, nothing on stage. */
+export function bareMix(m: BoardMix): BoardMix {
+  return {
+    ...m,
+    groups: [],
+    lanes: [0, 1, 2].map(() => ({ copy: false, drive: false, fuzz: false, aim: null })),
+    blast: false,
+    chain: 0,
+    fillUntil: -1,
+    swellUntil: -1,
+    hushed: false,
+  };
+}
 const FADE_BARS = 2;
 
 export class Conductor {
@@ -138,13 +154,13 @@ export class Conductor {
       if (synth && tK > now - 40) {
         const eighth = 2 * this.beatOffset + this.k;
         const at = synth.audioTimeAt(tK);
-        const onBeat = eighth % 2 === 0;
-        const beatInBar = ((Math.floor(eighth / 2) % 4) + 4) % 4;
+        const m = mix();
         if (this.mode === 'muffled' || this.mode === 'fade') {
-          scheduleGroove(synth, { ...mix(), chain: 0, fillUntil: -1 }, eighth, at, eighthMs / 1000, style);
+          scheduleGroove(synth, { ...m, chain: 0, fillUntil: -1 }, eighth, at, eighthMs / 1000, style);
+        } else {
+          // The bare-bones beat: the band's own time-keeping with an empty stage, so the pulse never disappears.
+          scheduleGroove(synth, bareMix(m), eighth, at, eighthMs / 1000, style);
         }
-        // The metronome is always there when the band isn't fully playing, so the pulse can never disappear.
-        if (onBeat) synth.metronome(at, beatInBar === 0, this.mode === 'muffled' ? 0.7 : 1);
       }
       this.k += 1;
     }

@@ -93,8 +93,8 @@ export const WAVE_BEATS = 24;
 export const WAVE_SPAWN_BEATS = 16;
 /** Enemy health multiplier per wave, applied by repeated multiplication (no Math.pow in the engine). */
 export const WAVE_HP_GROWTH = 1.08;
-export const WAVE_TEMPO_STEP = 2;
-export const WAVE_MAX_BPM = 150;
+export const WAVE_TEMPO_STEP = 3;
+export const WAVE_MAX_BPM = 160;
 /** Card pick every N waves (Phase 1a addition, SPEC §10). */
 export const PICK_EVERY_WAVES = 3;
 /** A unit can gain at most this many Volume counters. */

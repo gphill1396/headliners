@@ -123,7 +123,7 @@ tests/
 
 ### 4.2 Beat clock
 
-- The game runs in 4/4 time. The tempo starts at 100 BPM and rises with wave tier.
+- The game runs in 4/4 time. The tempo starts at 100 BPM and rises 3 BPM a wave, up to 160 (Oct 27; was 2 a wave, up to 150).
 - **Card plays are quantized:** a card you commit resolves on the *next beat*.
 - **Timing grades:** if your commit lands inside a window before the beat, you get a grade.
   - **Tight:** ±60 ms, gives ×1.5 to that card's effects.
@@ -736,6 +736,27 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 
 *As built:* a theme layer at the end of `src/ui/styles.css` with material tokens (oak, iron, vellum, ink, crimson, gilt). Menus are full vellum pages framed in oak, with ink text and a crimson initial on the title; primary buttons are crimson canvas edged in gilt, secondary ones oak boards. The HUD is an oak crossbeam, the control zone is stage floorboards, lane buttons are riveted oak plaques, cards in hand are vellum playing cards with a wax-seal cost, beat lights are iron lanterns, and a crimson valance hangs over the field. The Tour map is drawn in ink on the page. Fonts: Jacquard 24 (pixel blackletter) for titles and banners only, Pixelify Sans for everything else, both subset and self-hosted from `src/ui/fonts/` (SIL OFL), so the Google Fonts request is gone. No copy was added. Unit cards' ribbon is oak now (cream vanished on vellum).
 
+
+**S4.6 Classic game feel**
+*As a player, I want Headliners to feel like a GBA game from a ren faire, not a web page.*
+- [x] Launch opens on a title screen: a pixel-art night faire (striped pavilions, the band on a bunting-hung stage, the crowd), the logo, a two-line story ("Mid-encore at the Grand Faire, a portal swallowed the stage…"), and "Tap to begin".
+- [x] Then a classic framed menu with a cursor: Continue, New show, How to play, Songbook, Collection, Load-In, Options. Learn to play comes first until the soundcheck is done.
+- [x] New show lists the three modes, each with one line on what it is, then who plays and Start.
+- [x] Frames, buttons, cards, chips, lane plaques and textures are pixel art from `art/ui.py`, drawn at whole pixels; no smooth gradients.
+- [x] Card types are colour-coded like heraldry with a small badge: Units forest green (a figure), Gates royal blue (an arch), Riffs gold (a note), Amps crimson (a pennant), on the card's bottom band and in the Songbook.
+- [x] The Songbook explains every card, grouped by type. It opens from the menu and from Pause (there it starts on your deck).
+
+*As built:* `art/ui.py` writes `src/ui/pixel-ui.css` (PNG data URIs as CSS variables: window, button, plank, card, chip, plaque frames as 9-slices; vellum, oak, awning and bunting tiles; heart, coin, cursor, seal, type badges; the 240×128 title scene). The pixel layer sits at the end of `styles.css`; one art pixel is 2 CSS px (`--upx`), and the title scene is drawn at exactly 4 screen pixels per art pixel on a 3× phone. The title flow lives in `TitleOverlay` (splash → menu → new show / options); coming back from a run opens on the menu. `SongbookOverlay.tsx` is new. The tent awning hangs from the HUD over the top of the field.
+
+**S4.7 The band's music**
+*As a player, I want each headliner's band to sound like itself, every card to sound like what it is, and the music never to drop out.*
+- [x] Each headliner has a song style: Thrum a war-drum march (D minor), Lyra a lute ballad (D dorian), Clatter a swung workshop jig (G major), Aria a sea-shanty lament (A minor, stomp-stomp-clap), Riot a bagpipe reel (D mixolydian).
+- [x] A Tour band blends them: the lead's style sets chords, swing and time-keeping; every member's signature part plays (the others' softer). Switching the lead changes the song.
+- [x] Unit sounds match what they are: the Page throws rocks (whoosh and thud), Slingers and Fire Arrows loose with a whoosh, Fire Jugglers whirl torches, the Lantern Bearer and Town Crier ring bells, the Tuning Fork rings pure, the Luthier tries her strings, the Gate Guard's halberd clangs, the Jester jingles, the Bouncer stamps.
+- [x] Waiting screens (title, pause, picks, game over) play the run's bare-bones beat in the band's style, never a metronome click. On the title it follows the headliner you've picked.
+- [x] No drop-outs: the music is scheduled 220 ms ahead and every eighth note in that window is scheduled, so a slow frame no longer skips notes.
+
+*As built:* styles in `src/audio/styles.ts` (`STYLES`, `chordIn`); `scheduleGroove` applies the lead's swing and keeper and each member's signature (`BoardMix.team`); riffs follow the lead's chords. New synth voices: `whoosh`, `bell`. The Conductor's 'metronome' mode now plays `bareMix` (the empty-stage groove). Tempo (Oct 27): +3 BPM a wave (was +2), up to 160 (was 150); Tour act 3 now runs about 124–136 BPM. D1–D8 pass at 200 runs (D6 Shield-bearer 5.0%, on the line); T1 1.40×, T4 2.25×; T2 unchanged (Heat 0 89%, Heat 5 64%, too easy, as before).
 
 **Band balance pass (Oct 26, after S4.3):** T4 added (no solved band). The report now lists every band at Heat 0/5/10.
 - **Found:** Riot's passive had no limit. In a band with Thrum it won back about 40 crowd a Tour (the max crowd is 30), and Thrum + Lyra + Riot won 100% at Heat 5. *Shipped:* Riot wins back at most 2 crowd a wave (`RIOT_CROWD_PER_WAVE`). Thrum + Lyra + Riot 100% → 90%, Thrum + Aria + Riot 90% → 90% (noise), solo Riot 68% → 63%.

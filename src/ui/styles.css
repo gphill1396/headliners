@@ -2725,3 +2725,507 @@ h1.title::first-letter {
     transition-timing-function: steps(5, end);
   }
 }
+
+/* ======================================================================
+   Classic game feel (S4.6): the faire UI kit from art/ui.py (pixel-ui.css),
+   drawn at whole pixels. Frames are 9-slice pixel art (border-image), fills
+   are pixel tiles, nothing is a smooth gradient. One art pixel = --upx.
+   ====================================================================== */
+:root {
+  --upx: 2px;
+}
+
+.app,
+.overlay {
+  image-rendering: pixelated;
+}
+
+/* ---- Materials ---- */
+.hud,
+.controls {
+  background: var(--ui-oak) 0 0 / 64px 32px repeat;
+}
+
+.hud {
+  position: relative;
+  z-index: 4;
+  box-shadow: none;
+}
+
+/* The striped tent awning hangs from the HUD over the top of the stage. */
+.hud::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  height: 20px;
+  background: var(--ui-awning) 0 0 / 32px 20px repeat-x;
+  pointer-events: none;
+}
+
+.field::before {
+  display: none;
+}
+
+.hud-crowd::before {
+  content: '';
+  width: 14px;
+  height: 12px;
+  flex: none;
+  background: var(--ui-heart) 0 0 / 14px 12px no-repeat;
+}
+
+.controls {
+  box-shadow: inset 0 var(--upx) 0 var(--oak-lt);
+}
+
+/* ---- Pages: every menu is a framed vellum page ---- */
+.overlay,
+.collection {
+  background: var(--ui-vellum) 0 0 / 32px 32px repeat;
+  background-clip: padding-box;
+  border: 8px solid transparent;
+  border-image: var(--ui-window) 4 / 8px stretch;
+  box-shadow: none;
+}
+
+/* ---- Buttons: crimson banners with gilt edges, and oak boards ---- */
+.primary-btn,
+.coach-btn {
+  --frame: transparent;
+  background: none;
+  box-shadow: none;
+  border: 6px solid transparent;
+  border-image: var(--ui-btn) 3 fill / 6px stretch;
+  color: var(--vellum-lt);
+  text-shadow: var(--upx) var(--upx) 0 #5c1612;
+}
+
+.primary-btn:active:not(:disabled),
+.coach-btn:active {
+  border-image-source: var(--ui-btn-down);
+  transform: translateY(var(--upx));
+}
+
+.primary-btn:disabled {
+  background: none;
+  filter: saturate(0.25) brightness(1.15);
+  color: var(--vellum);
+  text-shadow: none;
+  opacity: 0.7;
+}
+
+.secondary-btn,
+.swap-btn,
+.icon-btn {
+  --frame: transparent;
+  box-shadow: none;
+  border: 4px solid transparent;
+  border-image: var(--ui-plank) 2 / 4px stretch;
+  background: var(--ui-oak) 0 0 / 64px 32px repeat;
+  background-clip: padding-box;
+  color: var(--vellum-lt);
+  text-shadow: var(--upx) var(--upx) 0 var(--oak-dk);
+}
+
+.secondary-btn:active:not(:disabled),
+.swap-btn:active:not(:disabled),
+.icon-btn:active:not(:disabled) {
+  border-image-source: var(--ui-plank-down);
+  transform: translateY(var(--upx));
+}
+
+.hold-fill {
+  background: var(--crimson);
+  opacity: 0.85;
+}
+
+/* ---- Chips: vellum tabs; the chosen one gilt-edged in its colour ---- */
+.hl-chip {
+  --frame: transparent;
+  box-shadow: none;
+  border: 4px solid transparent;
+  border-image: var(--ui-chip) 2 / 4px stretch;
+  background: var(--vellum-lt);
+  background-clip: padding-box;
+}
+
+.hl-chip.on,
+.mode-picker .hl-chip.mode-on,
+.deck-picker .hl-chip.mode-on {
+  border-image-source: var(--ui-chip-on);
+}
+
+/* ---- Cards: vellum playing cards; the band along the bottom is the type's colour ---- */
+.card {
+  --frame: transparent;
+  border: 4px solid transparent;
+  border-image: var(--ui-card) 2 / 4px stretch;
+  background: var(--vellum);
+  background-clip: padding-box;
+  box-shadow: inset 0 -6px 0 var(--accent);
+  padding: 16px 3px 10px;
+}
+
+.card.selected {
+  border-image-source: var(--ui-chip-on);
+  background: var(--vellum-lt);
+}
+
+.card.poor {
+  background: var(--vellum-dk);
+}
+
+.card-slot {
+  box-shadow: none;
+  border: 4px solid transparent;
+  border-image: var(--ui-plank-down) 2 / 4px stretch;
+}
+
+.type-badge {
+  display: inline-block;
+  width: 14px;
+  height: 16px;
+  flex: none;
+  vertical-align: middle;
+  background: var(--ui-type-unit) 0 0 / 14px 16px no-repeat;
+}
+
+.type-badge.type-gate {
+  background-image: var(--ui-type-gate);
+}
+
+.type-badge.type-riff {
+  background-image: var(--ui-type-riff);
+}
+
+.type-badge.type-amp {
+  background-image: var(--ui-type-amp);
+}
+
+.card > .type-badge {
+  position: absolute;
+  right: 2px;
+  bottom: 8px;
+}
+
+.card.large > .type-badge {
+  right: 6px;
+  bottom: 10px;
+}
+
+/* ---- Lane plaques: riveted oak ---- */
+.lane-btn {
+  --frame: transparent;
+  box-shadow: none;
+  border: 6px solid transparent;
+  border-image: var(--ui-plaque) 3 / 6px stretch;
+  background: var(--ui-oak) 0 0 / 64px 32px repeat;
+  background-clip: padding-box;
+  color: var(--vellum-dk);
+  text-shadow: var(--upx) var(--upx) 0 var(--oak-dk);
+}
+
+.lane-btn::before,
+.lane-btn::after {
+  display: none;
+}
+
+.lane-btn.armed {
+  color: var(--vellum-lt);
+  border-image-source: var(--ui-chip-on);
+}
+
+.lane-btn.drop,
+.lane-btn.shift-to {
+  border-image-source: var(--ui-chip-on);
+  filter: brightness(1.2);
+}
+
+/* ---- Classic menus: a framed window, one item per row, a cursor beside the focus ---- */
+.menu-window {
+  display: grid;
+  padding: 4px 6px;
+  border: 8px solid transparent;
+  border-image: var(--ui-window) 4 / 8px stretch;
+  background: var(--ui-vellum) 0 0 / 32px 32px repeat;
+  background-clip: padding-box;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 6px;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+}
+
+.menu-item.focus {
+  color: var(--crimson);
+}
+
+.menu-cursor {
+  width: 12px;
+  height: 16px;
+  flex: none;
+  visibility: hidden;
+  background: var(--ui-cursor) 0 0 / 12px 16px no-repeat;
+}
+
+.menu-item.focus .menu-cursor,
+.mode-row.on .menu-cursor {
+  visibility: visible;
+  animation: cursor-bob 800ms steps(2, end) infinite;
+}
+
+@keyframes cursor-bob {
+  50% {
+    transform: translateX(var(--upx));
+  }
+}
+
+.menu-hint {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+
+.options-window .settings {
+  padding: 6px 4px;
+}
+
+/* ---- The title: a night at the faire ---- */
+.title-splash {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: calc(18px + env(safe-area-inset-top)) 18px calc(24px + env(safe-area-inset-bottom));
+  text-align: center;
+  color: var(--vellum);
+  background: #16101f;
+  cursor: pointer;
+}
+
+/* 240×128 art at 4/3 CSS px per pixel: exactly 4 screen pixels each on a 3× phone. */
+.splash-scene {
+  display: block;
+  width: 320px;
+  max-width: 100%;
+  aspect-ratio: 240 / 128;
+  flex: none;
+  background: var(--ui-scene) 0 0 / 100% 100% no-repeat;
+  image-rendering: pixelated;
+}
+
+.splash-scene.small {
+  width: 240px;
+  margin: 0 auto 6px;
+}
+
+.logo-banner {
+  display: block;
+  text-align: center;
+}
+
+.title.logo {
+  display: block;
+  margin: 0;
+  font-size: clamp(48px, 15vw, 64px);
+}
+
+.title-splash .title.logo {
+  color: var(--gilt);
+  text-shadow:
+    3px 3px 0 var(--crimson),
+    6px 6px 0 #000;
+}
+
+.title-splash .title.logo::first-letter {
+  color: var(--vellum-lt);
+}
+
+.splash-intro {
+  display: block;
+  max-width: 32ch;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--vellum);
+}
+
+.splash-intro.strong {
+  color: var(--gilt);
+}
+
+.tap-to-begin {
+  display: block;
+  margin-top: auto;
+  font-size: 20px;
+  color: var(--vellum-lt);
+  animation: blink 1.4s steps(1, end) infinite;
+}
+
+/* Classic "press start": mostly on, briefly dim. */
+@keyframes blink {
+  70% {
+    opacity: 0.25;
+  }
+}
+
+.title-menu .overlay-top {
+  text-align: center;
+}
+
+.menu-best {
+  margin: 6px 0 0;
+}
+
+/* ---- New show: three modes, each with its line ---- */
+.mode-list {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.mode-row {
+  display: grid;
+  grid-template-columns: 14px auto;
+  column-gap: 8px;
+  align-items: baseline;
+  padding: 6px 4px;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+}
+
+.mode-row .menu-cursor {
+  align-self: center;
+  grid-row: span 2;
+}
+
+.mode-row.on {
+  background: rgba(140, 36, 32, 0.12);
+}
+
+.mode-name {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.mode-row.on .mode-name {
+  color: var(--crimson);
+}
+
+.mode-blurb {
+  grid-column: 2;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--ink-soft);
+}
+
+/* ---- The Songbook ---- */
+.songbook-tabs {
+  flex-wrap: wrap;
+}
+
+.type-tab .type-badge {
+  margin-right: 4px;
+}
+
+.type-tab.on {
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+.songbook-blurb {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+.songbook-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.song {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-left: 6px solid var(--accent);
+  background: var(--vellum-lt);
+}
+
+.song-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  text-align: left;
+  font-size: 16px;
+  color: var(--ink);
+  background: none;
+}
+
+.song-name {
+  font-weight: 700;
+}
+
+.song-who {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--hl-dark);
+}
+
+.song-text {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.song-more p {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tap-to-begin,
+  .menu-item.focus .menu-cursor,
+  .mode-row.on .menu-cursor {
+    animation: none;
+  }
+}
+
+.card {
+  padding-top: 22px;
+}
+
+.card-name {
+  font-size: 10.5px;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.fill-btn {
+  --frame: transparent;
+  box-shadow: none;
+  border: 4px solid transparent;
+  border-image: var(--ui-plank) 2 / 4px stretch;
+  background-clip: padding-box;
+  text-shadow: var(--upx) var(--upx) 0 rgba(255, 255, 255, 0.35);
+}
+
+.fill-btn:disabled {
+  background: var(--ui-oak) 0 0 / 64px 32px repeat;
+  background-clip: padding-box;
+  color: var(--vellum-dk);
+  text-shadow: none;
+}

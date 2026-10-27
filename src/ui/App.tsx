@@ -12,6 +12,7 @@ import {
   LANES,
   MAX_ENERGY,
   milliToMs,
+  ownedCards,
   type CrowdGainReason,
   type EnemyKind,
   type EngineEvent,
@@ -25,7 +26,8 @@ import { CardTile } from './CardTile';
 import { cardText, KEYWORD_TEXT } from '../content/text';
 import { formatNumber } from './format';
 import { LoadInOverlay } from './LoadInOverlay';
-import { EvolveOverlay, GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay } from './Overlays';
+import { EvolveOverlay, GameOverOverlay, PauseOverlay, PickOverlay, TitleOverlay, type TitleScreen } from './Overlays';
+import { SongbookOverlay } from './SongbookOverlay';
 import { EventOverlay, MapOverlay, RestOverlay, ShopOverlay, TourEndOverlay } from './TourOverlays';
 import { CollectionOverlay } from './CollectionOverlay';
 import { deckProblems, EVOLVE_LEVEL, levelFor, recordRunInCollection, unlockedHeat, type Collection } from '../meta/collection';
@@ -84,6 +86,8 @@ function cardInspect(cardId: string): Inspect {
     lines: [...new Set(def.keywords)].map((k) => KEYWORD_TEXT[k]).concat(def.flavor ? [`“${def.flavor}”`] : []),
   };
 }
+/** How far ahead the band's notes are scheduled. Long enough to ride out a slow frame, short enough to follow the board. */
+const MUSIC_LOOKAHEAD_MS = 220;
 const LANE_KEYS: Record<string, number> = { j: 0, k: 1, l: 2, ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2 };
 const GRADE_LABEL: Record<Grade, string> = { tight: 'Tight', good: 'Good', off: 'Off' };
 const REJECT_TEXT = {
@@ -299,6 +303,12 @@ export function App() {
   const [mode, setMode] = useState<GameMode>(loadMode);
   const [collection, setCollection] = useState<Collection>(loadCollection);
   const [collectionOpen, setCollectionOpen] = useState(false);
+  /** The Songbook (S4.6): null when shut; from Pause it opens on the run's deck. */
+  const [songbook, setSongbook] = useState<{ deck?: string[] } | null>(null);
+  /** On the title: who's picked, so the waiting beat plays their style. Null during a run. */
+  const titlePickRef = useRef<{ headliner: HeadlinerId; team?: HeadlinerId[] } | null>(null);
+  /** Where the title screen opens: the splash on launch, the menu when coming back from a run. */
+  const [titleStart, setTitleStart] = useState<TitleScreen>('splash');
   const [loadInOpen, setLoadInOpen] = useState(false);
   const [deckChoice, setDeckChoice] = useState(loadDeckChoice);
   const [runProgress, setRunProgress] = useState<string | null>(null);
@@ -379,7 +389,12 @@ export function App() {
       const conductor = conductorRef.current;
       const synth = settingsRef.current.sound ? synthRef.current : null;
       const style: MusicStyle = settingsRef.current.chillMusic ? 'chill' : 'full';
-      const handoff = conductor.tick(now, synth, style, () => mixFrom(runner.state));
+      // On the title, the waiting beat is in the style of whoever you've picked (S4.7).
+      const handoff = conductor.tick(now, synth, style, () => {
+        const m = mixFrom(runner.state);
+        const pick = titlePickRef.current;
+        return pick ? { ...m, headliner: pick.headliner, ...(pick.team ? { team: pick.team } : { team: undefined }) } : m;
+      });
       if (handoff) {
         // Back in on the beat: the full band plays the first engine eighth, then the engine carries on.
         lastEighthScheduled.current = handoff.eighth;
@@ -494,7 +509,7 @@ export function App() {
       for (const e of events) {
         if (sfx) {
           if (e.type === 'resolved') {
-            if (getCard(e.cardId).type === 'riff') playRiff(sfx, e.cardId, e.lane, e.beat, s.clock.bpm, settingsRef.current.chillMusic ? 0.65 : 1);
+            if (getCard(e.cardId).type === 'riff') playRiff(sfx, e.cardId, e.lane, e.beat, s.clock.bpm, settingsRef.current.chillMusic ? 0.65 : 1, s.headliner.id);
             // The band already sounds the play; add a sparkle for Tight and a clunk for Off.
             if (!e.isEcho && e.grade !== 'good') sfx.play(e.grade);
           }
@@ -669,15 +684,19 @@ export function App() {
       const synth = settingsRef.current.sound ? synthRef.current : null;
       if (synth) synth.sfx = style === 'chill' ? 0.6 : 1;
       if (synth && conductor.mode === 'engine' && s.phase === 'playing') {
+        // Schedule every eighth note that falls inside the look-ahead, not just the next one: on a
+        // slow frame (a busy phone, a touch) the old one-per-frame scheduler skipped notes, and the
+        // band seemed to drop out. An eighth already in the past is skipped, never played late.
         const pos = s.clock.beat * BEAT_UNITS + s.clock.phase;
-        const next = Math.floor(pos / (BEAT_UNITS / 2)) + 1;
-        if (next > lastEighthScheduled.current) {
+        const current = Math.floor(pos / (BEAT_UNITS / 2));
+        if (lastEighthScheduled.current < current) lastEighthScheduled.current = current;
+        const mix = mixFrom(s);
+        for (let next = lastEighthScheduled.current + 1; ; next++) {
           const tickAt = s.tick + (next * (BEAT_UNITS / 2) - pos) / s.clock.bpm;
           const at = runner.realTimeOfTick(tickAt);
-          if (at - now < 120) {
-            lastEighthScheduled.current = next;
-            scheduleGroove(synth, mixFrom(s), next, synth.audioTimeAt(at), 30 / s.clock.bpm, style);
-          }
+          if (at - now >= MUSIC_LOOKAHEAD_MS) break;
+          lastEighthScheduled.current = next;
+          scheduleGroove(synth, mix, next, synth.audioTimeAt(at), 30 / s.clock.bpm, style);
         }
       }
       drawField(ctx, s, s.phase === 'playing' ? alpha : 0, fx, phase, now);
@@ -726,6 +745,12 @@ export function App() {
       runner.pause();
     };
   }, [runner, flashInfo, pop, showLink, showBanner, finishRun, handToConductor, drawPads]);
+
+  // The title's waiting beat follows your pick (a saved run keeps its own band).
+  useEffect(() => {
+    titlePickRef.current =
+      view === 'title' && !canResume && mode !== 'daily' ? { headliner: mode === 'tour' && team.length ? team[0]! : headliner, ...(mode === 'tour' && team.length ? { team } : {}) } : null;
+  }, [view, canResume, mode, team, headliner]);
 
   // Keep the selected card valid as the hand changes.
   useEffect(() => {
@@ -1041,6 +1066,7 @@ export function App() {
       setCanResume(true);
     }
     setSelected(null);
+    setTitleStart('menu');
     setView('title');
   };
 
@@ -1150,6 +1176,7 @@ export function App() {
       runner.pause();
       savedRun.current = saved;
       setCanResume(true);
+      setTitleStart('menu');
       setView('title');
       return;
     }
@@ -1401,6 +1428,8 @@ export function App() {
 
       {view === 'title' && (
         <TitleOverlay
+          startAt={titleStart}
+          onSongbook={() => setSongbook({})}
           bests={bests}
           canResume={canResume}
           tutorialDone={tutorialDone}
@@ -1460,6 +1489,7 @@ export function App() {
           onResume={() => startPlaying()}
           onHome={goHome}
           onSkipTutorial={finishTutorial}
+          onSongbook={() => setSongbook({ deck: ownedCards(runner.state).map((c) => c.cardId) })}
           settings={settings}
           onToggle={toggleSetting}
         />
@@ -1509,6 +1539,7 @@ export function App() {
         />
       )}
       {loadInOpen && <LoadInOverlay onClose={() => setLoadInOpen(false)} />}
+      {songbook && <SongbookOverlay deck={songbook.deck} onClose={() => setSongbook(null)} />}
       {collectionOpen && (
         <CollectionOverlay
           collection={collection}

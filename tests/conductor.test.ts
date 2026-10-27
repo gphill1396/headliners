@@ -15,7 +15,13 @@ function fake() {
     jingle: (t: number) => calls.push({ k: 'jingle', t }),
     kick: (t: number) => calls.push({ k: 'kick', t }),
     boom: (t: number) => calls.push({ k: 'boom', t }),
-    snare: () => {},
+    snare: (t: number) => calls.push({ k: 'snare', t }),
+    drone: () => {},
+    voice: () => {},
+    keys: () => {},
+    shaker: () => {},
+    clank: () => {},
+    crash: () => {},
     setLaneFx: () => {},
     setMuffle: () => calls.push({ k: 'muffle', t: 0 }),
     fadeBand: (t: number) => calls.push({ k: 'fade', t }),
@@ -32,14 +38,15 @@ function run(c: Conductor, synth: Synth, from: number, to: number) {
   return handoff;
 }
 
-test('metronome ticks every beat with an accent on beat 1', () => {
+test("waiting screens play the run's bare-bones beat, never a click", () => {
   const { synth, calls } = fake();
   const c = new Conductor();
   c.startMetronome(0, 100); // 600 ms beats
   run(c, synth, 0, 2_500);
-  const ticks = calls.filter((x) => x.k === 'metronome');
-  assert.deepEqual(ticks.map((x) => Math.round(x.t * 1000)), [0, 600, 1200, 1800, 2400]);
-  assert.deepEqual(ticks.map((x) => x.accent), [true, false, false, false, true]);
+  assert.equal(calls.filter((x) => x.k === 'metronome').length, 0);
+  // Thrum's march with an empty stage: the war drum on 1 and 3, the tabor on 2 and 4.
+  assert.deepEqual(calls.filter((x) => x.k === 'boom').map((x) => Math.round(x.t * 1000)), [0, 1200, 2400]);
+  assert.deepEqual(calls.filter((x) => x.k === 'snare').map((x) => Math.round(x.t * 1000)), [600, 1800]);
 });
 
 test('nextBeatAt finds the next matching bar position with enough lead', () => {
@@ -49,7 +56,7 @@ test('nextBeatAt finds the next matching bar position with enough lead', () => {
   assert.equal(c.nextBeatAt(100, 2, 1), 1_200); // next beat 3
 });
 
-test('game over: the band fades for two bars, then only the metronome', () => {
+test('game over: the band fades for two bars, then the bare beat carries on', () => {
   const { synth, calls } = fake();
   const c = new Conductor();
   // Engine beat 40 happened at t=0, 100 BPM.
@@ -57,10 +64,8 @@ test('game over: the band fades for two bars, then only the metronome', () => {
   run(c, synth, 0, 7_000);
   assert.equal(c.mode, 'metronome');
   assert.ok(calls.some((x) => x.k === 'fade'));
-  const lastJingle = Math.max(...calls.filter((x) => x.k === 'jingle').map((x) => x.t));
-  assert.ok(lastJingle < 4.8, 'band stops after two bars');
-  const metronomes = calls.filter((x) => x.k === 'metronome').map((x) => x.t);
-  assert.ok(metronomes.some((t) => t > 6));
+  assert.ok(calls.some((x) => x.k === 'boom' && x.t > 6));
+  assert.equal(calls.filter((x) => x.k === 'metronome').length, 0);
 });
 
 test('handing back to the engine happens exactly at the chosen beat', () => {
@@ -80,15 +85,16 @@ test('after a long gap (app in background) it skips ahead instead of replaying',
   c.startMetronome(0, 100);
   c.tick(0, synth, 'full', mix);
   c.tick(600_000, synth, 'full', mix); // ten minutes later
-  assert.ok(calls.filter((x) => x.k === 'metronome').length < 5);
+  assert.ok(calls.filter((x) => x.k === 'boom').length < 5);
 });
 
-test('pause/pick (muffled): the metronome keeps ticking under the band, every beat', () => {
+test('pause/pick (muffled): the band plays on from backstage, keeping the pulse, with no click', () => {
   const { synth, calls } = fake();
   const c = new Conductor();
   c.takeOver('muffled', 0, 0, 20, 100, 41, synth);
   run(c, synth, 0, 3_000);
-  const ticks = calls.filter((x) => x.k === 'metronome').map((x) => Math.round(x.t * 1000));
-  assert.deepEqual(ticks, [600, 1200, 1800, 2400, 3000]);
-  assert.ok(calls.filter((x) => x.k === 'metronome').every((x) => (x.level ?? 1) > 0.5));
+  assert.ok(calls.some((x) => x.k === 'muffle'));
+  const pulse = new Set(calls.filter((x) => x.k === 'boom' || x.k === 'snare').map((x) => Math.round(x.t * 1000)));
+  for (const beat of [600, 1200, 1800, 2400, 3000]) assert.ok(pulse.has(beat), `a drum on the beat at ${beat} ms`);
+  assert.equal(calls.filter((x) => x.k === 'metronome').length, 0);
 });

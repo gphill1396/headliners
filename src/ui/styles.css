@@ -1,9 +1,35 @@
 /* Self-hosted fonts (SIL OFL, licences in src/ui/fonts): no network needed, works offline. */
+/* Pixelify Sans, with a clearer 5 laid over it (its own 5 reads as an S: art/fonts/five.py). Each weight band
+   is declared twice, the whole font and then just the 5 (unicode-range U+0035), so the two faces combine
+   and the later one supplies the 5. The variable font is one file, downloaded once. */
 @font-face {
   font-family: 'Pixelify Sans';
   src: url('./fonts/pixelify-sans.woff') format('woff');
-  font-weight: 400 700;
+  font-weight: 400 549;
   font-display: swap;
+}
+
+@font-face {
+  font-family: 'Pixelify Sans';
+  src: url('./fonts/pixelify-sans.woff') format('woff');
+  font-weight: 550 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Pixelify Sans';
+  src: url('./fonts/pixelify-five-400.woff') format('woff');
+  font-weight: 400 549;
+  font-display: swap;
+  unicode-range: U+0035;
+}
+
+@font-face {
+  font-family: 'Pixelify Sans';
+  src: url('./fonts/pixelify-five-700.woff') format('woff');
+  font-weight: 550 700;
+  font-display: swap;
+  unicode-range: U+0035;
 }
 
 /* Jacquard 24: a pixel blackletter, for titles and banners only (never body text). */
@@ -71,10 +97,23 @@ body,
   touch-action: manipulation;
 }
 
+html {
+  overflow: hidden;
+}
+
 body {
   overflow: hidden;
   position: fixed;
   inset: 0;
+}
+
+/* Scrolling panels scroll up and down only. (overflow-y: auto quietly makes x scrollable too, and a wide
+   picture or a pop at the edge let the screen slide sideways for a moment: Grant, Oct 27.) */
+.overlay,
+.overlay-top,
+.collection-body,
+.deck-grid {
+  overflow-x: hidden;
 }
 
 button {

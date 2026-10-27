@@ -48,6 +48,8 @@ export type EngineEvent =
   | { type: 'bossPhase'; phase: 1 | 2 | 3; boss: EnemyKind }
   /** The Hush is gone: beaten (crowd won back) or it reached the stage. */
   | { type: 'bossEnd'; boss: EnemyKind; defeated: boolean; crowd: number }
+  /** The crowd meter grew (S4.8): a boss beaten, or handbills from a Market. */
+  | { type: 'crowdCap'; amount: number; max: number; reason: 'boss' | 'handbills' }
   /** A Splitter burst into pieces. */
   | { type: 'split'; lane: number; depth: number; count: number }
   /** A Breaker hit a gate. */

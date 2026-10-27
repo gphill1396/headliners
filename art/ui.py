@@ -190,6 +190,14 @@ def bunting():
     return grid(rows)
 
 
+def curtain():
+    """Red velvet stage curtain, a vertical tile: folds lit on the left, shadowed on the right."""
+    rows = []
+    for y in range(8):
+        rows.append('rcCRCcrr'.replace('R', 'R' if y % 4 else 'C'))
+    return grid(rows)
+
+
 def heart():
     return grid([
         '.KK.KK.',
@@ -432,6 +440,7 @@ def css():
         'oak': oak_tile(),
         'awning': awning(),
         'bunting': bunting(),
+        'curtain': curtain(),
     }
     icons = {'heart': heart(), 'coin': coin(), 'cursor': cursor(), 'seal': seal(), **type_icons(), 'scene': scene()}
     out = [

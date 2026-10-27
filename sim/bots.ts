@@ -2,6 +2,8 @@ import {
   BEAT_UNITS,
   BEATS_PER_BAR,
   SHIFT_COST,
+  MAX_CROWD_CAP,
+  TOUR_SHOP_HANDBILLS_PRICE,
   frontEnemy,
   getCard,
   nextFloat,
@@ -447,6 +449,8 @@ function tourAct(config: BotConfig, s: EngineState, rng: RngState): Input[] | nu
     case 'shop': {
       const shop = tour.shop!;
       if (!random && !shop.healed && s.crowd < 18 && tour.merch >= 25) return [{ type: 'shop', action: 'heal' }];
+      // S4.8: handbills when there's coin to spare.
+      if (!random && !shop.handbills && tour.merch >= TOUR_SHOP_HANDBILLS_PRICE + 15 && s.maxCrowd < MAX_CROWD_CAP) return [{ type: 'shop', action: 'handbills' }];
       const affordable = shop.cards.map((c, i) => ({ c, i })).filter(({ c }) => !c.sold && c.price <= tour.merch);
       if (affordable.length > 0 && (random ? nextFloat(rng) < 0.5 : nextFloat(rng) < 0.8)) {
         const pick = affordable[nextInt(rng, 0, affordable.length)]!;

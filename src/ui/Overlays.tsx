@@ -167,6 +167,7 @@ export function TitleOverlay({
   deckChoice,
   onDeckChoice,
   onCollection,
+  onDecks,
   onLoadIn,
   onSongbook,
   team,
@@ -194,6 +195,8 @@ export function TitleOverlay({
   deckChoice: string | null;
   onDeckChoice: (id: string | null) => void;
   onCollection: () => void;
+  /** Build and edit your Encore decks (the Collection's Workshop). */
+  onDecks: () => void;
   onLoadIn: () => void;
   onSongbook: () => void;
   /** Tour: the team of 3 being picked, in order (the first leads). */
@@ -251,6 +254,7 @@ export function TitleOverlay({
     if (canResume) items.push({ label: 'Continue', onPick: onResume });
     items.push({ label: 'New show', onPick: () => setScreen('new') });
     if (tutorialDone) items.push({ label: 'How to play', onPick: onTutorial });
+    items.push({ label: 'Decks', onPick: onDecks, hint: 'build & edit' });
     items.push({ label: 'Songbook', onPick: onSongbook, hint: 'every card' });
     items.push({ label: 'Collection', onPick: onCollection });
     items.push({ label: 'Load-In', onPick: onLoadIn, hint: 'puzzles' });

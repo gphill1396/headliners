@@ -87,3 +87,24 @@ test('Tavern Chorus: on beat 1 with a 5+ chain, win back 1 crowd', () => {
   assert.equal(gained, 1);
   assert.equal(s.crowd, 11);
 });
+
+test('S4.8: handbills at a Market make room for 3 more crowd (once), up to the 45 cap', async () => {
+  const { createState, reachable, step } = await import('../src/engine');
+  const { MAX_CROWD_CAP, TOUR_SHOP_HANDBILLS_PRICE } = await import('../src/engine/constants');
+  const s = createState({ seed: 'handbills', mode: 'tour' });
+  const id = reachable(s)[0]!;
+  s.tour!.nodes.find((n) => n.id === id)!.kind = 'shop';
+  step(s, [{ type: 'travel', node: id }]);
+  s.tour!.merch = 100;
+  const [max, crowd] = [s.maxCrowd, s.crowd];
+  step(s, [{ type: 'shop', action: 'handbills' }]);
+  assert.equal(s.maxCrowd, max + 3);
+  assert.equal(s.crowd, crowd + 3);
+  assert.equal(s.tour!.merch, 100 - TOUR_SHOP_HANDBILLS_PRICE);
+  step(s, [{ type: 'shop', action: 'handbills' }]); // once per Market
+  assert.equal(s.maxCrowd, max + 3);
+  s.maxCrowd = MAX_CROWD_CAP - 1;
+  s.tour!.shop!.handbills = false;
+  step(s, [{ type: 'shop', action: 'handbills' }]);
+  assert.equal(s.maxCrowd, MAX_CROWD_CAP);
+});

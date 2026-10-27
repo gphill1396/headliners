@@ -12,6 +12,7 @@ import {
   LANES,
   MAX_ENERGY,
   milliToMs,
+  START_CROWD,
   ownedCards,
   type CrowdGainReason,
   type EnemyKind,
@@ -20,7 +21,7 @@ import {
   type Grade,
   type HeadlinerId,
 } from '../engine';
-import { addBurst, createFx, decayFx, depthToFraction, drawField, fitCanvas, GATE_COLORS, LANE_PX } from '../render/field';
+import { addBurst, createFx, decayFx, depthToFraction, drawField, fieldPoint, fitCanvas, GATE_COLORS, laneX } from '../render/field';
 import { PALETTE } from '../render/palette';
 import { CardTile } from './CardTile';
 import { cardText, KEYWORD_TEXT } from '../content/text';
@@ -302,7 +303,9 @@ export function App() {
   const [inspect, setInspect] = useState<Inspect | null>(null);
   const [mode, setMode] = useState<GameMode>(loadMode);
   const [collection, setCollection] = useState<Collection>(loadCollection);
-  const [collectionOpen, setCollectionOpen] = useState(false);
+  /** The Collection overlay, and which tab it opens on (null = shut). */
+  const [collectionOpen, setCollectionOpenTab] = useState<null | 'headliners' | 'workshop'>(null);
+  const setCollectionOpen = (open: boolean | 'workshop') => setCollectionOpenTab(open === false ? null : open === true ? 'headliners' : open);
   /** The Songbook (S4.6): null when shut; from Pause it opens on the run's deck. */
   const [songbook, setSongbook] = useState<{ deck?: string[] } | null>(null);
   /** On the title: who's picked, so the waiting beat plays their style. Null during a run. */
@@ -434,8 +437,9 @@ export function App() {
     const el = document.createElement('div');
     el.className = `pop ${cls}`;
     el.textContent = text;
-    el.style.left = `${((lane + 0.5) / LANES) * 100}%`;
-    el.style.top = `${depthToFraction(depth) * 100}%`;
+    const at = fieldPoint(lane, depth);
+    el.style.left = `${at.x * 100}%`;
+    el.style.top = `${at.y * 100}%`;
     el.addEventListener('animationend', () => el.remove());
     layer.appendChild(el);
   }, []);
@@ -581,6 +585,9 @@ export function App() {
             fx.flashColor[e.from] = PALETTE.cream;
             fx.flashColor[e.to] = PALETTE.cream;
             pop('Shift', e.to, 30_000, 'pop-note');
+            break;
+          case 'crowdCap':
+            pop(`+${e.amount} crowd · ${e.reason === 'boss' ? 'word spreads' : 'handbills'}`, 1, 76_000, 'pop-gain');
             break;
           case 'gateBroken':
             pop('Gate broke', e.lane, 60_000, 'pop-note');
@@ -938,7 +945,7 @@ export function App() {
       for (const en of runner.state.enemies) {
         if (en.hp <= 0 || en.depth < 0) continue;
         const wide = ENEMIES[en.kind].wide;
-        const ex = wide ? canvas.width / 2 : en.lane * LANE_PX + LANE_PX / 2;
+        const ex = wide ? canvas.width / 2 : laneX(en.lane, Math.max(0, en.depth));
         const ey = depthToFraction(en.depth) * canvas.height - 8;
         const d = (ex - fx) * (ex - fx) + (ey - fy) * (ey - fy) * (wide ? 0.2 : 1);
         if (d < (wide ? 2_000 : 400) && (!best || d < best.d)) best = { d, kind: en.kind };
@@ -1224,6 +1231,7 @@ export function App() {
             <span style={{ width: `${(hud.crowd / hud.maxCrowd) * 100}%` }} />
           </span>
           {hud.crowd}
+          {hud.maxCrowd > START_CROWD && <span className="hud-label">/{hud.maxCrowd}</span>}
         </span>
         <span className="hud-score">
           <span className="hud-label">Score</span> {formatNumber(hud.score, settings.scientific)}
@@ -1249,8 +1257,8 @@ export function App() {
               key={g.id}
               className="gate-label"
               style={{
-                left: `${((g.lane + 0.5) / LANES) * 100}%`,
-                top: `${depthToFraction(g.depth) * 100}%`,
+                left: `${fieldPoint(g.lane, g.depth).x * 100}%`,
+                top: `${fieldPoint(g.lane, g.depth).y * 100}%`,
                 color: g.hexed ? '#c06bd6' : GATE_COLORS[g.kind],
               }}
             >
@@ -1477,6 +1485,7 @@ export function App() {
             saveDeckChoice(next);
           }}
           onCollection={() => setCollectionOpen(true)}
+          onDecks={() => setCollectionOpen('workshop')}
           onLoadIn={() => setLoadInOpen(true)}
           settings={settings}
           onToggle={toggleSetting}
@@ -1542,6 +1551,7 @@ export function App() {
       {songbook && <SongbookOverlay deck={songbook.deck} onClose={() => setSongbook(null)} />}
       {collectionOpen && (
         <CollectionOverlay
+          startTab={collectionOpen}
           collection={collection}
           onChange={(c) => {
             setCollection(c);

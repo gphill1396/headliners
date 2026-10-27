@@ -250,9 +250,13 @@ test('beating The Hush wins back crowd; letting it reach the stage costs 15', ()
   s.crowd = 10;
   hush.hp = 1;
   shot(s, 1, { damage: 50 });
+  const maxBefore = s.maxCrowd;
   const end = ofType(runTicks(s, 40), 'bossEnd');
   assert.equal(end[0]?.defeated, true);
-  assert.equal(s.crowd, 15);
+  // S4.8: the word spreads: the meter grows by 3 and those fans arrive, plus the usual 5 back.
+  assert.equal(s.maxCrowd, maxBefore + 3);
+  assert.equal(s.crowd, 18);
+  assert.equal(end[0]?.crowd, 8);
   assert.equal(s.boss, null);
 
   const t = hushField();

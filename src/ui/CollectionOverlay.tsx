@@ -28,8 +28,19 @@ const TAB_LABEL: Record<Tab, string> = { headliners: 'Band', workshop: 'Workshop
 const IDS = Object.keys(HEADLINERS) as HeadlinerId[];
 
 /** The Collection (SPEC §5, S2.2): headliner levels, the Workshop deck builder, card history and save backups. */
-export function CollectionOverlay({ collection, onChange, onClose }: { collection: Collection; onChange: (c: Collection) => void; onClose: () => void }) {
-  const [tab, setTab] = useState<Tab>('headliners');
+export function CollectionOverlay({
+  collection,
+  onChange,
+  onClose,
+  startTab = 'headliners',
+}: {
+  collection: Collection;
+  onChange: (c: Collection) => void;
+  onClose: () => void;
+  /** Which tab opens first ('workshop' from the home menu's Decks). */
+  startTab?: 'headliners' | 'workshop' | 'cards' | 'backup';
+}) {
+  const [tab, setTab] = useState<Tab>(startTab);
   const [editing, setEditing] = useState<DeckList | null>(null);
   if (editing) {
     return (

@@ -758,6 +758,26 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 
 *As built:* styles in `src/audio/styles.ts` (`STYLES`, `chordIn`); `scheduleGroove` applies the lead's swing and keeper and each member's signature (`BoardMix.team`); riffs follow the lead's chords. New synth voices: `whoosh`, `bell`. The Conductor's 'metronome' mode now plays `bareMix` (the empty-stage groove). Tempo (Oct 27): +3 BPM a wave (was +2), up to 160 (was 150); Tour act 3 now runs about 124–136 BPM. D1–D8 pass at 200 runs (D6 Shield-bearer 5.0%, on the line); T1 1.40×, T4 2.25×; T2 unchanged (Heat 0 89%, Heat 5 64%, too easy, as before).
 
+**S4.8 Room for a bigger crowd**
+*As a player, I want ways to grow my crowd past where it started, so a strong run feels like the show is building.*
+- [x] Beating a boss spreads the word: the crowd meter grows by 3 and those fans arrive (in Encore and Tour), on top of the usual 5 back.
+- [x] Tour Markets sell handbills once per visit: room for 3 more crowd, and the fans to fill it.
+- [x] The meter never grows past 45. The HUD shows the new maximum once it's above 30.
+- [x] D1–D8 still pass; Tour targets reported.
+
+*As built:* `raiseCrowdCap` in `engine/effects.ts` (event `crowdCap`), `BOSS_CROWD_CAP`, `TOUR_SHOP_HANDBILLS` (+3 for 35 coin) and `MAX_CROWD_CAP` in constants; the shop action `handbills`. Bots buy handbills when they have coin to spare. To keep D6 (every enemy matters) above 5% with longer Encore runs, the Shield-bearer's leak now costs 4 crowd (was 3). Results: Encore D1–D8 all pass (D6 Splitter 5.1%). Tour: solo Thrum 98%, Clatter 88%, Aria 81%, Riot 76%, Lyra 75% (T1 1.30×); bands 92% / 64% / 30% at Heat 0/5/10 (T2 fails on the easy side, as before, a little more so); T4 2.55× (just over 2.5×). More crowd made Tours easier, as expected; the Tour difficulty question stays open for playtesting.
+
+**S4.9 The road from the cave**
+*As a player, I want the field to look like the faire's roads leading out of a monster cave, and the stage to look like a stage.*
+- [x] The three lanes are dirt roads through grass, with wheel ruts, stones, wildflowers and pennant poles along the verges.
+- [x] The roads are tilted back in perspective: they narrow toward a cave mouth near the top, and monsters far up the road are smaller (pixel-dropped, like GBA sprite scaling) and grow as they come.
+- [x] The next boss looms over the cave mouth, in shadow (in Tour the act's boss; in Encore the next one due).
+- [x] The bottom of the field is the band's stage, with boards and lanterns along the apron; the control area below has velvet curtains at the wings and bunting overhead.
+- [x] Gameplay is unchanged: the same depths and timings; only the drawing moved. Labels and pops follow the perspective.
+- [x] A "Decks" item on the home menu opens the Workshop to build and edit Encore decks.
+
+*As built:* `render/field.ts`: `CAVE_FRACTION` 0.2, tilt `Z_FAR` 2.4 (the cave end of a road is drawn as if 2.4× as far as the stage end), `scaleAt`, `laneX`, `fieldPoint`; the land is drawn once per canvas size (`land()`), monsters are cached per frame and drawn with nearest-neighbour scaling (`drawScaled`). Assuming: "longer roads" means looking longer and further away, not a slower walk; monster travel times are unchanged.
+
 **Band balance pass (Oct 26, after S4.3):** T4 added (no solved band). The report now lists every band at Heat 0/5/10.
 - **Found:** Riot's passive had no limit. In a band with Thrum it won back about 40 crowd a Tour (the max crowd is 30), and Thrum + Lyra + Riot won 100% at Heat 5. *Shipped:* Riot wins back at most 2 crowd a wave (`RIOT_CROWD_PER_WAVE`). Thrum + Lyra + Riot 100% → 90%, Thrum + Aria + Riot 90% → 90% (noise), solo Riot 68% → 63%.
 - **Shipped:** Aria's Hold recharges in 13 beats (was 16). Solo Aria 73% → 79%; most Aria bands rose a few points.

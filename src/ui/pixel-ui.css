@@ -30,6 +30,9 @@
   --ui-bunting: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAGCAYAAADZq14TAAAAiUlEQVR42mO0VhH5z0BDwMjAwMCgLSWA1ZKrzz5QLM8C43QoycAlbr74wjD/2wcUxWcPZTG8uHKBgYGBgWHVulMMC/f8QZE3aTCBsy8ceMbw58AzVNu0pQT+b7bR+d+jovAfm4u0pQT+P9jg9b8rTgSnfPwsl//6UVoo8kwM9ATaUgL/cYUnufIADAA/FhUkdJMAAAAASUVORK5CYII=");
   --ui-bunting-w: 24;
   --ui-bunting-h: 6;
+  --ui-curtain: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAO0lEQVR42mOMERP6b8DHx6AuwcMAAzdffGG48OkTAwMDAwMTAxJQkxFgQAdMDAQAaQpuPfmAXwFt3AAA2pgK5TgCDucAAAAASUVORK5CYII=");
+  --ui-curtain-w: 8;
+  --ui-curtain-h: 8;
   --ui-heart: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAGCAYAAAAPDoR2AAAAbElEQVR42mNgYGBg0JYS+K8tJfAfnc2iLSXwf52dDsOtJx8YKhgY/ncoyTDcfPGFYb4Uw38mBgYGhltPPjDcfPGFIZFLgOHmiy8MMMAIMyqRSwAuOP/bB4arzz4wwgW0pQT+96gowO3DAOgSAG1PJnpD+jisAAAAAElFTkSuQmCC");
   --ui-heart-w: 7;
   --ui-heart-h: 6;

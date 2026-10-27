@@ -11,6 +11,9 @@ import {
   HEAT_REST_HEAL,
   TOUR_SHOP_HEAL,
   TOUR_SHOP_HEAL_PRICE,
+  TOUR_SHOP_HANDBILLS,
+  TOUR_SHOP_HANDBILLS_PRICE,
+  MAX_CROWD_CAP,
   TOUR_SHOP_REMOVE_PRICE,
   type EngineState,
   type TourNodeKind,
@@ -233,6 +236,13 @@ export function ShopOverlay({
               </button>
               <button className="secondary-btn" disabled={!armed || shop.healed || tour.merch < TOUR_SHOP_HEAL_PRICE || state.crowd >= state.maxCrowd} onClick={() => onShop({ action: 'heal' })}>
                 +{TOUR_SHOP_HEAL} crowd ({TOUR_SHOP_HEAL_PRICE})
+              </button>
+              <button
+                className="secondary-btn shop-wide"
+                disabled={!armed || shop.handbills === true || tour.merch < TOUR_SHOP_HANDBILLS_PRICE || state.maxCrowd >= MAX_CROWD_CAP}
+                onClick={() => onShop({ action: 'handbills' })}
+              >
+                Handbills: room for {TOUR_SHOP_HANDBILLS} more crowd ({TOUR_SHOP_HANDBILLS_PRICE})
               </button>
             </div>
             <button className="secondary-btn" disabled={!armed} onClick={() => onShop({ action: 'leave' })}>

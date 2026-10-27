@@ -10,6 +10,7 @@ import {
   SLOW_SHOT_BEATS,
   SLOW_SHOT_PCT,
   BOSS_CROWD_REWARD,
+  BOSS_CROWD_CAP,
   BOSS_SHIELD_PCT,
   GATE_DEPTHS,
   LANES,
@@ -24,7 +25,7 @@ import {
 import type { TickCtx } from './context';
 import { beatInBar } from './clock';
 import { evolvedInto, hasMember } from './evolution';
-import { gainCrowd } from './effects';
+import { gainCrowd, raiseCrowdCap } from './effects';
 import type { EngineState, Enemy, Gate, Projectile, Unit } from './state';
 
 /** Enemies are hit at their leading (stage-side) edge. */
@@ -395,8 +396,12 @@ export function sweepDead(state: EngineState, ctx: TickCtx): void {
     }
     if (e.id === state.boss?.enemyId) {
       // The Hush is gone: beaten, or it reached the stage.
-      if (!e.leaked) gainCrowd(state, ctx, BOSS_CROWD_REWARD, 'boss');
-      ctx.events.push({ type: 'bossEnd', boss: e.kind, defeated: !e.leaked, crowd: e.leaked ? -e.crowdDamage : BOSS_CROWD_REWARD });
+      let won = 0;
+      if (!e.leaked) {
+        won += raiseCrowdCap(state, ctx, BOSS_CROWD_CAP, 'boss');
+        won += gainCrowd(state, ctx, BOSS_CROWD_REWARD, 'boss');
+      }
+      ctx.events.push({ type: 'bossEnd', boss: e.kind, defeated: !e.leaked, crowd: e.leaked ? -e.crowdDamage : won });
       state.boss = null;
     }
     if (e.leaked) continue;

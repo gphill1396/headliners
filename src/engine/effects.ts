@@ -18,6 +18,7 @@ import {
   VOLUME_MAX,
   SINGALONG_CROWD,
   SINGALONG_LINKS,
+  MAX_CROWD_CAP,
 } from './constants';
 import { isDownbeat } from './clock';
 import { evolvedInto, hasMember } from './evolution';
@@ -58,6 +59,20 @@ export function gainCrowd(state: EngineState, ctx: TickCtx, amount: number, reas
   const gained = state.crowd - before;
   if (gained > 0) ctx.events.push({ type: 'crowdGain', amount: gained, reason });
   return gained;
+}
+
+/**
+ * Room for more crowd (S4.8): the meter's cap grows (up to MAX_CROWD_CAP), and the new
+ * fans arrive with it. Returns how much it grew.
+ */
+export function raiseCrowdCap(state: EngineState, ctx: TickCtx, amount: number, reason: 'boss' | 'handbills'): number {
+  if (state.mode === 'tutorial') return 0;
+  const grown = Math.max(0, Math.min(MAX_CROWD_CAP, state.maxCrowd + amount) - state.maxCrowd);
+  if (grown <= 0) return 0;
+  state.maxCrowd += grown;
+  state.crowd += grown;
+  ctx.events.push({ type: 'crowdCap', amount: grown, max: state.maxCrowd, reason });
+  return grown;
 }
 
 export function addLink(state: EngineState, ctx: TickCtx, cardId: string, label: string, lane: number, stepPct: number): void {

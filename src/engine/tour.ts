@@ -11,6 +11,9 @@ import {
   TOUR_REST_HEAL,
   HEAT_REST_HEAL,
   HEAT_START_CROWD,
+  MAX_CROWD_CAP,
+  TOUR_SHOP_HANDBILLS,
+  TOUR_SHOP_HANDBILLS_PRICE,
   TOUR_ROWS,
   TOUR_SHOP_HEAL,
   TOUR_SHOP_HEAL_PRICE,
@@ -20,7 +23,7 @@ import {
 import type { TickCtx } from './context';
 import { MAX_HEAT } from '../content/heat';
 import { teamOf, unevolved } from './evolution';
-import { gainCrowd } from './effects';
+import { gainCrowd, raiseCrowdCap } from './effects';
 import { addCardToDeck, refillHand } from './deck';
 import { nextFloat, nextInt, shuffleInPlace } from './rng';
 import { emptyChain, type CardInstance, type EngineState, type TourNode, type TourNodeKind, type TourState } from './state';
@@ -367,7 +370,7 @@ function openShop(state: EngineState): void {
   state.phase = 'shop';
 }
 
-export type ShopAction = { action: 'buy'; index: number } | { action: 'remove'; iid: number } | { action: 'heal' } | { action: 'leave' };
+export type ShopAction = { action: 'buy'; index: number } | { action: 'remove'; iid: number } | { action: 'heal' } | { action: 'handbills' } | { action: 'leave' };
 
 export function shop(state: EngineState, ctx: TickCtx, a: ShopAction): void {
   const tour = state.tour;
@@ -393,6 +396,14 @@ export function shop(state: EngineState, ctx: TickCtx, a: ShopAction): void {
       tour.merch -= TOUR_SHOP_HEAL_PRICE;
       shop.healed = true;
       gainCrowd(state, ctx, TOUR_SHOP_HEAL, 'tour');
+      return;
+    }
+    case 'handbills': {
+      // S4.8: post handbills around the faire: room for more crowd, and they come.
+      if (shop.handbills || tour.merch < TOUR_SHOP_HANDBILLS_PRICE || state.maxCrowd >= MAX_CROWD_CAP) return;
+      tour.merch -= TOUR_SHOP_HANDBILLS_PRICE;
+      shop.handbills = true;
+      raiseCrowdCap(state, ctx, TOUR_SHOP_HANDBILLS, 'handbills');
       return;
     }
     case 'leave':

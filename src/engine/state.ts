@@ -252,7 +252,7 @@ export interface TourState {
   /** Earned from shows, spent in shops. */
   merch: number;
   fight: TourFight | null;
-  shop: { cards: { cardId: string; price: number; sold: boolean }[]; removed: boolean; healed: boolean } | null;
+  shop: { cards: { cardId: string; price: number; sold: boolean }[]; removed: boolean; healed: boolean; handbills?: boolean } | null;
   /** The event on screen. */
   event: string | null;
   /** What happens after the current card pick or evolution, in order. */

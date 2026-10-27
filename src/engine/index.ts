@@ -18,7 +18,7 @@ export * from './snapshot';
 export * from './evolution';
 export { boostPct, chainMultPct, isBigChain, pocketPct } from './effects';
 export { airborne, faded, frontEnemy } from './combat';
-export { bossKind, BOSS_ORDER } from './waves';
+export { bossForWave, bossKind, BOSS_ORDER } from './waves';
 export { getCard, CARDS, STARTER_DECK } from '../content/cards';
 export { ENEMIES } from '../content/enemies';
 export { HEADLINERS } from '../content/headliners';

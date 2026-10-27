@@ -168,6 +168,13 @@ export const BOSS_BRUTE_EVERY_BEATS = 6;
 export const BOSS_SHIELD_PCT = 50;
 /** Beating The Hush wins back this much crowd. */
 export const BOSS_CROWD_REWARD = 5;
+/** S4.8: beating a boss spreads the word: the crowd meter grows by this much (new fans arrive too). */
+export const BOSS_CROWD_CAP = 3;
+/** S4.8: Tour Markets sell handbills (once per Market): this much more room in the crowd, and the fans to fill it. */
+export const TOUR_SHOP_HANDBILLS = 3;
+export const TOUR_SHOP_HANDBILLS_PRICE = 35;
+/** The crowd meter never grows past this. */
+export const MAX_CROWD_CAP = 45;
 export const PICK_OPTIONS = 3;
 
 // ---- Winning crowd back ----

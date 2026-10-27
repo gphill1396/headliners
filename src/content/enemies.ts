@@ -68,7 +68,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     hp: 45,
     armor: 0,
     travelBeats: 16,
-    crowdDamage: 3,
+    crowdDamage: 4,
     packSize: 1,
     shieldHits: 8,
     answers: ['side-fill', 'toolbox', 'bassline'],

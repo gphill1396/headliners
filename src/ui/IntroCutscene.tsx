@@ -3,6 +3,7 @@ import { ART } from '../render/art';
 import { land } from '../render/field';
 import { PALETTE } from '../render/palette';
 import { drawAnim } from '../render/portraits';
+import { SCENE_EMPTY } from './scene-art';
 
 /**
  * The intro (S4.11): after "Tap to begin", the title's window onto the Grand Faire grows to fill the
@@ -68,16 +69,19 @@ function performerCanvases(): HTMLCanvasElement[][] {
   });
 }
 
-/** The title scene with an empty stage (the intro draws the band itself), read from the UI kit's CSS. */
-function loadEmptyScene(): HTMLImageElement | null {
-  if (typeof getComputedStyle !== 'function') return null;
-  const value = getComputedStyle(document.documentElement).getPropertyValue('--ui-scene-empty');
-  const m = /url\(["']?([^"')]+)["']?\)/.exec(value);
-  if (!m) return null;
+/**
+ * The title scene with an empty stage (the intro draws the band itself). Loaded as soon as this module
+ * is, so it's decoded long before anyone taps "Tap to begin".
+ */
+const emptyScene: HTMLImageElement | null = (() => {
+  if (typeof Image === 'undefined') return null;
   const img = new Image();
-  img.src = m[1]!;
+  img.src = SCENE_EMPTY;
   return img;
-}
+})();
+
+/** An image that can be drawn: loaded and not broken (Safari throws when drawing a broken one). */
+const drawable = (img: HTMLImageElement | null): img is HTMLImageElement => !!img && img.complete && img.naturalWidth > 0;
 
 /** The faire shot: the title scene, with night sky above it and the crowd's dark below. */
 function drawFaire(g: CanvasRenderingContext2D, scene: HTMLImageElement | null, now: number): void {
@@ -88,7 +92,7 @@ function drawFaire(g: CanvasRenderingContext2D, scene: HTMLImageElement | null, 
     g.fillStyle = twinkle ? '#8f82a8' : '#f6ecd6';
     g.fillRect(Math.floor(hash(i, 1) * W), Math.floor(hash(i, 2) * (SCENE_Y - 4)), 1, 1);
   }
-  if (scene?.complete) g.drawImage(scene, 0, SCENE_Y);
+  if (drawable(scene)) g.drawImage(scene, 0, SCENE_Y);
   // Two more rows of the crowd below the scene's own front row: heads and shoulders, darker further forward.
   for (let row = 0; row < 2; row++) {
     for (let i = 0; i < 26; i++) {
@@ -236,6 +240,7 @@ export function IntroCutscene({
       c.style.transformOrigin = '0 0';
       c.style.transform = `translate(${from.x - r.x}px, ${from.y - r.y - s * sceneTop}px) scale(${s})`;
     }
+    void c.offsetWidth; // commit the starting place before the transition is set
     const id = requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         c.style.transition = `transform ${INTRO_TIMES.grow}ms cubic-bezier(0.4, 0, 0.2, 1)`;
@@ -243,7 +248,17 @@ export function IntroCutscene({
         el.classList.remove('growing');
       }),
     );
-    return () => cancelAnimationFrame(id);
+    // Once it has grown, drop the transform styles altogether: iOS Safari can stop repainting a canvas
+    // left on its own compositing layer after a transform transition.
+    const settle = window.setTimeout(() => {
+      c.style.transition = '';
+      c.style.transform = '';
+      c.style.transformOrigin = '';
+    }, INTRO_TIMES.grow + 150);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(settle);
+    };
   }, [from]);
 
   useEffect(() => {
@@ -257,7 +272,7 @@ export function IntroCutscene({
     const g = c.getContext('2d')!;
     g.imageSmoothingEnabled = false;
     const band = performerCanvases();
-    const scene = loadEmptyScene();
+    const scene = emptyScene;
     let start = -1;
     let raf = 0;
     const played = new Set<IntroSound>();
@@ -272,6 +287,7 @@ export function IntroCutscene({
     const portalX = W / 2;
     const portalY = SCENE_Y - 30;
 
+    let failed = false;
     const frame = (now: number) => {
       if (start < 0) start = now;
       const t = now - start;
@@ -279,6 +295,8 @@ export function IntroCutscene({
         doneRef.current();
         return;
       }
+      // Ask for the next frame first: a drawing error on one frame must never stop the intro (it froze on iOS).
+      raf = requestAnimationFrame(frame);
       if (!covered && t > INTRO_TIMES.grow + 100) {
         covered = true;
         coveredRef.current?.();
@@ -286,6 +304,22 @@ export function IntroCutscene({
       // Fade out at the end onto the menu.
       const el = root.current;
       if (el) el.style.opacity = t > INTRO_TIMES.end - FADE_OUT_MS ? ((INTRO_TIMES.end - t) / FADE_OUT_MS).toFixed(3) : '';
+      try {
+        draw(t, now);
+      } catch (err) {
+        g.restore();
+        if (!failed) console.warn('Intro frame failed', err);
+        failed = true;
+      }
+      let text = '';
+      for (const cap of CAPTIONS) if (t >= cap.at) text = cap.text;
+      if (caption && text !== captionShown) {
+        captionShown = text;
+        caption.textContent = text;
+      }
+    };
+
+    const draw = (t: number, now: number) => {
       g.save();
       // A shake as the portal opens and when the band hits the ground.
       const shake = (t > INTRO_TIMES.portal + 700 && t < INTRO_TIMES.fall) || (t > INTRO_TIMES.land + 520 && t < INTRO_TIMES.land + 720);
@@ -358,17 +392,14 @@ export function IntroCutscene({
         g.fillRect(0, SCENE_Y + SCENE_H, W, H - SCENE_Y - SCENE_H);
         g.restore();
       }
-
-      let text = '';
-      for (const cap of CAPTIONS) if (t >= cap.at) text = cap.text;
-      if (caption && text !== captionShown) {
-        captionShown = text;
-        caption.textContent = text;
-      }
-      raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
+    // A backstop: whatever happens to the frames, the intro ends and the menu comes up.
+    const backstop = window.setTimeout(() => doneRef.current(), INTRO_TIMES.end + 1500);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(backstop);
+    };
   }, [reduceFlash]);
 
   return (

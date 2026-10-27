@@ -17,6 +17,7 @@ import {
   TOUR_SHOP_REMOVE_PRICE,
   type EngineState,
   type TourNodeKind,
+  type ShopAction,
 } from '../engine';
 import { TOUR_EVENTS } from '../content/events';
 import { cardText } from '../content/text';
@@ -183,7 +184,7 @@ export function ShopOverlay({
   onShop,
 }: {
   state: EngineState;
-  onShop: (a: { action: 'buy'; index: number } | { action: 'remove'; iid: number } | { action: 'heal' } | { action: 'leave' }) => void;
+  onShop: (a: ShopAction) => void;
 }) {
   const armed = useArmed();
   const tour = state.tour!;

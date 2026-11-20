@@ -21,6 +21,8 @@ import {
 } from '../src/engine';
 import { ENEMIES } from '../src/content/enemies';
 import { hasMember, teamOf } from '../src/engine/evolution';
+import { miredLanes } from '../src/engine/effects';
+import { DEBUT_WAVE } from '../src/engine/waves';
 
 /**
  * Bot players for the depth simulator (SPEC §9). Bots only see what a player
@@ -150,7 +152,9 @@ function chooseShift(s: EngineState): { from: number; to: number } | null {
   if (s.energy < SHIFT_COST + 2 || s.shiftBar === Math.floor(s.clock.beat / BEATS_PER_BAR)) return null;
   const threat = laneThreat(s);
   const power = [0, 0, 0];
-  for (const u of s.units) if (!u.token) power[u.lane]! += (u.damage * (u.pierce + 1)) / u.fireEvery;
+  const mired = miredLanes(s);
+  // A Mire Golem halves what the units standing in its lane put out.
+  for (const u of s.units) if (!u.token) power[u.lane]! += (u.damage * (u.pierce + 1)) / u.fireEvery / (mired[u.lane] ? 2 : 1);
   const to = argmax(threat);
   if (threat[to]! < 30 * s.wave.hpMult) return null;
   if (!s.enemies.some((e) => e.lane === to && e.hp > 0 && e.depth > SHIFT_NEAR)) return null;
@@ -193,6 +197,8 @@ function choosePlay(config: BotConfig, s: EngineState, rng: RngState): Choice | 
     const def = getCard(card.cardId);
     for (let lane = 0; lane < 3; lane++) {
       let value = estimateValue(def, lane, s, threat);
+      // Don't set up in a Mire Golem's lane: units there fire half as often.
+      if (def.type === 'unit' && !def.unit?.turns && miredLanes(s)[lane]) value *= 0.5;
       if (config.kind === 'archetype') {
         if (def.headliner && teamOf(s).includes(def.headliner)) value *= 1.15;
         // Keep a running chain alive, but only when it's about to drop and only with cheap cards.
@@ -225,6 +231,19 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
       const u = def.unit!;
       const full = unitsInLane.length >= UNIT_SLOTS;
       const roadieMaker = def.id === 'crew-chief' ? roadieValue(s, lane) * 0.5 : 0;
+      if (u.turns) {
+        // A turning unit (Fanfare's Herald) fights the lanes next door: judge it by theirs.
+        const targets = lane === 1 ? [0, 2] : [1];
+        const there = s.enemies.filter((e) => targets.includes(e.lane) && e.depth >= 0);
+        const threatThere = targets.reduce((sum, l) => sum + threat[l]!, 0) / targets.length;
+        const flyersThere = there.filter((e) => ENEMIES[e.kind].flying).length;
+        const priorityThere = there.filter((e) => ENEMIES[e.kind].priority).length;
+        const shieldThere = there.filter((e) => (e.shieldLeft ?? 0) > 0).length;
+        const bonus = hasMember(s, 'fanfare') ? 3 : 0;
+        const answers = (u.antiAir ? flyersThere * 6 : 0) + (u.priority ? priorityThere * 10 : 0) + shieldThere * 4;
+        const dps = ((u.damage + bonus) * 2) / u.fireEvery;
+        return (dps * 3 + threatThere * 0.05 + answers) * (full ? 0.3 : 1);
+      }
       const answers = (u.antiAir ? flyers * 6 : 0) + (u.priority ? priority * 10 : 0) + (def.id === 'hype-man' ? 2 : 0);
       const dps = (u.damage * 2) / u.fireEvery + (def.id === 'kick-drum' ? 1.5 : 0) + roadieMaker;
       return (dps * 3 + threatHere * 0.05 + answers) * (full ? 0.3 : 1) * (armored && u.damage <= 4 ? 0.6 : 1);
@@ -248,7 +267,13 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
         // A speaker is worth it when a neighbor lane has a Shieldbearer and this lane is quiet.
         const next = lane === 0 ? [1] : lane === 2 ? [1] : [0, 2];
         const target = shielded.filter((e) => next.includes(e.lane)).length;
-        return (target * 12 + (threat[lane]! < 5 ? laneDps * 0.8 : 0)) * dupe * full;
+        // With Fanfare, every turned shot hits harder and pierces.
+        const herald = hasMember(s, 'fanfare') ? laneDps * 1.2 + unitsInLane.length * 3 : 0;
+        return (target * 12 + (threat[lane]! < 5 ? laneDps * 0.8 : 0) + herald) * dupe * full;
+      }
+      if (g.kind === 'fan') {
+        const herald = hasMember(s, 'fanfare') ? unitsInLane.length * 6 : 0;
+        return (laneDps * 1.8 + shielded.length * 4 + herald + lyraBonus) * dupe * full;
       }
       return laneDps * dupe * full;
     }
@@ -335,6 +360,53 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
           const worn = s.gates.filter((g) => g.lane === lane).reduce((sum, g) => sum + (g.maxDurability - g.durability), 0);
           return (s.energy < 4 ? 8 : 3) + Math.min(worn, 20) * 0.3;
         }
+        // ---- Content pass 2d ----
+        case 'summons': {
+          const near = s.enemies.filter((e) => e.depth >= 0 && Math.abs(e.lane - lane) <= 1);
+          const pr = near.filter((e) => ENEMIES[e.kind].priority).length;
+          return pr * 12 + Math.min(near.length, 3) * 3;
+        }
+        case 'call-to-arms':
+          return laneDps * 1.3 + (hasMember(s, 'fanfare') ? unitsInLane.length * 3 : 0) + (unitsInLane.length > 0 ? 2 : 0);
+        case 'ricochet': {
+          const near = s.enemies.filter((e) => e.depth >= 0 && Math.abs(e.lane - lane) <= 1);
+          return near.reduce((sum, e) => sum + Math.min(e.hp, 8 * 1.3), 0) * 0.25;
+        }
+        case 'grand-entrance':
+          return s.units.length * (s.chain.links >= 2 ? 3.5 : 2);
+        case 'caltrops': {
+          const close = enemiesInLane.filter((e) => e.depth > 50_000).length;
+          return enemiesInLane.length * 2 + close * 4;
+        }
+        case 'juggling-clubs':
+          return laneDps * 1.1 + (unitsInLane.length > 0 ? 2 : 0);
+        case 'pass-the-hat':
+          return s.energy < 4 ? 8 : 3;
+        case 'thunder-roll': {
+          const all = s.enemies.filter((e) => e.depth >= 0).length;
+          return all * (s.clock.beat % 4 === 3 ? 3 : 1.6);
+        }
+        case 'fresh-strings': {
+          const worn = s.gates.reduce((sum, g) => sum + Math.min(8, g.maxDurability - g.durability), 0);
+          return 3 + worn * 0.3;
+        }
+        case 'wheelbarrow': {
+          const free = Math.max(0, UNIT_SLOTS - unitsInLane.length);
+          return Math.min(2, free) * roadieValue(s, lane) + (enemiesInLane.length > 0 ? 2 : 0);
+        }
+        case 'echo-canyon': {
+          const all = s.enemies.filter((e) => e.depth >= 0);
+          return all.length * 1.2 + all.filter((e) => e.depth > 50_000).length * 2;
+        }
+        case 'bonfire':
+        case 'rabble-rouser': {
+          // Feedback across three lanes: worth it when it stops more than a point of crowd from leaking.
+          const hit = (def.id === 'bonfire' ? 14 : 10) * 1.3;
+          const near = s.enemies.filter((e) => e.depth >= 0 && Math.abs(e.lane - lane) <= 1);
+          const saved = near.filter((e) => e.depth > 40_000 && e.hp <= hit).reduce((sum, e) => sum + e.crowdDamage, 0);
+          const chip = near.reduce((sum, e) => sum + Math.min(e.hp, hit), 0);
+          return (saved - 1) * 8 + chip * 0.15 - (s.crowd < 10 ? 20 : 0);
+        }
         default:
           return 3;
       }
@@ -348,6 +420,11 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
       if (def.id === 'wall-of-death') return 4 + s.enemies.length * 0.8;
       if (def.id === 'four-on-the-floor') return 4 + s.units.length * 2.5;
       if (def.id === 'resonance') return 4 + s.gates.length * 3;
+      if (def.id === 'squires-oath') return 4 + s.units.filter((u) => u.token).length * 3;
+      if (def.id === 'processional') {
+        const horned = s.units.filter((u) => u.turns || s.gates.some((g) => g.lane === u.lane && (g.kind === 'aim' || g.kind === 'fan'))).length;
+        return 4 + horned * 3;
+      }
       return 6 + s.units.length * 2;
     }
   }
@@ -369,7 +446,7 @@ function roadieValue(s: EngineState, lane: number): number {
 
 /** Team Tour: the member whose ability the moment calls for (Hold first, when something is about to get through), or null. */
 function bestLead(config: BotConfig, s: EngineState, rng: RngState): HeadlinerId | null {
-  const order: HeadlinerId[] = ['aria', 'clatter', 'riot', 'lyra', 'thrum'];
+  const order: HeadlinerId[] = ['aria', 'clatter', 'riot', 'fanfare', 'lyra', 'thrum'];
   for (const id of order) if (s.headliner.team!.includes(id) && wantsFill(config, s, rng, id)) return id;
   return null;
 }
@@ -390,6 +467,9 @@ function wantsFill(config: BotConfig, s: EngineState, rng: RngState, who: Headli
       return s.enemies.some((e) => e.depth > 70_000 && e.hp > 0);
     case 'riot':
       return pressed && s.units.length > 0;
+    case 'fanfare':
+      // Fan the band out when more than one lane is in trouble.
+      return pressed && s.units.length > 1 && threat.filter((t) => t > 10 * s.wave.hpMult).length >= 2;
     default:
       return pressed && s.units.length > 0;
   }
@@ -409,7 +489,8 @@ function choosePick(config: BotConfig, s: EngineState, rng: RngState): number | 
     const def = getCard(id);
     let v = 2 + 3 * ((target[def.type] ?? 0.2) - share(def.type)) - 0.6 * owned(id) + nextFloat(rng);
     // A sensible player buys an answer to an enemy if nothing in the deck answers it yet.
-    const unanswered = Object.values(ENEMIES).some((e) => e.answers?.includes(id) && !e.answers.some((a) => owned(a) > 0));
+    // …for an enemy that's here or coming soon (not one many waves off, or one this Tour will never reach).
+    const unanswered = Object.values(ENEMIES).some((e) => DEBUT_WAVE[e.kind] <= s.wave.index + 6 && e.answers?.includes(id) && !e.answers.some((a) => owned(a) > 0));
     if (unanswered) v += 1.2;
     if (config.kind === 'archetype' && def.headliner !== undefined && teamOf(s).includes(def.headliner)) v += 0.3;
     return v;

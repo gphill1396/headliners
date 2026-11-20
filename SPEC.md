@@ -827,6 +827,135 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 - **Energy cap on Tour (Oct 27, tried, not shipped):** since Thrum's bot sat at the cap so often, a Tour-only cap of 9 and of 8 energy were tested (30 per team). Cap 9: solo T1 1.32×, bands 93% / 66% / 31%, T4 2.23×. Cap 8: T1 1.34×, bands 93% / 67% / 32%, T4 2.33×. Overall difficulty didn't move (before: 92% / 64% / 30%), so the surplus energy isn't what wins Tours; the T4 change is within noise. Reverted. Every band, Thrum or not, wins 80–100% at Heat 0, so Heat 0 is easy for everyone, not just Thrum.
 - **Decision (Oct 27, Grant):** playtest before any more Tour tuning. Grant and Cass play a few Tours; the Tour log (S4.13) records band, Heat, result and timing, and Copy log sends it.
 - **Open:** whether the gap is the game or the bot (the sim bot may simply play Thrum's cards better). Real Tour plays by Grant and Cass, noting band and Heat, would settle it before more tuning.
+
+### Content pass 2d — catching up to §6 (PROPOSED, Nov 20; not approved yet)
+
+**Why:** every phase is marked done, but the pool is short of §6. It has 62 playable cards (target ~90 for Phase 2, ~130 for Phase 3), 5 of 6 headliners, 12 of 14 monsters and 3 of 4 bosses. D1 sits right on 3.00×, and new answers and choices are the depth lever that doesn't fight Tour balance. *(Spec deviation: §6's targets were never met. This pass closes the Phase 2 gap. Monsters 13–14 and the fourth boss are a later pass, 2e.)*
+
+**Budget:** +28 cards (to 90). All numbers below are starting values; the sim sets the final ones. The +28 are a sixth headliner's 9, 9 neutral and 2 per existing headliner. It also answers the open speaker question in §12 (a speaker on a unit slot, and a shot fanned across lanes).
+
+**New engine parts** (data parts per §6, each with a unit test; nothing else needs new code):
+1. Unit stat `turns: true`: the unit's shots turn into the next lane over, using the same rule as the `aim` gate.
+2. Gate kind `fan`: each shot through it becomes 3, one up each lane (durability drains 3 per shot).
+3. Effect scope `'beside'`: this lane plus the lanes next to it, for `damageLane`, `damageFront`, `volley` and `slow`.
+4. Effect `squireTime: n`: Squires already on stage stay `n` beats longer.
+5. Rule flag `freeShift`: one Shift a bar costs 0, and moved units don't skip firing (Herald evolution only).
+
+**S2.5 Fanfare, the griffin herald (sixth headliner)**
+*As a player, I want a headliner who wins by aiming the band across lanes, so lane-reading becomes a skill of its own.*
+- [ ] Passive: shots that turn lanes (through a Horn or from a turning unit) gain +3 damage and Pierce 1.
+- [ ] Ability **Fanfare** (cooldown 14 beats, graded on the beat like the others): for 2 beats, every unit's shots fan out, one up each lane.
+- [ ] Evolutions: **Crossfire** (turned shots hit flyers and get past shields) / **Royal Decree** (`freeShift`).
+- [ ] Band: brass. Natural horn and sackbut on the chords, a shawm lead, herald trumpet calls on beat 1. Song style: a processional in C major, straight eighths.
+- [ ] 9 signature cards (table below). The team starter takes Herald (core), Hunting Horn (flyers) and Summons (priority).
+- [ ] Portrait and unit sprites at the S4.2 bar. Encore D1–D8 and Tour T1–T4 still pass.
+
+| Card | Type | Cost | Rarity | Does | Short |
+|---|---|---|---|---|---|
+| Herald | unit | 2 | starter | 3 dmg, every beat, `turns` | Shoots next door |
+| Hunting Horn | unit | 2 | starter | 2 dmg, every beat, Anti-Air, `turns` | Turns shots at flyers |
+| Summons | riff | 1 | starter | `damageFront` 6, priority, scope `beside` | Calls out the leaders |
+| Triple Bell | gate | 3 | rare | `fan`, durability 30 | One shot, three lanes |
+| Call to Arms | riff | 1 | common | `volley` 1 in the lane, the shots turn, Echo | The lane fires sideways |
+| Ricochet | riff | 2 | common | `damageLane` 4, scope `beside` | Hits three lanes |
+| Shawm | unit | 3 | common | 5 dmg, every 2 beats, Priority | Picks off leaders |
+| Processional | amp | 3 | rare | Beat 1: units in a lane with a Horn fire 1 shot | Horns rally the band |
+| Grand Entrance | riff | 3 | rare | Encore: on a 3+ chain, every unit fires 2 and gates repair 10 | The big finish |
+
+**S2.6 The pool grows to ~90**
+*As a player, I want more cards that answer threats in different ways, so drafts and decks don't settle into one shape.*
+- [ ] 9 neutral cards, and 2 more for each existing headliner (tables below). Each has a short tagline and flavor, and rules text from `text.ts`.
+- [ ] Every monster gains at least one more answer outside Fanfare's cards.
+- [ ] D4 (no must-pick) and D5 (no single damage source) hold with the bigger pool. D1 must not drop below 3.00×.
+- [ ] The Songbook, Collection unlocks and Workshop synergy links pick the new cards up with no special cases.
+
+| Neutral | Type | Cost | Rarity | Does | Answers |
+|---|---|---|---|---|---|
+| Pikeman | unit | 3 | common | 3 dmg, every beat, Pierce 2 | Spiderlings, Hobgoblin |
+| Crossbow | unit | 4 | rare | 14 dmg, every 2 beats, ignores armor | Ogre, Black Knight |
+| Brass Ring | gate | 1 | common | +2 damage, durability 12 | cheap gate |
+| Caltrops | riff | 2 | common | `slow` lane 50% for 3 beats | Warg |
+| Juggling Clubs | riff | 1 | common | `volley` 1 in the lane, Echo | filler with tempo |
+| Bonfire | riff | 3 | rare | `damageLane` 12, Feedback 1 | Brood Mother, packs |
+| Pass the Hat | riff | 0 | common | +1 energy, draw 1 | smooths the curve |
+| Standard Bearer | unit | 2 | common | 2 dmg; beat 1: the lane fires 1 | support |
+| Post Horn | gate | 2 | common | `aim`, durability 24, +1 Pierce through it | Hobgoblin (side shots) |
+
+| Headliner | Card | Type | Cost | Rarity | Does |
+|---|---|---|---|---|---|
+| Thrum | Timpani Roll | riff | 2 | common | `damageAll` 3; on beat 1, 6 instead |
+| Thrum | Quickstep | unit | 1 | common | 1 dmg every eighth, Volume 1 |
+| Lyra | Prism Harp | gate | 3 | rare | +2 Pierce, durability 40 |
+| Lyra | Encore Bow | riff | 1 | common | Repair all gates 10, draw 1 |
+| Clatter | Squire's Oath | amp | 3 | rare | Beat 1: `squireTime` 2 |
+| Clatter | Wheelbarrow | riff | 1 | common | 2 Squires in the lane |
+| Aria | Echo Canyon | riff | 2 | common | `slow` all to 70% for 1 beat, Echo |
+| Aria | Duet | unit | 3 | rare | 4 dmg, every beat; beat 1: slow the lane 2 beats |
+| Riot | Mosh | riff | 2 | common | `damageLane` 6, Feedback 1 |
+| Riot | Drone | unit | 2 | common | 2 dmg, every beat, Volume 1 |
+
+**As built so far (Nov 20, branch `content-2d`):**
+- **Step 1, engine parts:** `turns`, `fan`, scope `'beside'` (on `damageLane`, `damageFront`, `slow`, `volley`, `roadie` and `repairGates`; a boss across the lanes is hit once) and `squireTime` are in, each with tests (`tests/content-2d-parts.test.ts`) and generated rules text. `freeShift` waits for Fanfare, since it belongs to her Royal Decree evolution. The 200-run sim was unchanged.
+- **Step 2, the 19 non-Fanfare cards:** all in, with bot values, sounds and answer lists. Pool: 81 playable cards.
+  - Deviations from the tables: **Crossbow** doesn't ignore armor (14-damage bolts are the answer to armor by themselves, with no new part). **Post Horn** is a cheap Horn (cost 1, 18 durability) with no Pierce bonus. A gate has one kind, and a second kind would need a new part. Riot's "Mosh" is **Rabble-Rouser** (Feedback, 10 to three lanes), because "mosh" broke the ren faire theme. Lyra's "Encore Bow" is **Fresh Strings** and "Prism Harp" is **Glass Harp**, Thrum's "Timpani Roll" is **Thunder Roll**, and **Drone** pierces instead of gaining Volume (Riot had no Pierce, and Town Crier already covers Volume).
+  - New answers: Hobgoblin + Post Horn, Pikeman. Warg + Caltrops. Brood Mother + Bonfire, Rabble-Rouser. No new card answers flyers or priority targets, so the "every monster gains an answer" criterion isn't met for Harpies, Hags, Trolls and Shamans. That waits for Fanfare (Hunting Horn, Summons, Shawm).
+  - **Balance:** at first D6 failed (Spiderlings 4.5% of losses), since the new Pierce, Splash and three-lane cards answer swarms. Weakening Pikeman (Pierce 1) or Thunder Roll (3/6) didn't move it. *Shipped:* Spiderlings come in **packs of 11** (was 10).
+  - **Results** at 200 runs per bot: median wave Thrum 22, Lyra 21, Riot 20, Clatter 19, Aria 18, random 6. All D1–D8 pass: D1 3.00× (Aria, on the line, as before the pass), D2 6.8×, D3 1.22×, **D4 27.6%** (was 38.8%), D5 16.7%, D6 5.6%, D7 3.0, D8 0.2%.
+  - **Tour** (`sim:tour`, 80 solo, 30 per band): solo Thrum 99%, Aria 85%, Lyra 79%, Clatter 76%, Riot 71%, so T1 passes at 1.39×. Bands win 89% / 61% / 28% at Heat 0/5/10, so T2 still fails on the easy side, as before (was 92% / 64% / 30%). T3 passes. **T4 fails at 2.70×** (best Thrum + Aria + Riot 90%, worst Lyra + Clatter + Aria 33%; it was 2.45× with 37% at the bottom). At 30 runs a band that gap is within noise. Not tuned, per Grant's call to playtest before more Tour tuning.
+
+- **Step 3, Fanfare** (Grant's go, Nov 20): her headliner, 9 cards, starter deck (Page ×2, Herald ×2, Bass Viol, Call to Arms ×2, Ram's Horn, Double Stop, Mighty Strum, Summons, Hunting Horn), team cards (Herald, Hunting Horn, Summons), both evolutions, song style (a C major processional with a march drum, brass stabs and a shawm's call, built from the existing voices), unit and riff sounds, bot values and her ability's timing. Tests are in `tests/fanfare.test.ts`.
+  - Engine: `turnShot` in `combat.ts` is the one place a shot changes lanes (Horn gates, fan gates, turning units, `volley` with `turn`, her ability), so her passive (+3 damage, Pierce 1) and Crossfire (Anti-Air, ignore armor) apply to every turned shot. Two more volley options: `turn` (Call to Arms) and `hornsOnly` (Processional). Royal Decree (`freeShift`): a Shift costs 0, and moved units keep firing.
+  - Deviations: Summons deals 10 (the table said 6). Herald deals 4 (was 3; at 3 she sat with Aria at the bottom). Shawm also turns its shots ("picks off leaders next door"). Crossfire's "get past shields" was already true of every turned shot, so it ignores armor instead. Portrait and unit sprites are not drawn yet: her units use the Page's sprite, and the title shows no portrait for her. That waits for an art batch.
+  - Daily Setlist: 20 bands, still stepping through each in turn (`DAILY_TEAMS.length`, no longer a fixed 10).
+  - Answers: Harpy + Hunting Horn. Hag, Troll, Shaman + Summons, Shawm. Hobgoblin + Herald, Triple Bell.
+  - Balance: Hags fell to 4.8% of losses (D6), since three of her cards answer them. *Shipped:* a Hag leak costs 6 crowd (was 5).
+  - **Results** at 200 runs per bot (6 headliners): median wave Thrum 22, Lyra 21, Riot 20, Clatter 19, **Fanfare 19**, Aria 18, random 6. All D1–D8 pass: D1 3.00× (Aria; Fanfare 3.17×), D2 6.8×, D3 1.22×, D4 25.7%, D5 16.6%, D6 5.4% (Wisp), D7 3.0, D8 0.2%. Evolutions: Crossfire 20, Royal Decree 19.
+  - **Tour** (`sim:tour -- --per-team 20`, 20 bands): solo Thrum 100%, **Fanfare 88%**, Aria 85%, Lyra 78%, Clatter 76%, Riot 71% (T1 1.40×, passes). Bands 92% / 68% / 29% at Heat 0/5/10 (T2 fails on the easy side, more so than before: Heat 5 was 61%). Bands with Fanfare run from 55% to 95% at Heat 5. T3 passes. **T4 3.17×** (best Thrum + Aria + Riot 95%, worst Lyra + Clatter + Aria 30%, neither with Fanfare; at 20 a band, ±10 points is noise). Tour tuning still waits on the playtest; Heat 3's Tournament health is the lever that moves Heat 5 (see S4.3).
+
+- **Art batch 3** (S4.2 bar, `python3 art/build.py`): Fanfare's portrait (a white-headed griffin on lion haunches, raising a herald trumpet with a banner; the call rings out on the beat) and the 9 new units: Herald, Hunting Horn, Shawm (Fanfare gold), Pikeman, Crossbow, Standard Bearer, Quickstep (a small drummer in Thrum's orange), Duet (two singers) and Drone (a piper in Riot's green). Two frames each, drawn from shapes in `art/sprites/`. Open: Grant's verdict.
+
+**What changes elsewhere** (each needs Grant's OK):
+- **Daily Setlist:** 6 headliners make 20 bands of 3, not 10. The rotation keeps the same rule (every band in turn, the lead rotating each cycle).
+- **Tour sim:** `sim:tour` at 30 runs per band doubles to about 24 minutes. Proposal: 20 per band for routine checks, 30 before shipping.
+- **Encore pick:** the title screen's headliner row gains a sixth portrait. It must still fit one row on a 375 px phone.
+- **Build order:** engine parts and tests, then the cards, the sim and a tuning pass, then Fanfare, sim, tuning. Art and music come last, so balance doesn't wait on them.
+### Content pass 2e — the last two monsters and a fourth boss (approved by Grant, Nov 20; Tour option (a))
+
+**Why:** §6 asks for 14 monsters and 4 bosses; there are 12 and 3. Both new monsters punish standing still in one lane, which is what Fanfare, Shift and the three-lane riffs from 2d answer, so the new tools get a reason to exist beyond damage.
+
+**S2.7 Two monsters that punish a static band**
+*As a player, I want monsters that make me move and aim, not just stack damage in one lane.*
+- [ ] **Boggart** (debut wave 14). Every 4 beats it hops one lane over, to the neighbour with less firepower aimed at it. Health 70, 4 crowd. *Demands:* shots from the side, three-lane riffs and Shift. Answers: Ricochet, Rabble-Rouser, Bonfire, Thunder Roll, Herald, Triple Bell.
+- [ ] **Mire Golem** (debut wave 15). Armor 2, health 140, 5 crowd, slow. Units in its lane fire half as often while it's on the field. *Demands:* killing it from next door (turned shots ignore its aura), riffs, or Shifting the band out. Answers: Herald, Shawm, Call to Arms, Crossbow, Mighty Strum, Gong.
+- [ ] Each gets a debut banner, an on-field cue (the Boggart's hop, the Golem's mud in its lane), a long-press trait, a unit test, and sprites at the S4.2 bar.
+- [ ] From wave 15, waves can mix them in like any special. D6 must still pass with 14 monsters sharing the losses; D1 may not drop below 3.00×.
+
+**S2.8 The fourth boss: The Tempest**
+*As a player, I want a boss that breaks a set-up that never moves.*
+- [ ] **The Tempest** (1500 health, spans all lanes, sinks over 72 beats, 15 crowd if it lands, 5 back and the usual cap growth if beaten).
+- [ ] Phase 1, *Gale:* every 8 beats the wind swaps two lanes' units (a free, forced Shift; the banner names the lanes a beat ahead).
+- [ ] Phase 2, *Lightning:* every 6 beats a bolt hits the gate with the most durability left, for 20.
+- [ ] Phase 3, *Squall:* calls a Boggart every 6 beats.
+- [ ] *Why:* the other three punish a deck (no Anti-Air, one long chain, leaning on timing). The Tempest punishes a board that only works in one arrangement.
+
+**Where it goes (needs Grant's call):**
+- **Encore:** the bosses rotate in fours. The Hush on 10, 50…, The Black Knight 20, 60…, The Bone Wyrm 30, 70…, The Tempest 40, 80….
+- **Tour:** two options.
+  - (a) Keep the three act bosses, and make The Tempest the act 2 boss on Heat 4 and up (recommended: Heat gets a new kind of hard, not just more health).
+  - (b) Each act draws its boss from two by seed.
+
+**Build order:** engine parts and tests first, then the monsters, the sim and a tuning pass, then The Tempest, sim and tuning, then art.
+
+**As built (Nov 20, branch `content-2d`):**
+- **Boggart** (`hops`): every 4 beats it hops to the neighbouring lane with less firepower aimed up it (`laneFirepower` counts turning units toward the lanes they shoot into; ties take turns). 70 health, 4 crowd. **Mire Golem** (`mires`): armor 2, 100 health (proposed 140), 5 crowd, walks in 24 beats; units standing in its lane fire half as often (`miredLanes`), Fill included. Units next door, turned shots, riffs and volleys are unaffected.
+- **Debuts moved to waves 15 and 17** (proposed 14 and 15): at 14/15 the median run ended a wave earlier and D1 fell to 2.83×.
+- **The Tempest** (1500 health): Gale swaps the lane holding most of your band with one of the other two every 8 beats, named a beat ahead (`galeWarning`, then `gale`; moved units miss a beat, like a Shift). Lightning takes 20 durability off the sturdiest gate every 6 beats. Squall calls a Boggart every 6 beats. Encore: bosses rotate in fours (The Tempest on 40, 80…). Tour: `tourBoss` gives The Tempest act 2 from Heat 4.
+- UI: debut banners and long-press traits come from the data; pops for Hop!, Gale coming, Gale! and Lightning; phase banners. Sprites for all three (art batch 4). Tests: `tests/content-2e.test.ts`.
+- Deviations: Horns are not listed as Boggart answers (they made Post Horn a must-pick for the bots, 40% of top decks). Its answers are the three-lane and all-lane cards each headliner has.
+- **Sim bots:** they no longer set up in a mired lane, and they only buy an answer for a monster that is here or due within 6 waves. Before that fix they bought Boggart and Golem answers in Tours that never meet them, which cost Riot and Clatter about 8 points of Tour win rate.
+- **Results**, Encore at 200 runs per bot: median wave Thrum 20.5, Lyra 19, Riot 19, Fanfare 19, Clatter 18, Aria 18, random 6. D1 3.00× (on the line), D2 6.6×, D3 1.14×, D4 38.3% (Bonfire), D5 17.6%, D7 3.0, D8 0.1% pass. **D6 fails narrowly:** the lowest monster sits at 4.3–4.7% across reruns, and which one it is changes each time (Harpy, Wisp, Troll, Slime). With 14 monsters an even share is 6.8%, so a 5% floor leaves almost no room. Tried: Harpy packs of 5 (Trolls dropped under instead), Wisp leaks at 4 crowd (hurt Clatter's Tours), Wisp health 40. None shipped. *Proposal for Grant:* scale D6 with the roster, to half an even share (3.4% at 14 monsters; it was 5% at 8, which was 40% of an even share). The threshold is unchanged until he says so.
+- Tour (`sim:tour -- --per-team 20`): solo Thrum 100%, Fanfare 85%, Aria 84%, Lyra 80%, Clatter 76%, Riot 65% (**T1 1.54×, just over 1.5×**; Riot was 71% before, within noise at 80 runs). Bands 91% / 73% / 30% (T2 fails on the easy side; Heat 5 rose from 68%, so the bots find The Tempest easier than The Black Knight, and it caused 0% of Encore losses). T3 passes. T4 2.50× passes. The Tempest punishes a board that only works one way, which the bots don't build; whether it bites for people is a playtest question.
+
 ---
 
 ### Phase 5 — Release (buy once, the full game)

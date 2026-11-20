@@ -196,7 +196,62 @@ def riot(f):
     return c
 
 
-PORTRAITS = {'lyra': lyra, 'clatter': clatter, 'aria': aria, 'riot': riot}
+def fanfare(f):
+    """The griffin herald: a white-headed griffin on a lion's haunches, raising a long herald trumpet with a banner."""
+    cv = Canvas(48, 48)
+    s = f
+    R = {
+        'feather': ['#4a2e10', '#8a5a1e', '#c88a34', '#f0c868'],
+        'lion': ['#5a3a16', '#9a6a2a', '#d0a050', '#f2d48c'],
+        'head': ['#5a5a70', '#a4a4b8', '#e6e6f0', '#ffffff'],
+        'beak': ['#8a5a10', '#e0a828', '#ffe080'],
+        'wing': ['#3a2410', '#6a4420', '#a2702e', '#d8a450'],
+        'brass': ['#5a3a0a', '#a8781e', '#e8c15a', '#fff2a8'],
+        'banner': ['#4a0e14', '#9a2030', '#d84050'],
+        'gold': ['#8a6a1a', '#e8c15a'],
+        'talon': ['#2a2018', '#5a4a36'],
+    }
+    hy = 12 - s * 0.5
+    head = cv.ellipse(28, hy, 6, 5.6)
+    beak = cv.poly([(32, hy - 2.5), (37, hy - 1.5), (40, hy + 1.5), (39, hy + 4.5), (37.5, hy + 2.5), (33, hy + 3.5)])
+    jaw = cv.poly([(33, hy + 2.5), (37, hy + 3 + s * 1.2), (33, hy + 4 + s)]) if s else cv.empty()
+    horn_end = (44, 3 - s)
+    P = [
+        Part('tail', 'lion', cv.curve([(14, 38), (7, 36), (5, 29)], 1.6, 1.0), group='tail'),
+        Part('tuft', 'feather', cv.ellipse(5, 28, 2.2, 2.6), group='tail'),
+        Part('wing', 'wing', cv.poly([(20, 22), (10, 4), (12, 10), (5, 9), (11, 15), (4, 17), (12, 21), (8, 25), (17, 27)]), style='flat', group='wing'),
+        Part('legB', 'lion', cv.ellipse(16, 40, 4.6, 4.6) | cv.rect(12, 42, 20, 47), group='body'),
+        Part('body', 'lion', cv.ellipse(22, 32, 9, 9.5)),
+        Part('chest', 'feather', cv.ellipse(26, 27, 6, 7) & cv.ellipse(22, 32, 9, 9.5), group='body'),
+        Part('legF', 'feather', cv.capsule(29, 36, 30, 45, 2.6), group='body'),
+        Part('neck', 'feather', cv.capsule(25, 24, 27, hy + 4, 4.6, 4.0), group='body'),
+        Part('ruff', 'head', cv.ellipse(25, hy + 6, 5.4, 3.2), group='head'),
+        Part('head', 'head', head, group='head'),
+        Part('crest', 'head', cv.poly([(22, hy - 2), (17, hy - 6), (21, hy - 4), (19, hy - 9), (24, hy - 5)]), style='flat', group='head'),
+        Part('beak', 'beak', beak | jaw, group='beak'),
+        # The herald trumpet, raised in the near talon, with the banner hanging under its bell.
+        Part('trumpet', 'brass', cv.capsule(31, 27, horn_end[0] - 2, horn_end[1] + 5, 1.1), group='trumpet'),
+        Part('bell', 'brass', cv.poly([(horn_end[0] - 5, horn_end[1] + 5), (horn_end[0] - 2, horn_end[1] - 2), (horn_end[0] + 3, horn_end[1] + 1), (horn_end[0] - 1, horn_end[1] + 7)]), group='trumpet'),
+        Part('banner', 'banner', cv.poly([(35, 19 - s), (42, 11 - s), (43, 19 - s), (40, 22 - s), (36, 25 - s)]), style='flat', group='banner'),
+        Part('armF', 'feather', cv.curve([(27, 25), (31, 29), (33, 26)], 2.2, 1.8), group='armF'),
+    ]
+    c = render(cv, P, R, DARK, seam_dark=('brass',))
+    # Eye: a fierce gold eye with a dark brow.
+    ey = int(hy) - 1
+    put(c, [(30, ey)], '#ffd24a')
+    put(c, [(31, ey)], '#101018')
+    put_on(c, [(29, ey - 1), (30, ey - 1), (31, ey - 1)], DARK)
+    put_on(c, [(33, int(hy) + 1)], '#5a3a0a')  # nostril
+    # Banner trim and its device: a gold bell.
+    put_on(c, [(37, 23 - s), (39, 21 - s), (41, 19 - s)], '#e8c15a')
+    put_on(c, [(39, 17 - s), (40, 16 - s), (40, 17 - s)], '#e8c15a')
+    put_on(c, [(31, 41), (31, 42)], DARK)  # talon split
+    if s:
+        put(c, [(46, 1), (46, 2), (47, 0), (41, 1), (42, 0), (6, 2)], '#fff2a8')  # the call rings out
+    return c
+
+
+PORTRAITS = {'lyra': lyra, 'clatter': clatter, 'aria': aria, 'riot': riot, 'fanfare': fanfare}
 
 
 def frames(name):

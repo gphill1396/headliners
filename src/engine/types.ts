@@ -10,27 +10,29 @@ export type CardType = 'unit' | 'gate' | 'riff' | 'amp';
 
 export type Keyword = 'pierce' | 'splash' | 'echo' | 'downbeat' | 'encore' | 'feedback' | 'antiAir' | 'roadie' | 'shred' | 'priority' | 'speaker' | 'volume' | 'slow';
 
-export type HeadlinerId = 'thrum' | 'lyra' | 'clatter' | 'aria' | 'riot';
+export type HeadlinerId = 'thrum' | 'lyra' | 'clatter' | 'aria' | 'riot' | 'fanfare';
 
 /** 'token': created by other cards (e.g. Roadies), never drawn or offered. */
 export type Rarity = 'starter' | 'common' | 'rare' | 'token';
 
-export type Scope = 'lane' | 'all';
+/** 'beside': this lane and the lanes next to it. */
+export type Scope = 'lane' | 'all' | 'beside';
 
 /** One step of something a card or trigger does. Amounts are base values before grade and chain multipliers. */
 export type Effect =
   /** Hit the enemy closest to the stage in the lane. `prefer: 'priority'`: a Breaker, Hexer or boss in the lane if there is one. `vsSlowedPct`: more damage to a slowed target. */
-  | { do: 'damageFront'; amount: number; prefer?: 'priority'; vsSlowedPct?: number }
+  | { do: 'damageFront'; amount: number; prefer?: 'priority'; vsSlowedPct?: number; scope?: 'lane' | 'beside' }
   /** Slow enemies in the lane (or everywhere): they move at `pct`% speed for `beats` beats. */
   | { do: 'slow'; scope: Scope; pct: number; beats: number }
   /** Win back crowd, up to your max. */
   | { do: 'heal'; amount: number }
-  /** Hit every enemy in the lane. */
-  | { do: 'damageLane'; amount: number }
+  /** Hit every enemy in the lane (`scope: 'beside'`: and in the lanes next to it). */
+  | { do: 'damageLane'; amount: number; scope?: 'lane' | 'beside' }
   /** Hit every enemy on the field (`only: 'flying'`: just flyers). */
   | { do: 'damageAll'; amount: number; only?: 'flying' }
   /** Every unit in the lane (or everywhere) fires extra shots right now. `tokensOnly`: just Roadies and other tokens. */
-  | { do: 'volley'; scope: Scope; shots: number; tokensOnly?: boolean }
+  /** `turn`: the shots turn into the next lane over, like a Horn's. `hornsOnly`: just units in a lane with a Horn gate, and units whose shots turn. */
+  | { do: 'volley'; scope: Scope; shots: number; tokensOnly?: boolean; turn?: boolean; hornsOnly?: boolean }
   /** Put Roadie tokens on stage in this lane, or in every lane (Clatter). */
   | { do: 'roadie'; count: number; scope?: Scope }
   /** Volume: the unit that owns this trigger gains +amount damage for good (up to 20 times). */
@@ -42,6 +44,8 @@ export type Effect =
   /** The unit that owns this trigger fires extra shots. */
   | { do: 'selfFire'; shots: number }
   | { do: 'gainEnergy'; amount: number }
+  /** Squires already on stage stay this many beats longer (never past twice their usual stay). */
+  | { do: 'squireTime'; beats: number }
   | { do: 'draw'; count: number }
   /** Feedback cost: lose crowd. */
   | { do: 'loseCrowd'; amount: number }
@@ -72,6 +76,8 @@ export interface UnitStats {
   priority?: boolean;
   /** Tokens leave the stage after this many beats. */
   lifespanBeats?: number;
+  /** Its shots turn into the next lane over, the way a Horn gate turns them, and come in from the side. */
+  turns?: boolean;
 }
 
 export type GateKind =
@@ -90,7 +96,9 @@ export type GateKind =
   /** Shots slow whatever they hit (Aria). */
   | 'slow'
   /** A speaker: shots turn into the next lane over (from the middle, alternating left and right). */
-  | 'aim';
+  | 'aim'
+  /** Each shot becomes 3, one up each lane; the copies come in from the side. Uses 3 durability per shot. */
+  | 'fan';
 
 export interface GateStats {
   kind: GateKind;
@@ -134,10 +142,13 @@ export type EnemyKind =
   | 'charger'
   | 'medic'
   | 'nest'
+  | 'boggart'
+  | 'golem'
   | 'ghost'
   | 'hush'
   | 'critic'
-  | 'dead-air';
+  | 'dead-air'
+  | 'tempest';
 
 export interface EnemyDef {
   kind: EnemyKind;
@@ -175,13 +186,17 @@ export interface EnemyDef {
   hatches?: { kind: EnemyKind; count: number; everyBeats: number };
   /** Ghost: fades out on beats 2 and 4; only hittable on beats 1 and 3. */
   phased?: boolean;
+  /** Boggart: every few beats it hops one lane over, to the neighbour with less firepower aimed at it. */
+  hops?: { everyBeats: number };
+  /** Mire Golem: while it's on the field, units in its lane fire half as often. */
+  mires?: boolean;
   /** A boss: spawned by its own rule, never in a normal wave mix. */
   boss?: boolean;
   /** Spans every lane: shots and riffs from any lane can hit it. */
   wide?: boolean;
 }
 
-export type EvolutionId = 'metronome' | 'polyrhythm' | 'crescendo' | 'harmony' | 'load-out' | 'mosh-pit' | 'long-note' | 'banshee' | 'anarchy' | 'comeback';
+export type EvolutionId = 'metronome' | 'polyrhythm' | 'crescendo' | 'harmony' | 'load-out' | 'mosh-pit' | 'long-note' | 'banshee' | 'anarchy' | 'comeback' | 'crossfire' | 'royal-decree';
 
 export interface EvolutionDef {
   id: EvolutionId;

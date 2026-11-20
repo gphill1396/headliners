@@ -400,6 +400,93 @@ def bone_wyrm(f):
     return c
 
 
+def boggart(f):
+    """Boggart: a crouched, long-eared green imp, springing on its second frame."""
+    cv = Canvas(24, 24)
+    R = {
+        'skin': ['#1e4a40', '#3a7a66', '#62a88c', '#a0dcc0'],
+        'rag': ['#3a2414', '#6a4628', '#946a42'],
+    }
+    s = 1 if f else 0
+    y = 2 - 3 * s  # up in the air on the hop
+    P = [
+        Part('legL', 'skin', cv.curve([(9, 16 + y), (5, 19 + y + s), (7, 23 + y - s)], 1.6, 1.2), group='legs'),
+        Part('legR', 'skin', cv.curve([(15, 16 + y), (19, 19 + y + s), (17, 23 + y - s)], 1.6, 1.2), group='legs'),
+        Part('body', 'rag', cv.ellipse(12, 15 + y, 5, 4.6)),
+        Part('earL', 'skin', cv.poly([(8, 8 + y), (1, 4 + y - s), (7, 11 + y)]), group='ears'),
+        Part('earR', 'skin', cv.poly([(16, 8 + y), (23, 4 + y - s), (17, 11 + y)]), group='ears'),
+        Part('armL', 'skin', cv.curve([(8, 13 + y), (4, 14 + y - 3 * s), (3, 17 + y - 5 * s)], 1.3, 1.0), group='armL'),
+        Part('armR', 'skin', cv.curve([(16, 13 + y), (20, 14 + y - 3 * s), (21, 17 + y - 5 * s)], 1.3, 1.0), group='armR'),
+        Part('head', 'skin', cv.ellipse(12, 9 + y, 4.6, 4.2)),
+    ]
+    c = render(cv, P, R, DARK)
+    hy = int(9 + y)
+    put(c, [(10, hy - 1), (14, hy - 1)], '#ffd24a')
+    put_on(c, [(10, hy), (14, hy)], DARK)
+    put_on(c, [(10, hy + 2), (11, hy + 3), (12, hy + 2), (13, hy + 3), (14, hy + 2)], '#f0e6cc')  # a toothy grin
+    return c
+
+
+def mire_golem(f):
+    """Mire Golem: a wide, slumped heap of mud and reeds with glowing green eyes; it drips."""
+    cv = Canvas(32, 30)
+    R = {
+        'mud': ['#2a2014', '#4e3c24', '#75603c', '#a08a5c'],
+        'moss': ['#22401a', '#3e6a2a', '#68a03e'],
+        'reed': ['#5a5a2a', '#9a9a4a'],
+    }
+    s = 1 if f else 0
+    P = [
+        Part('pool', 'mud', cv.ellipse(16, 27.5, 14 + s, 2.2), style='flat', group='pool'),
+        Part('armL', 'mud', cv.curve([(8, 13), (3, 18), (4, 25 - s)], 3.2, 2.6), group='armL'),
+        Part('armR', 'mud', cv.curve([(24, 13), (29, 18), (28, 25 - (1 - s))], 3.2, 2.6), group='armR'),
+        Part('body', 'mud', cv.ellipse(16, 17, 9.5, 10)),
+        Part('head', 'mud', cv.ellipse(16, 8 + s * 0.5, 5.2, 4.4)),
+        Part('moss', 'moss', cv.ellipse(12, 11, 5, 2.6, rot=-0.4) | cv.ellipse(22, 13, 3.6, 2, rot=0.5), group='moss'),
+        Part('reeds', 'reed', cv.capsule(19, 5, 21, 0, 0.5) | cv.capsule(21, 6, 24, 1, 0.5), group='reeds'),
+    ]
+    c = render(cv, P, R, DARK)
+    ey = int(8 + s * 0.5)
+    put(c, [(14, ey), (18, ey)], '#b0ff6a')
+    put_on(c, [(14, ey + 2), (15, ey + 3), (16, ey + 3), (17, ey + 3), (18, ey + 2)], DARK)  # a sagging mouth
+    put(c, [(9, 22 + 2 * s), (23, 21 + 3 * s), (16, 25 + s)], '#75603c')  # drips
+    return c
+
+
+def tempest(f):
+    """The Tempest: a storm-cloud giant across all three lanes, eyes of lightning, bolts below, a face in the thunderhead."""
+    cv = Canvas(76, 40)
+    R = {
+        'cloud': ['#1e2434', '#3a4660', '#62708e', '#9aa8c4'],
+        'under': ['#12141e', '#222838', '#343c54'],
+        'bolt': ['#c8a020', '#ffd84a', '#fff8c8'],
+        'rain': ['#3a5a8a', '#6a9ad0'],
+    }
+    s = 1 if f else 0
+    cloud = cv.ellipse(38, 13, 22, 10) | cv.ellipse(18, 16, 14, 8) | cv.ellipse(58, 16, 14, 8) | cv.ellipse(28, 8, 10, 6.5) | cv.ellipse(48, 7, 11, 6.5) | cv.ellipse(8, 19, 7, 5) | cv.ellipse(68, 19, 7, 5)
+    under = cv.ellipse(38, 21, 30, 5.5)
+    boltA = cv.poly([(22, 22), (17, 30), (21, 30), (16, 39), (26, 28), (22, 28), (26, 22)])
+    boltB = cv.poly([(52, 22), (48, 29), (52, 29), (49, 37), (58, 27), (54, 27), (57, 22)])
+    P = [
+        Part('under', 'under', under, style='flat', group='under'),
+        Part('boltA', 'bolt', boltA if s == 0 else cv.empty(), style='flat', group='boltA'),
+        Part('boltB', 'bolt', boltB if s == 1 else cv.empty(), style='flat', group='boltB'),
+        Part('cloud', 'cloud', cloud),
+    ]
+    c = render(cv, P, R, '#0a0c14')
+    # The face: slanted glowing eyes and a scowling brow in the thunderhead.
+    for ex in (30, 46):
+        put(c, [(ex - 1, 12), (ex, 12), (ex + 1, 12), (ex, 13)], '#fff8c8')
+        put(c, [(ex, 12)], '#ffd84a')
+    put_on(c, [(27, 10), (28, 10), (29, 11), (30, 11), (49, 10), (48, 10), (47, 11), (46, 11)], '#1e2434')
+    put_on(c, [(x, 18) for x in range(33, 44)], '#1e2434')
+    put_on(c, [(33, 17), (43, 17)], '#1e2434')
+    # Rain between the bolts, falling a step each frame.
+    for x in range(6, 72, 5):
+        put(c, [(x, 27 + ((x + 2 * s) % 4)), (x, 28 + ((x + 2 * s) % 4)), (x + 2, 33 + ((x + s) % 5))], '#6a9ad0')
+    return c
+
+
 SPRITES = {
     'shambler': ghoul,
     'brute': ogre,
@@ -418,6 +505,9 @@ SPRITES = {
     'hush': hush,
     'critic': black_knight,
     'dead-air': bone_wyrm,
+    'boggart': boggart,
+    'golem': mire_golem,
+    'tempest': tempest,
 }
 
 

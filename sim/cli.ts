@@ -33,6 +33,7 @@ const BOTS: BotConfig[] = [
   { name: 'clatter', kind: 'archetype', headliner: 'clatter', timingSkill: 0.7 },
   { name: 'aria', kind: 'archetype', headliner: 'aria', timingSkill: 0.7 },
   { name: 'riot', kind: 'archetype', headliner: 'riot', timingSkill: 0.7 },
+  { name: 'fanfare', kind: 'archetype', headliner: 'fanfare', timingSkill: 0.7 },
   { name: 'thrum-sharp', kind: 'archetype', headliner: 'thrum', timingSkill: 0.9 },
   { name: 'thrum-sloppy', kind: 'archetype', headliner: 'thrum', timingSkill: 0.2 },
 ];
@@ -47,7 +48,7 @@ const heat = Number(arg('heat', '0')) || 0;
 
 if (mode === 'tour') {
   // Tour: no D1–D8 (those are defined on Encore); report win rates and how far runs get.
-  const tourBots = BOTS.filter((b) => ['random', 'thrum', 'lyra', 'clatter', 'aria', 'riot'].includes(b.name));
+  const tourBots = BOTS.filter((b) => ['random', 'thrum', 'lyra', 'clatter', 'aria', 'riot', 'fanfare'].includes(b.name));
   console.log(`Headliners Tour report — ${runs} runs per bot, Heat ${heat}\n`);
   console.log('Bot        runs  won    act reached (1/2/3)   stops cleared  minutes  deck');
   for (const bot of tourBots) {

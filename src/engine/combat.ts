@@ -3,6 +3,8 @@ import {
   BANSHEE_PCT,
   COMEBACK_MAX_PCT,
   COMEBACK_PCT_PER_CROWD,
+  FANFARE_TURN_DAMAGE,
+  FANFARE_TURN_PIERCE,
   RIOT_DAMAGE_PCT,
   RIOT_CHAIN,
   RIOT_KILLS_PER_CROWD,
@@ -32,16 +34,23 @@ import type { EngineState, Enemy, Gate, Projectile, Unit } from './state';
 const HIT_OFFSET = 2_000;
 const SLOT_X = [200, 500, 800];
 const LYRA_GATE_BONUS = 2;
+/** A fan gate's shot goes up every lane, so it wears the gate that many times. */
+const FAN_LANES = LANES;
 /** Each Splitter piece that gets through costs this much crowd. */
 const SPLITTER_PIECE_CROWD = 2;
 
-/** Spawn `shots` projectiles from a unit. `multPct` scales damage (chain multiplier). */
-export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct: number): void {
+/**
+ * Spawn `shots` projectiles from a unit. `multPct` scales damage (chain multiplier).
+ * `turn`: these shots turn into the next lane over even if the unit's don't (Call to Arms).
+ */
+export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct: number, turn = false): void {
   // Clatter's Mosh Pit: with enough Roadies on stage, their shots Splash.
   const mosh = unit.token === true && evolvedInto(state, 'mosh-pit') && state.units.filter((u) => u.token).length >= MOSH_PIT_TOKENS;
+  // Fanfare's ability: for a couple of beats every shot fans out, one up each lane.
+  const fanning = state.headliner.id === 'fanfare' && state.clock.beat < state.headliner.activeUntilBeat;
   for (let s = 0; s < shots; s++) {
     if (state.projectiles.length >= MAX_PROJECTILES) return;
-    state.projectiles.push({
+    const p: Projectile = {
       id: state.nextId++,
       lane: unit.lane,
       x: (SLOT_X[unit.slot] ?? 500) + ((s % 3) - 1) * 60,
@@ -54,8 +63,50 @@ export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct:
       ...(unit.priority ? { priority: true } : {}),
       gatesPassed: 0,
       sourceCardId: unit.cardId,
-    });
+    };
+    // A turning unit (Herald) sends its shots into the next lane over, in from the side.
+    if (unit.turns || turn) turnShot(state, p, unit.lane, aimLane(unit.lane, p.id));
+    state.projectiles.push(p);
+    if (fanning) {
+      for (let lane = 0; lane < LANES; lane++) {
+        if (lane === p.lane || state.projectiles.length >= MAX_PROJECTILES) continue;
+        const copy: Projectile = { ...p, id: state.nextId++, damage: (unit.damage * multPct) / 100, pierceLeft: unit.pierce };
+        turnShot(state, copy, p.lane, lane);
+        state.projectiles.push(copy);
+      }
+    }
   }
+}
+
+/**
+ * A shot turns from lane `from` into lane `to` (a Horn, a turning unit, a fan):
+ * it comes in from the side, so it gets past shields. Fanfare's passive makes it
+ * hit harder and pierce; her Crossfire lets it hit flyers and ignore armor.
+ */
+export function turnShot(state: EngineState, p: Projectile, from: number, to: number): void {
+  p.lane = to;
+  p.x = sideX(from, to);
+  p.side = true;
+  if (hasMember(state, 'fanfare')) {
+    p.damage += FANFARE_TURN_DAMAGE;
+    p.pierceLeft += FANFARE_TURN_PIERCE;
+  }
+  if (evolvedInto(state, 'crossfire')) {
+    p.antiAir = true;
+    p.shred = true;
+  }
+}
+
+/** Where a Horn sends a shot: edge lanes aim at the middle; the middle alternates left and right, shot by shot. */
+export function aimLane(lane: number, shotId: number): number {
+  if (lane === 0) return 1;
+  if (lane === LANES - 1) return LANES - 2;
+  return shotId % 2 === 0 ? lane - 1 : lane + 1;
+}
+
+/** A shot turned from one lane into another enters from the side it came from. */
+function sideX(from: number, to: number): number {
+  return to < from ? 880 : 120;
 }
 
 /** Deal damage to one enemy, after armor. Returns damage actually dealt (overkill not counted). */
@@ -222,7 +273,7 @@ export function smashGates(state: EngineState, ctx: TickCtx): void {
   removeBrokenGates(state, ctx, broken);
 }
 
-function removeBrokenGates(state: EngineState, ctx: TickCtx, broken: Gate[]): void {
+export function removeBrokenGates(state: EngineState, ctx: TickCtx, broken: Gate[]): void {
   for (const g of broken) {
     const idx = state.gates.indexOf(g);
     if (idx === -1) continue;
@@ -368,14 +419,21 @@ function applyGate(state: EngineState, p: Projectile, g: Gate): boolean {
     case 'slow':
       p.slows = true;
       break;
-    case 'aim': {
-      // Edge lanes aim at the middle; the middle alternates left and right, shot by shot.
-      const target = g.lane === 0 ? 1 : g.lane === LANES - 1 ? LANES - 2 : p.id % 2 === 0 ? g.lane - 1 : g.lane + 1;
-      p.x = target < g.lane ? 880 : 120; // enters from the side it came from
-      p.lane = target;
+    case 'aim':
+      turnShot(state, p, g.lane, aimLane(g.lane, p.id));
       p.depth = g.depth;
-      p.side = true;
       return true;
+    case 'fan': {
+      // One shot up each lane: the original carries on, a copy turns into each other lane.
+      g.durability -= FAN_LANES - 1;
+      for (let lane = 0; lane < LANES; lane++) {
+        if (lane === g.lane) continue;
+        if (state.projectiles.length >= MAX_PROJECTILES) break;
+        const copy: Projectile = { ...p, id: state.nextId++, depth: g.depth };
+        turnShot(state, copy, g.lane, lane);
+        state.projectiles.push(copy);
+      }
+      break;
     }
   }
   return false;

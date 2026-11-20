@@ -7,8 +7,8 @@
  */
 import { HEADLINERS, type EngineState, type HeadlinerId } from '../engine';
 
-/** The five headliners in a fixed order; teams are every 3 of them (10 teams). */
-const ORDER: HeadlinerId[] = ['thrum', 'lyra', 'clatter', 'aria', 'riot'];
+/** The six headliners in a fixed order; teams are every 3 of them (20 teams). */
+const ORDER: HeadlinerId[] = ['thrum', 'lyra', 'clatter', 'aria', 'riot', 'fanfare'];
 
 export const DAILY_TEAMS: HeadlinerId[][] = (() => {
   const out: HeadlinerId[][] = [];
@@ -32,12 +32,13 @@ export function dailySeed(date: string): string {
 }
 
 /**
- * The day's band. Steps through all 10 teams, then shuffles the lead each cycle,
+ * The day's band. Steps through all 20 teams, then shuffles the lead each cycle,
  * so the same three don't always lead the same way.
  */
 export function dailyTeam(date: string): HeadlinerId[] {
-  const n = ((dayNumber(date) % 10) + 10) % 10;
-  const cycle = Math.floor(dayNumber(date) / 10);
+  const count = DAILY_TEAMS.length;
+  const n = ((dayNumber(date) % count) + count) % count;
+  const cycle = Math.floor(dayNumber(date) / count);
   const team = [...DAILY_TEAMS[n]!];
   const lead = ((cycle % 3) + 3) % 3;
   return [team[lead]!, ...team.filter((_, i) => i !== lead)];

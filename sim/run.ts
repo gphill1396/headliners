@@ -23,7 +23,7 @@ export interface RunResult {
   choices: number[];
 }
 
-const ROTATION: HeadlinerId[] = ['thrum', 'lyra', 'clatter', 'aria', 'riot'];
+const ROTATION: HeadlinerId[] = ['thrum', 'lyra', 'clatter', 'aria', 'riot', 'fanfare'];
 const seedIndex = (seed: string): number => {
   const m = /(\d+)$/.exec(seed);
   return m ? Number(m[1]) : 0;
@@ -89,7 +89,7 @@ export interface TourResult {
 }
 
 /** One whole Tour run (SPEC S2.1). */
-/** Every team of 3 from the five headliners (10 of them), in a fixed order. */
+/** Every team of 3 from the six headliners (20 of them), in a fixed order. */
 export const TEAMS: HeadlinerId[][] = (() => {
   const out: HeadlinerId[][] = [];
   for (let a = 0; a < ROTATION.length; a++) for (let b = a + 1; b < ROTATION.length; b++) for (let c = b + 1; c < ROTATION.length; c++) out.push([ROTATION[a]!, ROTATION[b]!, ROTATION[c]!]);

@@ -37,11 +37,11 @@ test('a different day brings different waves', () => {
   assert.notDeepEqual(waves(daily('2026-10-26'), 6, false), waves(daily('2026-10-27'), 6, false));
 });
 
-test('the same band and starting deck for everyone on a day, and every team comes round in 10 days', () => {
+test('the same band and starting deck for everyone on a day, and every team comes round in 20 days', () => {
   const s = daily();
   assert.deepEqual(s.headliner.team, dailyTeam('2026-10-26'));
   const seen = new Set<string>();
-  for (let d = 0; d < 10; d++) seen.add([...dailyTeam(`2026-11-${String(d + 1).padStart(2, '0')}`)].sort().join('+'));
+  for (let d = 0; d < 20; d++) seen.add([...dailyTeam(`2026-11-${String(d + 1).padStart(2, '0')}`)].sort().join('+'));
   assert.equal(seen.size, DAILY_TEAMS.length);
 });
 

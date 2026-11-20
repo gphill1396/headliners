@@ -9,6 +9,7 @@ import {
   ANARCHY_CHAIN,
   ARIA_RIFF_SLOW_BEATS,
   ARIA_RIFF_SLOW_PCT,
+  BEAT_UNITS,
   GATE_DEPTHS,
   LANES,
   LOAD_OUT_HAND_MAX,
@@ -26,8 +27,11 @@ import { chainFrozen } from './waves';
 import type { TickCtx } from './context';
 import type { CrowdGainReason } from './events';
 import { drawCards } from './deck';
-import { emptyChain, type EngineState, type QueuedPlay, type Unit } from './state';
-import type { Effect } from './types';
+import { emptyChain, type EngineState, type Enemy, type QueuedPlay, type Unit } from './state';
+import type { Effect, Scope } from './types';
+
+/** squireTime never keeps a Squire on stage longer than this many of its usual stays. */
+const SQUIRE_TIME_MAX_STAYS = 2;
 import { getCard } from '../content/cards';
 
 // ---------------------------------------------------------------- chains
@@ -152,39 +156,57 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
   const scale = (n: number) => (n * src.multPct) / 100;
   switch (effect.do) {
     case 'damageFront': {
-      const target = (effect.prefer === 'priority' ? priorityEnemy(state, src.lane) : null) ?? frontEnemy(state, src.lane);
-      if (!target) return;
-      const bonus = effect.vsSlowedPct && isSlowed(state, target) ? effect.vsSlowedPct : 100;
-      damageEnemy(state, ctx, target, (scale(effect.amount) * bonus) / 100, src.cardId);
+      // One target per lane; a boss that spans the lanes is only hit once.
+      const hit = new Set<number>();
+      for (const lane of lanesFor(effect.scope ?? 'lane', src.lane)) {
+        const target = (effect.prefer === 'priority' ? priorityEnemy(state, lane) : null) ?? frontEnemy(state, lane);
+        if (!target || hit.has(target.id)) continue;
+        hit.add(target.id);
+        const bonus = effect.vsSlowedPct && isSlowed(state, target) ? effect.vsSlowedPct : 100;
+        damageEnemy(state, ctx, target, (scale(effect.amount) * bonus) / 100, src.cardId);
+      }
       return;
     }
-    case 'slow':
-      for (const e of state.enemies) if (e.hp > 0 && e.depth >= 0 && (effect.scope === 'all' || inLane(e, src.lane))) slowEnemy(state, e, effect.pct, effect.beats);
+    case 'slow': {
+      const lanes = lanesFor(effect.scope, src.lane);
+      for (const e of state.enemies) if (e.hp > 0 && e.depth >= 0 && inAnyLane(e, lanes)) slowEnemy(state, e, effect.pct, effect.beats);
       return;
+    }
     case 'heal': {
       gainCrowd(state, ctx, effect.amount, 'card');
       return;
     }
-    case 'damageLane':
-      for (const e of state.enemies) if (inLane(e, src.lane) && e.depth >= 0) damageEnemy(state, ctx, e, scale(effect.amount), src.cardId);
+    case 'damageLane': {
+      const lanes = lanesFor(effect.scope ?? 'lane', src.lane);
+      for (const e of state.enemies) if (inAnyLane(e, lanes) && e.depth >= 0) damageEnemy(state, ctx, e, scale(effect.amount), src.cardId);
       return;
+    }
     case 'damageAll':
       for (const e of state.enemies) {
         if (e.depth < 0 || (effect.only === 'flying' && !ENEMIES[e.kind].flying)) continue;
         damageEnemy(state, ctx, e, scale(effect.amount), src.cardId);
       }
       return;
-    case 'volley':
+    case 'volley': {
+      const lanes = lanesFor(effect.scope, src.lane);
       for (const u of state.units) {
-        if (effect.scope === 'lane' && u.lane !== src.lane) continue;
+        if (!lanes.includes(u.lane)) continue;
         if (effect.tokensOnly && !u.token) continue;
-        fireUnit(state, u, effect.shots, src.multPct);
+        if (effect.hornsOnly && !u.turns && !state.gates.some((g) => g.lane === u.lane && g.durability > 0 && (g.kind === 'aim' || g.kind === 'fan'))) continue;
+        fireUnit(state, u, effect.shots, src.multPct, effect.turn === true);
       }
       return;
+    }
     case 'roadie':
-      for (let lane = 0; lane < LANES; lane++) {
-        if (effect.scope !== 'all' && lane !== src.lane) continue;
+      for (const lane of lanesFor(effect.scope ?? 'lane', src.lane)) {
         for (let i = 0; i < effect.count; i++) createToken(state, ctx, 'roadie', lane);
+      }
+      return;
+    case 'squireTime':
+      for (const u of state.units) {
+        if (!u.token || u.expiresBeat === undefined || u.expiresBeat < 0) continue;
+        const stay = getCard(u.cardId).unit?.lifespanBeats ?? 8;
+        u.expiresBeat = Math.min(u.placedBeat + stay * SQUIRE_TIME_MAX_STAYS, u.expiresBeat + effect.beats);
       }
       return;
     case 'volume':
@@ -198,8 +220,9 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
       return;
     case 'repairGates': {
       const amount = Math.round(scale(effect.amount));
+      const lanes = lanesFor(effect.scope, src.lane);
       for (const g of state.gates) {
-        if (effect.scope === 'lane' && g.lane !== src.lane) continue;
+        if (!lanes.includes(g.lane)) continue;
         g.durability = Math.min(g.maxDurability, g.durability + amount);
         ctx.events.push({ type: 'gatesRepaired', lane: g.lane, amount });
       }
@@ -228,6 +251,21 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
       runEffects(state, ctx, state.chain.links >= effect.min ? effect.then : (effect.else ?? []), src);
       return;
   }
+}
+
+/** The lanes an effect reaches: its own, its own and the ones beside it, or all of them. */
+export function lanesFor(scope: Scope, lane: number): number[] {
+  const out: number[] = [];
+  for (let l = 0; l < LANES; l++) {
+    if (scope === 'all' || l === lane || (scope === 'beside' && (l === lane - 1 || l === lane + 1))) out.push(l);
+  }
+  return out;
+}
+
+/** Is this enemy in any of these lanes? A boss that spans the lanes counts once. */
+function inAnyLane(e: Enemy, lanes: readonly number[]): boolean {
+  for (const l of lanes) if (inLane(e, l)) return true;
+  return false;
 }
 
 function runTriggers(
@@ -420,6 +458,7 @@ function placeUnit(state: EngineState, ctx: TickCtx, play: QueuedPlay, gradePct:
     splash: stats.splash ?? false,
     ...(stats.antiAir ? { antiAir: true } : {}),
     ...(stats.priority ? { priority: true } : {}),
+    ...(stats.turns ? { turns: true } : {}),
     placedBeat: state.clock.beat,
     expiresBeat: -1,
   };
@@ -463,8 +502,34 @@ export function fireUnitsOnEighth(state: EngineState, eighth: number): void {
   // Thrum's Fill: every unit fires on every eighth.
   const fill = state.headliner.id === 'thrum' && state.clock.beat < state.headliner.activeUntilBeat;
   const mult = boostPct(state);
+  const mired = miredLanes(state);
   for (const u of state.units) {
     if (u.movedUntilBeat !== undefined && state.clock.beat < u.movedUntilBeat) continue;
-    if (fill || eighth % u.fireEvery === 0) fireUnit(state, u, 1, mult);
+    // A Mire Golem in the lane: the units standing there fire half as often.
+    const every = (fill ? 1 : u.fireEvery) * (mired[u.lane] ? 2 : 1);
+    if (eighth % every === 0) fireUnit(state, u, 1, mult);
   }
+}
+
+/** Lanes bogged down by a Mire Golem on the field. */
+export function miredLanes(state: EngineState): boolean[] {
+  const out: boolean[] = [];
+  for (let l = 0; l < LANES; l++) out.push(false);
+  for (const e of state.enemies) if (e.hp > 0 && e.depth >= 0 && ENEMIES[e.kind].mires) out[e.lane] = true;
+  return out;
+}
+
+/**
+ * The units in two lanes trade places (Shift, and The Tempest's gale). Gates stay.
+ * Moved units don't fire before `untilBeat`. Returns the ids of the units that moved.
+ */
+export function swapLaneUnits(state: EngineState, from: number, to: number, untilBeat: number): number[] {
+  const moving = state.units.filter((u) => u.lane === from || u.lane === to);
+  for (const u of moving) {
+    u.movedFrom = u.lane;
+    u.movedAt = state.clock.beat + state.clock.phase / BEAT_UNITS;
+    u.lane = u.lane === from ? to : from;
+    u.movedUntilBeat = untilBeat;
+  }
+  return moving.map((u) => u.id);
 }

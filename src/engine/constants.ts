@@ -103,6 +103,9 @@ export const VOLUME_MAX = 20;
 export const CYCLE_COST = 1;
 /** Shift (S4.3): swap two lanes' units. Costs this much energy, once per bar (2, not 1: at 1 it made Thrum and Lyra Tours too easy). */
 export const SHIFT_COST = 2;
+/** Fanfare's passive: a shot that turns lanes gains this much damage and Pierce. */
+export const FANFARE_TURN_DAMAGE = 3;
+export const FANFARE_TURN_PIERCE = 1;
 /** Shifted units skip firing for this many beats while they walk over. */
 export const SHIFT_PAUSE_BEATS = 1;
 

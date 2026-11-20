@@ -912,6 +912,8 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
   - **Results** at 200 runs per bot (6 headliners): median wave Thrum 22, Lyra 21, Riot 20, Clatter 19, **Fanfare 19**, Aria 18, random 6. All D1–D8 pass: D1 3.00× (Aria; Fanfare 3.17×), D2 6.8×, D3 1.22×, D4 25.7%, D5 16.6%, D6 5.4% (Wisp), D7 3.0, D8 0.2%. Evolutions: Crossfire 20, Royal Decree 19.
   - **Tour** (`sim:tour -- --per-team 20`, 20 bands): solo Thrum 100%, **Fanfare 88%**, Aria 85%, Lyra 78%, Clatter 76%, Riot 71% (T1 1.40×, passes). Bands 92% / 68% / 29% at Heat 0/5/10 (T2 fails on the easy side, more so than before: Heat 5 was 61%). Bands with Fanfare run from 55% to 95% at Heat 5. T3 passes. **T4 3.17×** (best Thrum + Aria + Riot 95%, worst Lyra + Clatter + Aria 30%, neither with Fanfare; at 20 a band, ±10 points is noise). Tour tuning still waits on the playtest; Heat 3's Tournament health is the lever that moves Heat 5 (see S4.3).
 
+- **Art batch 3** (S4.2 bar, `python3 art/build.py`): Fanfare's portrait (a white-headed griffin on lion haunches, raising a herald trumpet with a banner; the call rings out on the beat) and the 9 new units: Herald, Hunting Horn, Shawm (Fanfare gold), Pikeman, Crossbow, Standard Bearer, Quickstep (a small drummer in Thrum's orange), Duet (two singers) and Drone (a piper in Riot's green). Two frames each, drawn from shapes in `art/sprites/`. Open: Grant's verdict.
+
 **What changes elsewhere** (each needs Grant's OK):
 - **Daily Setlist:** 6 headliners make 20 bands of 3, not 10. The rotation keeps the same rule (every band in turn, the lead rotating each cycle).
 - **Tour sim:** `sim:tour` at 30 runs per band doubles to about 24 minutes. Proposal: 20 per band for routine checks, 30 before shipping.

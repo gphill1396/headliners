@@ -386,6 +386,188 @@ def squire(f):
     return c
 
 
+# ---- Content pass 2d: the new units. Fanfare's three are in her gold. ----
+
+GOLD = ramp('#6a4a10', '#b8862a', '#e8c15a', '#fff0a0')
+
+
+def herald(f):
+    """Herald: a gold-tabarded trumpeter, the long trumpet raised to the right, a banner under its bell."""
+    cv = Canvas(W, H)
+    s = f
+    R = {'human': SKIN['human'], 'tabard': ramp('#5a1418', '#a02830', '#d8484e'), 'hose': ramp('#3a2a20', '#5e4430'), 'brass': GOLD, 'flag': ramp('#6a4a10', '#e8c15a'), 'cap': ramp('#3a2a50', '#5e4a80')}
+    P = body(cv, 'tabard', s=s)
+    P += [
+        Part('cap', 'cap', cv.ellipse(10, 3.2 - 0.5 * s, 3.4, 1.5), group='cap'),
+        Part('trumpet', 'brass', cv.capsule(12, 6 - 0.5 * s, 18, 1 - s, 0.55), group='trumpet'),
+        Part('bell', 'brass', cv.poly([(16.5, 2 - s), (19, -0.5 - s), (20, 2.5 - s), (18, 3.5 - s)]), group='trumpet'),
+        Part('flag', 'flag', cv.poly([(14, 4.5 - s), (17.5, 2.5 - s), (17.5, 6.5 - s), (15, 7.5 - s)]), style='flat', group='flag'),
+        Part('armR', 'tabard', cv.capsule(13.5, 10, 14, 6 - 0.5 * s, 1.1), group='armR'),
+        Part('armL', 'tabard', cv.capsule(6.5, 10, 5.5, 15, 1.1), group='armL'),
+    ]
+    c = render(cv, P, R, DARK, seam_dark=('brass',))
+    face(c, s=s)
+    put_on(c, [(10, 10), (9, 11), (11, 11), (10, 12)], '#e8c15a')  # a gold bell on the tabard
+    return c
+
+
+def hunting_horn(f):
+    """Hunting Horn: a huntsman in green, a curled brass horn at the mouth, aimed sideways."""
+    cv = Canvas(W, H)
+    s = f
+    R = {'human': SKIN['human'], 'coat': ramp('#1a3a1e', '#2e5e30', '#4a8a46'), 'hose': ramp('#3a2a20', '#5e4430'), 'brass': GOLD, 'hat': ramp('#3a2414', '#6a4628')}
+    P = body(cv, 'coat', s=s)
+    P += [
+        Part('hat', 'hat', cv.poly([(6, 3.5 - 0.5 * s), (10, -0.5 - 0.5 * s), (14, 3.5 - 0.5 * s)]), group='hat'),
+        Part('horn', 'brass', cv.curve([(11, 6.5), (15, 7), (17, 4.5), (15.5, 2)], 0.6, 1.4), group='horn'),
+        Part('bellmouth', 'brass', cv.ellipse(15.5, 1.8 - 0.5 * s, 2.0, 1.4), group='horn'),
+        Part('armR', 'coat', cv.capsule(13.5, 10, 14.5, 7, 1.1), group='armR'),
+        Part('armL', 'coat', cv.capsule(6.5, 10, 5.5, 15, 1.1), group='armL'),
+    ]
+    c = render(cv, P, R, DARK, seam_dark=('brass',))
+    face(c, s=s)
+    put_on(c, [(10, 11), (10, 12)], '#e8c15a')  # belt buckle
+    if s:
+        put(c, [(18, 0), (19, 2)], '#fff0a0')
+    return c
+
+
+def shawm(f):
+    """Shawm: a robed player with a long conical reed pipe pointing down and out."""
+    cv = Canvas(W, H)
+    s = f
+    R = {'human': SKIN['human'], 'robe': ramp('#4a3010', '#8a6020', '#c8963a'), 'hose': ramp('#3a2a20', '#5e4430'), 'pipe': ramp('#3a2414', '#6a4628', '#946a42'), 'brass': GOLD, 'hood': ramp('#5a1418', '#a02830')}
+    P = body(cv, 'robe', s=0, legs='robe')
+    P += [
+        Part('hood', 'hood', cv.ellipse(10, 4.5, 4.0, 3.6) & ~cv.ellipse(10, 6.4, 2.6, 2.6), group='hood'),
+        Part('pipe', 'pipe', cv.capsule(10.5, 8, 15 + s, 17, 0.6, 1.4), group='pipe'),
+        Part('flare', 'brass', cv.ellipse(15.5 + s, 18, 2.0, 1.2), group='pipe'),
+        Part('armL', 'robe', cv.capsule(7, 10, 11.5, 11, 1.1), group='armL'),
+        Part('armR', 'robe', cv.capsule(13, 10, 13.5, 14, 1.1), group='armR'),
+    ]
+    c = render(cv, P, R, DARK, seam_dark=('pipe',))
+    face(c)
+    put_on(c, [(12, 12), (13, 14)], '#1e140e')  # finger holes
+    return c
+
+
+def pikeman(f):
+    """Pikeman: kettle hat, breastplate, a pike taller than he is."""
+    cv = Canvas(W, H)
+    s = f
+    R = {'human': SKIN['human'], 'plate': ramp('#3a3a4a', '#6a6a7e', '#a4a4b8', '#d8d8e8'), 'hose': ramp('#3a2a20', '#5e4430'), 'shaft': ramp('#3a2414', '#7a5430'), 'steel': ramp('#6a6a7e', '#d8d8e8')}
+    P = body(cv, 'plate', s=s)
+    P += [
+        Part('hat', 'plate', cv.ellipse(10, 2.8 - 0.5 * s, 4.6, 1.6) | cv.ellipse(10, 2.2 - 0.5 * s, 2.8, 1.8), group='hat'),
+        Part('shaft', 'shaft', cv.capsule(15.5, 22, 15.5 - s, 2, 0.55), group='pike'),
+        Part('point', 'steel', cv.poly([(14.5 - s, 2.5), (15.5 - s, -0.5), (16.5 - s, 2.5)]), group='pike'),
+        Part('armR', 'plate', cv.capsule(13.5, 10, 15, 12, 1.1), group='armR'),
+        Part('armL', 'plate', cv.capsule(6.5, 10, 5.5, 15, 1.1), group='armL'),
+    ]
+    c = render(cv, P, R, DARK)
+    face(c, s=s)
+    return c
+
+
+def crossbow(f):
+    """Crossbow: a leather-jacked crossbowman, the bow held level across the chest."""
+    cv = Canvas(W, H)
+    s = f
+    R = {'human': SKIN['human'], 'jack': ramp('#3a2414', '#6a4628', '#946a42'), 'hose': ramp('#2a2a3a', '#4a4a60'), 'wood': ramp('#2a1a0e', '#5a3a1e'), 'steel': ramp('#4a4a5e', '#a4a4b8'), 'cap': ramp('#1e3a14', '#36602a')}
+    P = body(cv, 'jack', s=0)
+    P += [
+        Part('cap', 'cap', cv.ellipse(10, 3.2, 3.6, 1.6), group='cap'),
+        Part('stock', 'wood', cv.capsule(5, 11, 15, 10, 0.7), group='bow'),
+        Part('limbs', 'steel', cv.curve([(13, 6.5 + s), (15, 10), (13, 13.5 - s)], 0.5, 0.5), group='bow'),
+        Part('armL', 'jack', cv.capsule(6.5, 9, 7, 11, 1.1), group='armL'),
+        Part('armR', 'jack', cv.capsule(13.5, 9, 12, 11, 1.1), group='armR'),
+    ]
+    c = render(cv, P, R, DARK)
+    face(c)
+    put(c, [(16, 10)] if s else [(14, 10)], '#d8d8e8')  # the bolt
+    return c
+
+
+def standard_bearer(f):
+    """Standard Bearer: a blue tabard and a tall pennant that swings on the beat."""
+    cv = Canvas(W, H)
+    s = f
+    R = {'human': SKIN['human'], 'tabard': ramp('#22305e', '#3a5aa0', '#5e86d0'), 'hose': ramp('#3a2a20', '#5e4430'), 'pole': ramp('#3a2414', '#7a5430'), 'flag': ramp('#8a6a1a', '#e8c15a', '#fff0a0')}
+    P = body(cv, 'tabard', s=s)
+    flag = cv.poly([(5.5, 1), (1, 2.5 + s), (5.5, 4.5)]) if s else cv.poly([(5.5, 1), (0.5, 1.5), (1.5, 3), (5.5, 4.5)])
+    P += [
+        Part('pole', 'pole', cv.capsule(5.5, 21, 5.5, 0.5, 0.5), group='pole'),
+        Part('flag', 'flag', flag, style='flat', group='flag'),
+        Part('armL', 'tabard', cv.capsule(6.5, 10, 6, 12, 1.1), group='armL'),
+        Part('armR', 'tabard', cv.capsule(13.5, 10, 14.5, 15, 1.1), group='armR'),
+    ]
+    c = render(cv, P, R, DARK)
+    face(c, s=s)
+    put_on(c, [(10, 10), (10, 11), (10, 12)], '#e8c84a')
+    return c
+
+
+def quickstep(f):
+    """Quickstep: a small drummer in Thrum's orange, a side drum at the hip, sticks flying."""
+    cv = Canvas(W, H)
+    s = f
+    R = {'human': SKIN['human'], 'coat': ramp('#5a1e12', '#a03a1e', '#e0662e'), 'hose': ramp('#f0e6cc', '#f6ecd6'), 'shell': ramp('#4a4a5e', '#8a8aa0', '#c8c8dc'), 'skin_': ramp('#bfa77a', '#fff6e0'), 'wood': ramp('#3a2414', '#946a42')}
+    P = body(cv, 'coat', s=s, small=True)
+    P += [
+        Part('shell', 'shell', cv.rect(6, 16, 15, 20), style='cyl', group='drum'),
+        Part('head_', 'skin_', cv.ellipse(10.5, 16, 4.5, 1.2), group='drum'),
+        Part('stickL', 'wood', cv.capsule(6, 12 + 2 * s, 9, 15.5, 0.5), group='sticks'),
+        Part('stickR', 'wood', cv.capsule(15, 14 - 2 * s, 12, 15.5, 0.5), group='sticks'),
+    ]
+    c = render(cv, P, R, DARK, seam_dark=('shell',))
+    face(c, top=7, s=s)
+    put_on(c, [(7, 18), (10, 18), (13, 18)], '#e0662e')  # rope tension
+    return c
+
+
+def duet(f):
+    """Duet: two singers in Aria's pink, a little apart, mouths open together on the beat."""
+    cv = Canvas(W, H)
+    s = f
+    R = {'human': SKIN['human'], 'gown': ramp('#7a2a52', '#c04a82', '#f29cc3'), 'gown2': ramp('#3a2a6a', '#6a4aa0', '#a080d0'), 'hair': ramp('#3a1e14', '#6a3a22'), 'hair2': ramp('#8a6a1a', '#e8c15a')}
+    P = []
+    for i, (cx, gown, hair) in enumerate([(6.5, 'gown', 'hair'), (13.5, 'gown2', 'hair2')]):
+        lift = s if i == 0 else 0
+        P += [
+            Part(f'robe{i}', gown, cv.poly([(cx - 2.5, 12), (cx - 4, 23), (cx + 4, 23), (cx + 2.5, 12)]), group=f'p{i}'),
+            Part(f'torso{i}', gown, cv.ellipse(cx, 11.5, 2.8, 3.2), group=f'p{i}'),
+            Part(f'hair{i}', hair, cv.ellipse(cx, 6.5 - lift, 3.0, 3.2), group=f'h{i}'),
+            Part(f'head{i}', 'human', cv.ellipse(cx, 7.2 - lift, 2.4, 2.5), group=f'h{i}'),
+        ]
+    c = render(cv, P, R, DARK)
+    for i, cx in enumerate([6.5, 13.5]):
+        y = int(7 - (s if i == 0 else 0))
+        put_on(c, [(int(cx) - 1, y), (int(cx) + 1, y)], '#1a1222')
+        if s:
+            put_on(c, [(int(cx), y + 2)], '#7a2a2a')
+    if s:
+        put(c, [(1, 2), (2, 1), (18, 2), (19, 1)], '#f29cc3')  # notes
+    return c
+
+
+def drone(f):
+    """Drone: a piper in Riot's green, the bag under the arm and one long drone over the shoulder."""
+    cv = Canvas(W, H)
+    s = f
+    R = {'human': SKIN['human'], 'kilt': ramp('#1e4a1a', '#3a7a26', '#68b03a'), 'hose': ramp('#f0e6cc', '#f6ecd6'), 'bag': ramp('#2a1a3a', '#4a2a62', '#74449a'), 'pipe': ramp('#1e140e', '#4a3420', '#7a5a38')}
+    P = body(cv, 'kilt', s=s)
+    P += [
+        Part('drone', 'pipe', cv.capsule(8, 9, 3, 0.5, 0.7), group='drone'),
+        Part('bag', 'bag', cv.ellipse(7, 11.5, 3.2 - 0.4 * s, 2.6 + 0.3 * s), group='bag'),
+        Part('chanter', 'pipe', cv.capsule(10.5, 7.5 - 0.5 * s, 11, 15, 0.6), group='chanter'),
+        Part('armR', 'kilt', cv.capsule(13.5, 10, 11.5, 13, 1.1), group='armR'),
+    ]
+    c = render(cv, P, R, DARK, seam_dark=('pipe', 'bag'))
+    face(c, s=s)
+    put_on(c, [(3, 0)], '#c8c8dc')  # drone cap
+    return c
+
+
 SPRITES = {
     'stagehand': page,
     'kick-drum': war_drum,
@@ -406,6 +588,15 @@ SPRITES = {
     'bottle-rocket': fire_archer,
     'bouncer': bouncer,
     'roadie': squire,
+    'herald': herald,
+    'hunting-horn': hunting_horn,
+    'shawm': shawm,
+    'pikeman': pikeman,
+    'crossbow': crossbow,
+    'standard-bearer': standard_bearer,
+    'quickstep': quickstep,
+    'duet': duet,
+    'drone': drone,
 }
 
 

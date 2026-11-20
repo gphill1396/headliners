@@ -124,6 +124,7 @@ export const PORTRAITS: Partial<Record<HeadlinerId, AnimSprite>> = {
   clatter: ART['portrait:clatter'],
   aria: ART['portrait:aria'],
   riot: ART['portrait:riot'],
+  fanfare: ART['portrait:fanfare'],
 };
 
 /** Draw one frame of an animated sprite at an integer scale. */

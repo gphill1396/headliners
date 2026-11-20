@@ -27,7 +27,7 @@ import { gainCrowd, raiseCrowdCap } from './effects';
 import { addCardToDeck, refillHand } from './deck';
 import { nextFloat, nextInt, shuffleInPlace } from './rng';
 import { emptyChain, type CardInstance, type EngineState, type TourNode, type TourNodeKind, type TourState } from './state';
-import { BOSS_ORDER, bossCalls, cleanSet, spawnDue, startWave } from './waves';
+import { bossCalls, cleanSet, spawnDue, startWave, tourBoss } from './waves';
 import { getCard, pickPool } from '../content/cards';
 import { TOUR_EVENTS, type TourEffect } from '../content/events';
 
@@ -244,7 +244,7 @@ function nextFightWave(state: EngineState, ctx: TickCtx): void {
   fight.wave += 1;
   const last = fight.wave === fight.waves.length - 1;
   // Each act has its own boss: The Hush, then The Critic, then Dead Air.
-  startWave(state, ctx, fight.waves[fight.wave]!, { boss: fight.kind === 'boss' && last, bossKind: BOSS_ORDER[(state.tour!.act - 1) % BOSS_ORDER.length], elite: fight.kind === 'elite' || (heatOf(state) >= 10 && fight.kind === 'fight') });
+  startWave(state, ctx, fight.waves[fight.wave]!, { boss: fight.kind === 'boss' && last, bossKind: tourBoss(state.tour!.act, heatOf(state)), elite: fight.kind === 'elite' || (heatOf(state) >= 10 && fight.kind === 'fight') });
 }
 
 function fightWon(state: EngineState, ctx: TickCtx): void {

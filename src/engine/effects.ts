@@ -9,6 +9,7 @@ import {
   ANARCHY_CHAIN,
   ARIA_RIFF_SLOW_BEATS,
   ARIA_RIFF_SLOW_PCT,
+  BEAT_UNITS,
   GATE_DEPTHS,
   LANES,
   LOAD_OUT_HAND_MAX,
@@ -501,8 +502,34 @@ export function fireUnitsOnEighth(state: EngineState, eighth: number): void {
   // Thrum's Fill: every unit fires on every eighth.
   const fill = state.headliner.id === 'thrum' && state.clock.beat < state.headliner.activeUntilBeat;
   const mult = boostPct(state);
+  const mired = miredLanes(state);
   for (const u of state.units) {
     if (u.movedUntilBeat !== undefined && state.clock.beat < u.movedUntilBeat) continue;
-    if (fill || eighth % u.fireEvery === 0) fireUnit(state, u, 1, mult);
+    // A Mire Golem in the lane: the units standing there fire half as often.
+    const every = (fill ? 1 : u.fireEvery) * (mired[u.lane] ? 2 : 1);
+    if (eighth % every === 0) fireUnit(state, u, 1, mult);
   }
+}
+
+/** Lanes bogged down by a Mire Golem on the field. */
+export function miredLanes(state: EngineState): boolean[] {
+  const out: boolean[] = [];
+  for (let l = 0; l < LANES; l++) out.push(false);
+  for (const e of state.enemies) if (e.hp > 0 && e.depth >= 0 && ENEMIES[e.kind].mires) out[e.lane] = true;
+  return out;
+}
+
+/**
+ * The units in two lanes trade places (Shift, and The Tempest's gale). Gates stay.
+ * Moved units don't fire before `untilBeat`. Returns the ids of the units that moved.
+ */
+export function swapLaneUnits(state: EngineState, from: number, to: number, untilBeat: number): number[] {
+  const moving = state.units.filter((u) => u.lane === from || u.lane === to);
+  for (const u of moving) {
+    u.movedFrom = u.lane;
+    u.movedAt = state.clock.beat + state.clock.phase / BEAT_UNITS;
+    u.lane = u.lane === from ? to : from;
+    u.movedUntilBeat = untilBeat;
+  }
+  return moving.map((u) => u.id);
 }

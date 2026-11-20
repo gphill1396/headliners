@@ -919,7 +919,7 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 - **Tour sim:** `sim:tour` at 30 runs per band doubles to about 24 minutes. Proposal: 20 per band for routine checks, 30 before shipping.
 - **Encore pick:** the title screen's headliner row gains a sixth portrait. It must still fit one row on a 375 px phone.
 - **Build order:** engine parts and tests, then the cards, the sim and a tuning pass, then Fanfare, sim, tuning. Art and music come last, so balance doesn't wait on them.
-### Content pass 2e — the last two monsters and a fourth boss (PROPOSED, Nov 20; not approved yet)
+### Content pass 2e — the last two monsters and a fourth boss (approved by Grant, Nov 20; Tour option (a))
 
 **Why:** §6 asks for 14 monsters and 4 bosses; there are 12 and 3. Both new monsters punish standing still in one lane, which is what Fanfare, Shift and the three-lane riffs from 2d answer, so the new tools get a reason to exist beyond damage.
 
@@ -945,6 +945,16 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
   - (b) Each act draws its boss from two by seed.
 
 **Build order:** engine parts and tests first, then the monsters, the sim and a tuning pass, then The Tempest, sim and tuning, then art.
+
+**As built (Nov 20, branch `content-2d`):**
+- **Boggart** (`hops`): every 4 beats it hops to the neighbouring lane with less firepower aimed up it (`laneFirepower` counts turning units toward the lanes they shoot into; ties take turns). 70 health, 4 crowd. **Mire Golem** (`mires`): armor 2, 100 health (proposed 140), 5 crowd, walks in 24 beats; units standing in its lane fire half as often (`miredLanes`), Fill included. Units next door, turned shots, riffs and volleys are unaffected.
+- **Debuts moved to waves 15 and 17** (proposed 14 and 15): at 14/15 the median run ended a wave earlier and D1 fell to 2.83×.
+- **The Tempest** (1500 health): Gale swaps the lane holding most of your band with one of the other two every 8 beats, named a beat ahead (`galeWarning`, then `gale`; moved units miss a beat, like a Shift). Lightning takes 20 durability off the sturdiest gate every 6 beats. Squall calls a Boggart every 6 beats. Encore: bosses rotate in fours (The Tempest on 40, 80…). Tour: `tourBoss` gives The Tempest act 2 from Heat 4.
+- UI: debut banners and long-press traits come from the data; pops for Hop!, Gale coming, Gale! and Lightning; phase banners. Sprites for all three (art batch 4). Tests: `tests/content-2e.test.ts`.
+- Deviations: Horns are not listed as Boggart answers (they made Post Horn a must-pick for the bots, 40% of top decks). Its answers are the three-lane and all-lane cards each headliner has.
+- **Sim bots:** they no longer set up in a mired lane, and they only buy an answer for a monster that is here or due within 6 waves. Before that fix they bought Boggart and Golem answers in Tours that never meet them, which cost Riot and Clatter about 8 points of Tour win rate.
+- **Results**, Encore at 200 runs per bot: median wave Thrum 20.5, Lyra 19, Riot 19, Fanfare 19, Clatter 18, Aria 18, random 6. D1 3.00× (on the line), D2 6.6×, D3 1.14×, D4 38.3% (Bonfire), D5 17.6%, D7 3.0, D8 0.1% pass. **D6 fails narrowly:** the lowest monster sits at 4.3–4.7% across reruns, and which one it is changes each time (Harpy, Wisp, Troll, Slime). With 14 monsters an even share is 6.8%, so a 5% floor leaves almost no room. Tried: Harpy packs of 5 (Trolls dropped under instead), Wisp leaks at 4 crowd (hurt Clatter's Tours), Wisp health 40. None shipped. *Proposal for Grant:* scale D6 with the roster, to half an even share (3.4% at 14 monsters; it was 5% at 8, which was 40% of an even share). The threshold is unchanged until he says so.
+- Tour (`sim:tour -- --per-team 20`): solo Thrum 100%, Fanfare 85%, Aria 84%, Lyra 80%, Clatter 76%, Riot 65% (**T1 1.54×, just over 1.5×**; Riot was 71% before, within noise at 80 runs). Bands 91% / 73% / 30% (T2 fails on the easy side; Heat 5 rose from 68%, so the bots find The Tempest easier than The Black Knight, and it caused 0% of Encore losses). T3 passes. T4 2.50× passes. The Tempest punishes a board that only works one way, which the bots don't build; whether it bites for people is a playtest question.
 
 ---
 

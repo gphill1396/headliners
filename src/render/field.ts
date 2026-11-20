@@ -1,4 +1,4 @@
-import { airborne, BOSS_EVERY_WAVES, BOSS_ORDER, bossForWave, ENEMIES, faded, LANES, PROJECTILE_SPEED, STAGE_LINE, SWOOP_DEPTH, type EnemyKind, type EngineState, type GateKind } from '../engine';
+import { airborne, BOSS_EVERY_WAVES, bossForWave, tourBoss, ENEMIES, faded, LANES, PROJECTILE_SPEED, STAGE_LINE, SWOOP_DEPTH, type EnemyKind, type EngineState, type GateKind } from '../engine';
 import type { AnimSprite } from './portraits';
 import { PALETTE } from './palette';
 import { drawSprite, SPRITES, spriteSize, type Sprite } from './sprites';
@@ -146,7 +146,7 @@ function drawScaled(ctx: CanvasRenderingContext2D, key: string, art: AnimSprite,
 /** Which boss waits at the cave: the one this act or this stretch of waves ends with. */
 export function nextBoss(state: EngineState): EnemyKind | null {
   if (state.mode === 'tutorial') return null;
-  if (state.tour) return BOSS_ORDER[(state.tour.act - 1) % BOSS_ORDER.length]!;
+  if (state.tour) return tourBoss(state.tour.act, state.tour.heat ?? 0);
   if (state.mode !== 'encore') return null;
   const next = Math.max(1, Math.ceil(Math.max(1, state.wave.index) / BOSS_EVERY_WAVES)) * BOSS_EVERY_WAVES;
   return bossForWave(next);

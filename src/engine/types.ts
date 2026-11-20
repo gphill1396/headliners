@@ -142,10 +142,13 @@ export type EnemyKind =
   | 'charger'
   | 'medic'
   | 'nest'
+  | 'boggart'
+  | 'golem'
   | 'ghost'
   | 'hush'
   | 'critic'
-  | 'dead-air';
+  | 'dead-air'
+  | 'tempest';
 
 export interface EnemyDef {
   kind: EnemyKind;
@@ -183,6 +186,10 @@ export interface EnemyDef {
   hatches?: { kind: EnemyKind; count: number; everyBeats: number };
   /** Ghost: fades out on beats 2 and 4; only hittable on beats 1 and 3. */
   phased?: boolean;
+  /** Boggart: every few beats it hops one lane over, to the neighbour with less firepower aimed at it. */
+  hops?: { everyBeats: number };
+  /** Mire Golem: while it's on the field, units in its lane fire half as often. */
+  mires?: boolean;
   /** A boss: spawned by its own rule, never in a normal wave mix. */
   boss?: boolean;
   /** Spans every lane: shots and riffs from any lane can hit it. */

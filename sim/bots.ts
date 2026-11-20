@@ -21,6 +21,8 @@ import {
 } from '../src/engine';
 import { ENEMIES } from '../src/content/enemies';
 import { hasMember, teamOf } from '../src/engine/evolution';
+import { miredLanes } from '../src/engine/effects';
+import { DEBUT_WAVE } from '../src/engine/waves';
 
 /**
  * Bot players for the depth simulator (SPEC §9). Bots only see what a player
@@ -150,7 +152,9 @@ function chooseShift(s: EngineState): { from: number; to: number } | null {
   if (s.energy < SHIFT_COST + 2 || s.shiftBar === Math.floor(s.clock.beat / BEATS_PER_BAR)) return null;
   const threat = laneThreat(s);
   const power = [0, 0, 0];
-  for (const u of s.units) if (!u.token) power[u.lane]! += (u.damage * (u.pierce + 1)) / u.fireEvery;
+  const mired = miredLanes(s);
+  // A Mire Golem halves what the units standing in its lane put out.
+  for (const u of s.units) if (!u.token) power[u.lane]! += (u.damage * (u.pierce + 1)) / u.fireEvery / (mired[u.lane] ? 2 : 1);
   const to = argmax(threat);
   if (threat[to]! < 30 * s.wave.hpMult) return null;
   if (!s.enemies.some((e) => e.lane === to && e.hp > 0 && e.depth > SHIFT_NEAR)) return null;
@@ -193,6 +197,8 @@ function choosePlay(config: BotConfig, s: EngineState, rng: RngState): Choice | 
     const def = getCard(card.cardId);
     for (let lane = 0; lane < 3; lane++) {
       let value = estimateValue(def, lane, s, threat);
+      // Don't set up in a Mire Golem's lane: units there fire half as often.
+      if (def.type === 'unit' && !def.unit?.turns && miredLanes(s)[lane]) value *= 0.5;
       if (config.kind === 'archetype') {
         if (def.headliner && teamOf(s).includes(def.headliner)) value *= 1.15;
         // Keep a running chain alive, but only when it's about to drop and only with cheap cards.
@@ -483,7 +489,8 @@ function choosePick(config: BotConfig, s: EngineState, rng: RngState): number | 
     const def = getCard(id);
     let v = 2 + 3 * ((target[def.type] ?? 0.2) - share(def.type)) - 0.6 * owned(id) + nextFloat(rng);
     // A sensible player buys an answer to an enemy if nothing in the deck answers it yet.
-    const unanswered = Object.values(ENEMIES).some((e) => e.answers?.includes(id) && !e.answers.some((a) => owned(a) > 0));
+    // …for an enemy that's here or coming soon (not one many waves off, or one this Tour will never reach).
+    const unanswered = Object.values(ENEMIES).some((e) => DEBUT_WAVE[e.kind] <= s.wave.index + 6 && e.answers?.includes(id) && !e.answers.some((a) => owned(a) > 0));
     if (unanswered) v += 1.2;
     if (config.kind === 'archetype' && def.headliner !== undefined && teamOf(s).includes(def.headliner)) v += 0.3;
     return v;

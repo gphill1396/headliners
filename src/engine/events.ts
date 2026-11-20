@@ -34,6 +34,13 @@ export type EngineEvent =
   | { type: 'healed'; lane: number; depth: number; amount: number }
   /** A Nest hatched Swarmlings. */
   | { type: 'hatched'; lane: number; depth: number; count: number }
+  /** A Boggart hopped lanes. */
+  | { type: 'hopped'; enemyId: number; from: number; to: number; depth: number }
+  /** The Tempest, phase 1: the gale is coming (a beat ahead), then it swaps the two lanes' units. */
+  | { type: 'galeWarning'; from: number; to: number }
+  | { type: 'gale'; from: number; to: number; unitIds: number[] }
+  /** The Tempest, phase 2: lightning hits a gate. */
+  | { type: 'lightning'; gateId: number; lane: number; slot: number; amount: number }
   /** A Feedback card's price: crowd lost on purpose, not to a leak. */
   | { type: 'crowdCost'; amount: number; lane: number; cardId: string }
   | { type: 'energy'; amount: number; reason: 'tight' | 'card' }

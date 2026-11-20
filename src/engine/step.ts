@@ -4,7 +4,7 @@ import { ABILITY_RETRY_BEATS, BEAT_UNITS, BEATS_PER_BAR, CHAIN_STEP_GOOD_PCT, CY
 import { evolvedInto, hasMember, unevolved } from './evolution';
 import { createCtx, flushDamage, type TickCtx } from './context';
 import { addCardToDeck, drawCards, refillHand } from './deck';
-import { checkChainEnd, checkGameOver, createToken, expireTokens, fireUnitsOnEighth, resolvePlay, runDownbeatTriggers } from './effects';
+import { checkChainEnd, checkGameOver, createToken, expireTokens, fireUnitsOnEighth, resolvePlay, runDownbeatTriggers, swapLaneUnits } from './effects';
 import type { EngineEvent } from './events';
 import type { EngineState } from './state';
 import type { EnemyKind, HeadlinerId } from './types';
@@ -363,13 +363,7 @@ function shift(state: EngineState, ctx: TickCtx, from: number, to: number): void
   state.energy -= cost;
   state.shiftBar = bar;
   const until = decree ? state.clock.beat : state.clock.beat + 1 + SHIFT_PAUSE_BEATS;
-  for (const u of moving) {
-    u.movedFrom = u.lane;
-    u.movedAt = state.clock.beat + state.clock.phase / BEAT_UNITS;
-    u.lane = u.lane === from ? to : from;
-    u.movedUntilBeat = until;
-  }
-  ctx.events.push({ type: 'shifted', from, to, unitIds: moving.map((u) => u.id) });
+  ctx.events.push({ type: 'shifted', from, to, unitIds: swapLaneUnits(state, from, to, until) });
 }
 
 /** Choose an evolution (SPEC §4.7): 0 or 1. In a team, for `member` (default: the first one that hasn't evolved). */

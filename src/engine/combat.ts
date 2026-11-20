@@ -273,7 +273,7 @@ export function smashGates(state: EngineState, ctx: TickCtx): void {
   removeBrokenGates(state, ctx, broken);
 }
 
-function removeBrokenGates(state: EngineState, ctx: TickCtx, broken: Gate[]): void {
+export function removeBrokenGates(state: EngineState, ctx: TickCtx, broken: Gate[]): void {
   for (const g of broken) {
     const idx = state.gates.indexOf(g);
     if (idx === -1) continue;

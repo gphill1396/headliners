@@ -275,6 +275,9 @@ export interface BossState {
   phase: 1 | 2 | 3;
   /** Phase 3: next beat a Brute is called in. */
   nextBruteBeat: number;
+  /** The Tempest: the next gale or lightning strike, and the lanes the gale will swap. */
+  nextWeatherBeat?: number;
+  gale?: { from: number; to: number };
 }
 
 export interface EngineState {

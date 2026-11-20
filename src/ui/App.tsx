@@ -236,6 +236,10 @@ const BOSS_PHASE_BANNER: Partial<Record<EnemyKind, [[string, string], [string, s
     ['It landed', 'Every shot hits now. Wisps are coming.'],
     ['Rush!', 'Everything else runs at the stage'],
   ],
+  tempest: [
+    ['Lightning', 'It strikes your sturdiest gate'],
+    ['Squall!', 'The Tempest calls for Boggarts'],
+  ],
 };
 
 function gateLabel(kind: Hud['gates'][number]['kind'], amount: number, lane: number): string {
@@ -629,6 +633,28 @@ export function App() {
             break;
           case 'hatched':
             pop('Hatched!', e.lane, e.depth, 'pop-note');
+            break;
+          case 'hopped':
+            pop('Hop!', e.to, e.depth, 'pop-note');
+            break;
+          case 'galeWarning':
+            fx.laneFlash[e.from] = 0.6;
+            fx.laneFlash[e.to] = 0.6;
+            fx.flashColor[e.from] = PALETTE.dim;
+            fx.flashColor[e.to] = PALETTE.dim;
+            pop('Gale coming', e.from, 80_000, 'pop-note');
+            pop('Gale coming', e.to, 80_000, 'pop-note');
+            break;
+          case 'gale':
+            fx.laneFlash[e.from] = 0.6;
+            fx.laneFlash[e.to] = 0.6;
+            fx.flashColor[e.from] = PALETTE.cream;
+            fx.flashColor[e.to] = PALETTE.cream;
+            pop('Gale!', e.to, 30_000, 'pop-leak');
+            break;
+          case 'lightning':
+            fx.laneMiss[e.lane] = Math.max(fx.laneMiss[e.lane] ?? 0, 0.5);
+            pop('Lightning', e.lane, e.slot === 0 ? 70_000 : 48_000, 'pop-leak');
             break;
           case 'split':
             pop('Split!', e.lane, e.depth, 'pop-note');

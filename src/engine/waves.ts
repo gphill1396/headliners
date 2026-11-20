@@ -23,7 +23,8 @@ import {
 } from './constants';
 import type { TickCtx } from './context';
 import { teamOf, unevolved } from './evolution';
-import { gainCrowd } from './effects';
+import { removeBrokenGates } from './combat';
+import { gainCrowd, swapLaneUnits } from './effects';
 import { createRng, nextInt, shuffleInPlace, type RngState } from './rng';
 import { emptyChain, type EngineState } from './state';
 import type { EnemyKind } from './types';
@@ -45,13 +46,33 @@ export const DEBUT_WAVE: Record<EnemyKind, number> = {
   medic: 11,
   ghost: 12,
   nest: 13,
+  boggart: 15,
+  golem: 17,
   hush: BOSS_EVERY_WAVES,
   critic: BOSS_EVERY_WAVES * 2,
   'dead-air': BOSS_EVERY_WAVES * 3,
+  tempest: BOSS_EVERY_WAVES * 4,
 };
 
-/** The bosses, in the order they turn up: Encore cycles through them every 10th wave; Tour acts 1–3 get one each. */
-export const BOSS_ORDER: EnemyKind[] = ['hush', 'critic', 'dead-air'];
+/**
+ * The bosses, in the order they turn up: Encore cycles through all four every 10th wave.
+ * Tour acts 1–3 get the first three; from Heat 4 The Tempest takes act 2 (tourBoss).
+ */
+export const BOSS_ORDER: EnemyKind[] = ['hush', 'critic', 'dead-air', 'tempest'];
+
+/** Heat at which The Tempest replaces The Black Knight as the act 2 boss. */
+export const TEMPEST_HEAT = 4;
+
+/** The boss that ends a Tour act. */
+export function tourBoss(act: number, heat: number): EnemyKind {
+  if (act === 2 && heat >= TEMPEST_HEAT) return 'tempest';
+  return BOSS_ORDER[(act - 1) % 3]!;
+}
+
+/** The Tempest: beats between gales (phase 1) and between lightning strikes (phase 2), and what a strike costs a gate. */
+export const GALE_EVERY_BEATS = 8;
+export const LIGHTNING_EVERY_BEATS = 6;
+export const LIGHTNING_DAMAGE = 20;
 
 export function bossForWave(index: number): EnemyKind {
   return BOSS_ORDER[(Math.max(1, Math.floor(index / BOSS_EVERY_WAVES)) - 1) % BOSS_ORDER.length]!;
@@ -110,11 +131,20 @@ export function cleanSet(state: EngineState, ctx: TickCtx): void {
  */
 export function bossCalls(state: EngineState, ctx?: TickCtx): void {
   if (ctx) bossVerse(state, ctx);
+  if (ctx) tempestWeather(state, ctx);
   const boss = state.boss;
   if (!boss || state.clock.beat < boss.nextBruteBeat) return;
   const kind = bossKind(state);
   const call: EnemyKind | null =
-    kind === 'hush' && boss.phase === 3 ? 'brute' : kind === 'critic' && boss.phase === 3 ? 'medic' : kind === 'dead-air' && boss.phase >= 2 ? 'ghost' : null;
+    kind === 'hush' && boss.phase === 3
+      ? 'brute'
+      : kind === 'critic' && boss.phase === 3
+        ? 'medic'
+        : kind === 'dead-air' && boss.phase >= 2
+          ? 'ghost'
+          : kind === 'tempest' && boss.phase === 3
+            ? 'boggart'
+            : null;
   if (!call) return;
   spawnGroup(state, call);
   boss.nextBruteBeat = state.clock.beat + BOSS_BRUTE_EVERY_BEATS;
@@ -131,6 +161,46 @@ function bossVerse(state: EngineState, ctx: TickCtx): void {
   state.chain = emptyChain();
 }
 
+/**
+ * The Tempest's weather, once per beat. Phase 1, Gale: every 8 beats the wind swaps two lanes'
+ * units (the lanes are named a beat ahead). Phase 2, Lightning: every 6 beats a bolt hits the
+ * gate with the most durability left.
+ */
+function tempestWeather(state: EngineState, ctx: TickCtx): void {
+  const boss = state.boss;
+  if (!boss || bossKind(state) !== 'tempest' || boss.phase === 3) return;
+  const beat = state.clock.beat;
+  const every = boss.phase === 1 ? GALE_EVERY_BEATS : LIGHTNING_EVERY_BEATS;
+  if (boss.nextWeatherBeat === undefined) boss.nextWeatherBeat = beat + every;
+  if (boss.phase === 1) {
+    if (beat === boss.nextWeatherBeat - 1 && state.units.length > 0) {
+      // The lane with the most of your band, and one of the other two (they take turns).
+      let from = 0;
+      for (let l = 1; l < LANES; l++) if (state.units.filter((u) => u.lane === l).length > state.units.filter((u) => u.lane === from).length) from = l;
+      const to = (from + 1 + (Math.floor(beat / GALE_EVERY_BEATS) % 2)) % LANES;
+      boss.gale = { from, to };
+      ctx.events.push({ type: 'galeWarning', from, to });
+    }
+    if (beat >= boss.nextWeatherBeat) {
+      if (boss.gale) {
+        const { from, to } = boss.gale;
+        ctx.events.push({ type: 'gale', from, to, unitIds: swapLaneUnits(state, from, to, beat + 1) });
+        delete boss.gale;
+      }
+      boss.nextWeatherBeat = beat + every;
+    }
+    return;
+  }
+  if (beat < boss.nextWeatherBeat) return;
+  boss.nextWeatherBeat = beat + every;
+  let target = null as EngineState['gates'][number] | null;
+  for (const g of state.gates) if (g.durability > 0 && (!target || g.durability > target.durability || (g.durability === target.durability && g.id < target.id))) target = g;
+  if (!target) return;
+  target.durability -= LIGHTNING_DAMAGE;
+  ctx.events.push({ type: 'lightning', gateId: target.id, lane: target.lane, slot: target.slot, amount: LIGHTNING_DAMAGE });
+  if (target.durability <= 0) removeBrokenGates(state, ctx, [target]);
+}
+
 /** Keep The Hush's phase in step with its health. Call every tick. */
 export function updateBoss(state: EngineState, ctx: TickCtx): void {
   const boss = state.boss;
@@ -141,6 +211,9 @@ export function updateBoss(state: EngineState, ctx: TickCtx): void {
   if (phase <= boss.phase) return;
   boss.phase = phase;
   boss.nextBruteBeat = state.clock.beat + 1;
+  // The Tempest: the weather changes with the phase.
+  delete boss.gale;
+  delete boss.nextWeatherBeat;
   // The Critic drops its armor after phase 1.
   if (bossKind(state) === 'critic' && phase >= 2) hush.armor = 0;
   ctx.events.push({ type: 'bossPhase', phase, boss: bossKind(state)! });
@@ -313,6 +386,14 @@ export function enemyAbilities(state: EngineState, ctx: TickCtx): void {
       }
       if (healed > 0) ctx.events.push({ type: 'healed', lane: m.lane, depth: m.depth, amount: healed });
     }
+    if (def.hops && (beat + m.id) % def.hops.everyBeats === 0) {
+      // A Boggart hops to the neighbouring lane with less firepower aimed up it (ties: they take turns).
+      const sides = [m.lane - 1, m.lane + 1].filter((l) => l >= 0 && l < LANES);
+      const power = sides.map((l) => laneFirepower(state, l));
+      const to = sides.length === 1 || power[0]! < power[1]! ? sides[0]! : power[1]! < power[0]! ? sides[1]! : sides[(beat + m.id) % 2]!;
+      ctx.events.push({ type: 'hopped', enemyId: m.id, from: m.lane, to, depth: m.depth });
+      m.lane = to;
+    }
     if (def.hatches && (beat + m.id) % def.hatches.everyBeats === 0) {
       const first = state.enemies.length;
       spawnGroup(state, def.hatches.kind, m.lane, undefined, m.depth, def.hatches.count);
@@ -320,6 +401,21 @@ export function enemyAbilities(state: EngineState, ctx: TickCtx): void {
       ctx.events.push({ type: 'hatched', lane: m.lane, depth: m.depth, count: def.hatches.count });
     }
   }
+}
+
+/** Damage per beat your band sends up a lane: the units standing in it, or turning their shots into it. */
+export function laneFirepower(state: EngineState, lane: number): number {
+  let total = 0;
+  for (const u of state.units) {
+    const dps = (u.damage * 2) / u.fireEvery;
+    if (!u.turns) {
+      if (u.lane === lane) total += dps;
+    } else if (u.lane !== lane && (u.lane === lane - 1 || u.lane === lane + 1)) {
+      // A turning unit in the middle splits its shots left and right.
+      total += u.lane === 1 ? dps / 2 : dps;
+    }
+  }
+  return total;
 }
 
 /** The horde grows as the show goes on: one more Shambler per pack every 6 waves after wave 6, two more Swarmlings every 6 after wave 9. */

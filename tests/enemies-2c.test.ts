@@ -77,11 +77,12 @@ test('Ghost: shots pass through it on beats 2 and 4, and land on beats 1 and 3',
 // ---------------------------------------------------------------- bosses
 
 test('three bosses: The Hush, The Critic, Dead Air, in that order, every 10 waves', () => {
-  assert.deepEqual(BOSS_ORDER, ['hush', 'critic', 'dead-air']);
+  assert.deepEqual(BOSS_ORDER, ['hush', 'critic', 'dead-air', 'tempest']);
   assert.equal(bossForWave(10), 'hush');
   assert.equal(bossForWave(20), 'critic');
   assert.equal(bossForWave(30), 'dead-air');
-  assert.equal(bossForWave(40), 'hush');
+  assert.equal(bossForWave(40), 'tempest');
+  assert.equal(bossForWave(50), 'hush');
 });
 
 /** A field with the boss of wave `index` on it, and nothing else. */

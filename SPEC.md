@@ -827,6 +827,78 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 - **Energy cap on Tour (Oct 27, tried, not shipped):** since Thrum's bot sat at the cap so often, a Tour-only cap of 9 and of 8 energy were tested (30 per team). Cap 9: solo T1 1.32×, bands 93% / 66% / 31%, T4 2.23×. Cap 8: T1 1.34×, bands 93% / 67% / 32%, T4 2.33×. Overall difficulty didn't move (before: 92% / 64% / 30%), so the surplus energy isn't what wins Tours; the T4 change is within noise. Reverted. Every band, Thrum or not, wins 80–100% at Heat 0, so Heat 0 is easy for everyone, not just Thrum.
 - **Decision (Oct 27, Grant):** playtest before any more Tour tuning. Grant and Cass play a few Tours; the Tour log (S4.13) records band, Heat, result and timing, and Copy log sends it.
 - **Open:** whether the gap is the game or the bot (the sim bot may simply play Thrum's cards better). Real Tour plays by Grant and Cass, noting band and Heat, would settle it before more tuning.
+
+### Content pass 2d — catching up to §6 (PROPOSED, Nov 20; not approved yet)
+
+**Why:** every phase is marked done, but the pool is short of §6. It has 62 playable cards (target ~90 for Phase 2, ~130 for Phase 3), 5 of 6 headliners, 12 of 14 monsters and 3 of 4 bosses. D1 sits right on 3.00×, and new answers and choices are the depth lever that doesn't fight Tour balance. *(Spec deviation: §6's targets were never met. This pass closes the Phase 2 gap. Monsters 13–14 and the fourth boss are a later pass, 2e.)*
+
+**Budget:** +28 cards (to 90). All numbers below are starting values; the sim sets the final ones. The +28 are a sixth headliner's 9, 9 neutral and 2 per existing headliner. It also answers the open speaker question in §12 (a speaker on a unit slot, and a shot fanned across lanes).
+
+**New engine parts** (data parts per §6, each with a unit test; nothing else needs new code):
+1. Unit stat `turns: true`: the unit's shots turn into the next lane over, using the same rule as the `aim` gate.
+2. Gate kind `fan`: each shot through it becomes 3, one up each lane (durability drains 3 per shot).
+3. Effect scope `'beside'`: this lane plus the lanes next to it, for `damageLane`, `damageFront`, `volley` and `slow`.
+4. Effect `squireTime: n`: Squires already on stage stay `n` beats longer.
+5. Rule flag `freeShift`: one Shift a bar costs 0, and moved units don't skip firing (Herald evolution only).
+
+**S2.5 Fanfare, the griffin herald (sixth headliner)**
+*As a player, I want a headliner who wins by aiming the band across lanes, so lane-reading becomes a skill of its own.*
+- [ ] Passive: shots that turn lanes (through a Horn or from a turning unit) gain +3 damage and Pierce 1.
+- [ ] Ability **Fanfare** (cooldown 14 beats, graded on the beat like the others): for 2 beats, every unit's shots fan out, one up each lane.
+- [ ] Evolutions: **Crossfire** (turned shots hit flyers and get past shields) / **Royal Decree** (`freeShift`).
+- [ ] Band: brass. Natural horn and sackbut on the chords, a shawm lead, herald trumpet calls on beat 1. Song style: a processional in C major, straight eighths.
+- [ ] 9 signature cards (table below). The team starter takes Herald (core), Hunting Horn (flyers) and Summons (priority).
+- [ ] Portrait and unit sprites at the S4.2 bar. Encore D1–D8 and Tour T1–T4 still pass.
+
+| Card | Type | Cost | Rarity | Does | Short |
+|---|---|---|---|---|---|
+| Herald | unit | 2 | starter | 3 dmg, every beat, `turns` | Shoots next door |
+| Hunting Horn | unit | 2 | starter | 2 dmg, every beat, Anti-Air, `turns` | Turns shots at flyers |
+| Summons | riff | 1 | starter | `damageFront` 6, priority, scope `beside` | Calls out the leaders |
+| Triple Bell | gate | 3 | rare | `fan`, durability 30 | One shot, three lanes |
+| Call to Arms | riff | 1 | common | `volley` 1 in the lane, the shots turn, Echo | The lane fires sideways |
+| Ricochet | riff | 2 | common | `damageLane` 4, scope `beside` | Hits three lanes |
+| Shawm | unit | 3 | common | 5 dmg, every 2 beats, Priority | Picks off leaders |
+| Processional | amp | 3 | rare | Beat 1: units in a lane with a Horn fire 1 shot | Horns rally the band |
+| Grand Entrance | riff | 3 | rare | Encore: on a 3+ chain, every unit fires 2 and gates repair 10 | The big finish |
+
+**S2.6 The pool grows to ~90**
+*As a player, I want more cards that answer threats in different ways, so drafts and decks don't settle into one shape.*
+- [ ] 9 neutral cards, and 2 more for each existing headliner (tables below). Each has a short tagline and flavor, and rules text from `text.ts`.
+- [ ] Every monster gains at least one more answer outside Fanfare's cards.
+- [ ] D4 (no must-pick) and D5 (no single damage source) hold with the bigger pool. D1 must not drop below 3.00×.
+- [ ] The Songbook, Collection unlocks and Workshop synergy links pick the new cards up with no special cases.
+
+| Neutral | Type | Cost | Rarity | Does | Answers |
+|---|---|---|---|---|---|
+| Pikeman | unit | 3 | common | 3 dmg, every beat, Pierce 2 | Spiderlings, Hobgoblin |
+| Crossbow | unit | 4 | rare | 14 dmg, every 2 beats, ignores armor | Ogre, Black Knight |
+| Brass Ring | gate | 1 | common | +2 damage, durability 12 | cheap gate |
+| Caltrops | riff | 2 | common | `slow` lane 50% for 3 beats | Warg |
+| Juggling Clubs | riff | 1 | common | `volley` 1 in the lane, Echo | filler with tempo |
+| Bonfire | riff | 3 | rare | `damageLane` 12, Feedback 1 | Brood Mother, packs |
+| Pass the Hat | riff | 0 | common | +1 energy, draw 1 | smooths the curve |
+| Standard Bearer | unit | 2 | common | 2 dmg; beat 1: the lane fires 1 | support |
+| Post Horn | gate | 2 | common | `aim`, durability 24, +1 Pierce through it | Hobgoblin (side shots) |
+
+| Headliner | Card | Type | Cost | Rarity | Does |
+|---|---|---|---|---|---|
+| Thrum | Timpani Roll | riff | 2 | common | `damageAll` 3; on beat 1, 6 instead |
+| Thrum | Quickstep | unit | 1 | common | 1 dmg every eighth, Volume 1 |
+| Lyra | Prism Harp | gate | 3 | rare | +2 Pierce, durability 40 |
+| Lyra | Encore Bow | riff | 1 | common | Repair all gates 10, draw 1 |
+| Clatter | Squire's Oath | amp | 3 | rare | Beat 1: `squireTime` 2 |
+| Clatter | Wheelbarrow | riff | 1 | common | 2 Squires in the lane |
+| Aria | Echo Canyon | riff | 2 | common | `slow` all to 70% for 1 beat, Echo |
+| Aria | Duet | unit | 3 | rare | 4 dmg, every beat; beat 1: slow the lane 2 beats |
+| Riot | Mosh | riff | 2 | common | `damageLane` 6, Feedback 1 |
+| Riot | Drone | unit | 2 | common | 2 dmg, every beat, Volume 1 |
+
+**What changes elsewhere** (each needs Grant's OK):
+- **Daily Setlist:** 6 headliners make 20 bands of 3, not 10. The rotation keeps the same rule (every band in turn, the lead rotating each cycle).
+- **Tour sim:** `sim:tour` at 30 runs per band doubles to about 24 minutes. Proposal: 20 per band for routine checks, 30 before shipping.
+- **Encore pick:** the title screen's headliner row gains a sixth portrait. It must still fit one row on a 375 px phone.
+- **Build order:** engine parts and tests, then the cards, the sim and a tuning pass, then Fanfare, sim, tuning. Art and music come last, so balance doesn't wait on them.
 ---
 
 ### Phase 5 — Release (buy once, the full game)

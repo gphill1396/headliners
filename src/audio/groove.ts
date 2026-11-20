@@ -226,6 +226,40 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, tBea
         if (chill && inBar % 2 === 1) break;
         synth.bell(tu, chord.notes[2]! + 12, 0.7, 0.7 * v, dest);
         break;
+      // ---- Content pass 2d ----
+      case 'pikeman':
+        // A pike grounded on the boards, and the swish of the thrust.
+        if (chill && !onBeat) break;
+        synth.tom(tu, 43, 0.5 * v, dest);
+        synth.whoosh(tu, 0.3 * v, dest, false, 0.08);
+        break;
+      case 'crossbow':
+        // The bolt's thunk, low and heavy.
+        synth.boom(tu, 0.7 * v, dest);
+        synth.whoosh(tu, 0.4 * v, dest, true, 0.06);
+        break;
+      case 'standard-bearer':
+        // The banner's pole on the boards; a bell on 1 when the lane rallies.
+        if (chill && !onBeat) break;
+        synth.tom(tu, 45, 0.45 * v, dest);
+        if (onBeat && inBar === 0) synth.bell(tu, chord.root + 24, 0.4, 0.5 * v, dest);
+        break;
+      case 'quickstep':
+        // Quick march: a light snare on every eighth.
+        if (chill && !onBeat) break;
+        synth.snare(tu, (onBeat ? 0.4 : 0.22) * v, dest);
+        break;
+      case 'duet':
+        // Two voices a third apart on 1 and 3.
+        if (onBeat && inBar % 2 === 0) {
+          synth.voice(tu, chord.notes[0]! + 12, eighthSec * 1.8, 0.5 * v, dest, 'ah', SHOT_ATTACK);
+          if (!chill) synth.voice(tu, chord.notes[1]! + 12, eighthSec * 1.8, 0.4 * v, dest, 'oo', SHOT_ATTACK);
+        }
+        break;
+      case 'drone':
+        // The bagpipes' drone: one long low note, restruck on the beat.
+        if (onBeat) synth.pipes(tu, chord.root, eighthSec * 2, 0.4 * v, dest);
+        break;
       default:
         synth.tom(tu, 48, 0.7 * v, dest);
     }
@@ -341,6 +375,39 @@ export function playRiff(synth: Synth, cardId: string, lane: number, beat: numbe
       synth.clank(t, 0.8 * level, dest, 0.9);
       synth.clank(t + sixteenth, 0.7 * level, dest, 1.1);
       synth.gurdy(t + 2 * sixteenth, chord.root + 24, 0.35, 0.6 * level, dest);
+      break;
+    // ---- Content pass 2d ----
+    case 'caltrops':
+      for (let i = 0; i < 3; i++) synth.clank(t + i * (sixteenth / 2), 0.4 * level, dest, 1.6 + i * 0.2);
+      break;
+    case 'juggling-clubs':
+      synth.whoosh(t, 0.4 * level, dest, false, 0.12);
+      synth.tom(t + sixteenth, 60, 0.4 * level, dest);
+      break;
+    case 'bonfire':
+      synth.crash(t);
+      synth.boom(t, 0.8 * level, dest);
+      synth.whoosh(t + sixteenth, 0.5 * level, dest, true, 0.3);
+      break;
+    case 'pass-the-hat':
+      synth.jingle(t, true, dest);
+      break;
+    case 'thunder-roll':
+      for (let i = 0; i < 6; i++) synth.tom(t + i * (sixteenth / 2), 40 + (i % 2) * 7, (0.5 + i * 0.08) * level, dest);
+      break;
+    case 'fresh-strings':
+      chord.notes.forEach((m, i) => synth.lute(t + i * 0.03, m + 12, 0.6, 0.5 * level, dest));
+      break;
+    case 'wheelbarrow':
+      synth.clank(t, 0.7 * level, dest, 0.7);
+      synth.clank(t + sixteenth, 0.6 * level, dest, 0.75);
+      break;
+    case 'echo-canyon':
+      for (let i = 0; i < 3; i++) synth.voice(t + i * sixteenth * 2, chord.notes[2]! + 24, 0.45, (0.6 - i * 0.15) * level, dest, 'ah');
+      break;
+    case 'rabble-rouser':
+      synth.punk(t, chord.root + 24, 0.3, level, dest);
+      synth.crash(t + sixteenth);
       break;
     default:
       synth.stab(t, [chord.root + 24, chord.root + 31], 0.25, 0.7 * level, dest);

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { GATE_DEPTHS, type CardDef, type Effect, type EngineState } from '../src/engine';
+import { GATE_DEPTHS, getCard, type CardDef, type Effect, type EngineState } from '../src/engine';
 import { createCtx } from '../src/engine/context';
 import { lanesFor, runEffects } from '../src/engine/effects';
 import { cardText } from '../src/content/text';
@@ -157,4 +157,48 @@ test('rules text covers the new parts', () => {
   assert.equal(cardText(ricochet), 'Riff. Deal 4 to every enemy in this lane and the lanes beside it.');
   const oath: CardDef = { ...base, type: 'amp', triggers: [{ when: 'downbeat', link: false, effects: [{ do: 'squireTime', beats: 2 }] }] };
   assert.equal(cardText(oath), 'Amp. On every beat 1: Squires on stage stay 2 beats longer (never more than twice their usual stay).');
+});
+
+// ---- the cards that use them (step 2) ----
+
+test('Bonfire burns its lane and the lanes beside it, for a point of crowd', () => {
+  const s = testState('bonfire');
+  noWaves(s);
+  const crowd = s.crowd;
+  const [a, b, c] = [0, 1, 2].map((lane) => addEnemy(s, { lane, depth: 30_000, hp: 200, maxHp: 200 }));
+  playOnBeat(s, 'bonfire', 0);
+  assert.ok(a!.hp < 200 && b!.hp < 200, 'its lane and the next');
+  assert.equal(c!.hp, 200, 'not the far lane');
+  assert.equal(s.crowd, crowd - 1);
+});
+
+test("Squire's Oath keeps Squires on stage longer every beat 1", () => {
+  const s = testState('oath');
+  noWaves(s);
+  playOnBeat(s, 'squires-oath', 1);
+  run(s, [{ do: 'roadie', count: 1 }], 0);
+  const squire = s.units.find((u) => u.token)!;
+  const due = squire.expiresBeat!;
+  while (s.clock.beat % 4 !== 0) nextBeat(s);
+  nextBeat(s);
+  assert.ok(squire.expiresBeat! > due, `${squire.expiresBeat} > ${due}`);
+});
+
+test('Wheelbarrow brings two Squires; Caltrops slows the lane', () => {
+  const s = testState('wheelbarrow');
+  noWaves(s);
+  playOnBeat(s, 'wheelbarrow', 2);
+  assert.equal(s.units.filter((u) => u.token && u.lane === 2).length, 2);
+  const e = addEnemy(s, { lane: 1, depth: 30_000, speed: 100 });
+  playOnBeat(s, 'caltrops', 1);
+  assert.ok((e.slowUntilBeat ?? -1) > s.clock.beat);
+});
+
+test('every new card has its text, and its numbers match the data', () => {
+  for (const id of ['pikeman', 'crossbow', 'brass-ring', 'caltrops', 'juggling-clubs', 'bonfire', 'pass-the-hat', 'standard-bearer', 'post-horn',
+    'thunder-roll', 'quickstep', 'glass-harp', 'fresh-strings', 'squires-oath', 'wheelbarrow', 'echo-canyon', 'duet', 'rabble-rouser', 'drone']) {
+    const text = cardText(getCard(id));
+    assert.ok(text.length > 10, id);
+  }
+  assert.equal(cardText(getCard('bonfire')), 'Riff. Deal 14 to every enemy in this lane and the lanes beside it. Feedback: lose 1 crowd.');
 });

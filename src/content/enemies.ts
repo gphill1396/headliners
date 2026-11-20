@@ -33,7 +33,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     armor: 0,
     travelBeats: 9,
     crowdDamage: 1,
-    packSize: 10,
+    packSize: 11,
   },
   bat: {
     kind: 'bat',
@@ -71,7 +71,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     crowdDamage: 4,
     packSize: 1,
     shieldHits: 8,
-    answers: ['side-fill', 'toolbox', 'bassline'],
+    answers: ['side-fill', 'toolbox', 'bassline', 'post-horn', 'pikeman'],
   },
   hexer: {
     kind: 'hexer',
@@ -126,7 +126,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     crowdDamage: 5,
     packSize: 1,
     charge: { atDepth: 46_000, slowPct: 55, fastPct: 230 },
-    answers: ['lullaby', 'siren-call', 'vibrato', 'heckle', 'power-chord'],
+    answers: ['lullaby', 'siren-call', 'vibrato', 'heckle', 'power-chord', 'caltrops'],
   },
   medic: {
     kind: 'medic',
@@ -153,7 +153,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
     crowdDamage: 3,
     packSize: 1,
     hatches: { kind: 'swarmling', count: 2, everyBeats: 5 },
-    answers: ['fuzz', 'skater', 'power-slide', 'feedback-loop', 'smash-the-guitar'],
+    answers: ['fuzz', 'skater', 'power-slide', 'feedback-loop', 'smash-the-guitar', 'bonfire', 'rabble-rouser'],
   },
   ghost: {
     kind: 'ghost',

@@ -335,6 +335,40 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
           const worn = s.gates.filter((g) => g.lane === lane).reduce((sum, g) => sum + (g.maxDurability - g.durability), 0);
           return (s.energy < 4 ? 8 : 3) + Math.min(worn, 20) * 0.3;
         }
+        // ---- Content pass 2d ----
+        case 'caltrops': {
+          const close = enemiesInLane.filter((e) => e.depth > 50_000).length;
+          return enemiesInLane.length * 2 + close * 4;
+        }
+        case 'juggling-clubs':
+          return laneDps * 1.1 + (unitsInLane.length > 0 ? 2 : 0);
+        case 'pass-the-hat':
+          return s.energy < 4 ? 8 : 3;
+        case 'thunder-roll': {
+          const all = s.enemies.filter((e) => e.depth >= 0).length;
+          return all * (s.clock.beat % 4 === 3 ? 3 : 1.6);
+        }
+        case 'fresh-strings': {
+          const worn = s.gates.reduce((sum, g) => sum + Math.min(8, g.maxDurability - g.durability), 0);
+          return 3 + worn * 0.3;
+        }
+        case 'wheelbarrow': {
+          const free = Math.max(0, UNIT_SLOTS - unitsInLane.length);
+          return Math.min(2, free) * roadieValue(s, lane) + (enemiesInLane.length > 0 ? 2 : 0);
+        }
+        case 'echo-canyon': {
+          const all = s.enemies.filter((e) => e.depth >= 0);
+          return all.length * 1.2 + all.filter((e) => e.depth > 50_000).length * 2;
+        }
+        case 'bonfire':
+        case 'rabble-rouser': {
+          // Feedback across three lanes: worth it when it stops more than a point of crowd from leaking.
+          const hit = (def.id === 'bonfire' ? 14 : 10) * 1.3;
+          const near = s.enemies.filter((e) => e.depth >= 0 && Math.abs(e.lane - lane) <= 1);
+          const saved = near.filter((e) => e.depth > 40_000 && e.hp <= hit).reduce((sum, e) => sum + e.crowdDamage, 0);
+          const chip = near.reduce((sum, e) => sum + Math.min(e.hp, hit), 0);
+          return (saved - 1) * 8 + chip * 0.15 - (s.crowd < 10 ? 20 : 0);
+        }
         default:
           return 3;
       }
@@ -348,6 +382,7 @@ function estimateValue(def: CardDef, lane: number, s: EngineState, threat: numbe
       if (def.id === 'wall-of-death') return 4 + s.enemies.length * 0.8;
       if (def.id === 'four-on-the-floor') return 4 + s.units.length * 2.5;
       if (def.id === 'resonance') return 4 + s.gates.length * 3;
+      if (def.id === 'squires-oath') return 4 + s.units.filter((u) => u.token).length * 3;
       return 6 + s.units.length * 2;
     }
   }

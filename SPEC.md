@@ -894,6 +894,15 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 | Riot | Mosh | riff | 2 | common | `damageLane` 6, Feedback 1 |
 | Riot | Drone | unit | 2 | common | 2 dmg, every beat, Volume 1 |
 
+**As built so far (Nov 20, branch `content-2d`):**
+- **Step 1, engine parts:** `turns`, `fan`, scope `'beside'` (on `damageLane`, `damageFront`, `slow`, `volley`, `roadie` and `repairGates`; a boss across the lanes is hit once) and `squireTime` are in, each with tests (`tests/content-2d-parts.test.ts`) and generated rules text. `freeShift` waits for Fanfare, since it belongs to her Royal Decree evolution. The 200-run sim was unchanged.
+- **Step 2, the 19 non-Fanfare cards:** all in, with bot values, sounds and answer lists. Pool: 81 playable cards.
+  - Deviations from the tables: **Crossbow** doesn't ignore armor (14-damage bolts are the answer to armor by themselves, with no new part). **Post Horn** is a cheap Horn (cost 1, 18 durability) with no Pierce bonus. A gate has one kind, and a second kind would need a new part. Riot's "Mosh" is **Rabble-Rouser** (Feedback, 10 to three lanes), because "mosh" broke the ren faire theme. Lyra's "Encore Bow" is **Fresh Strings** and "Prism Harp" is **Glass Harp**, Thrum's "Timpani Roll" is **Thunder Roll**, and **Drone** pierces instead of gaining Volume (Riot had no Pierce, and Town Crier already covers Volume).
+  - New answers: Hobgoblin + Post Horn, Pikeman. Warg + Caltrops. Brood Mother + Bonfire, Rabble-Rouser. No new card answers flyers or priority targets, so the "every monster gains an answer" criterion isn't met for Harpies, Hags, Trolls and Shamans. That waits for Fanfare (Hunting Horn, Summons, Shawm).
+  - **Balance:** at first D6 failed (Spiderlings 4.5% of losses), since the new Pierce, Splash and three-lane cards answer swarms. Weakening Pikeman (Pierce 1) or Thunder Roll (3/6) didn't move it. *Shipped:* Spiderlings come in **packs of 11** (was 10).
+  - **Results** at 200 runs per bot: median wave Thrum 22, Lyra 21, Riot 20, Clatter 19, Aria 18, random 6. All D1–D8 pass: D1 3.00× (Aria, on the line, as before the pass), D2 6.8×, D3 1.22×, **D4 27.6%** (was 38.8%), D5 16.7%, D6 5.6%, D7 3.0, D8 0.2%.
+  - **Tour** (`sim:tour`, 80 solo, 30 per band): solo Thrum 99%, Aria 85%, Lyra 79%, Clatter 76%, Riot 71%, so T1 passes at 1.39×. Bands win 89% / 61% / 28% at Heat 0/5/10, so T2 still fails on the easy side, as before (was 92% / 64% / 30%). T3 passes. **T4 fails at 2.70×** (best Thrum + Aria + Riot 90%, worst Lyra + Clatter + Aria 33%; it was 2.45× with 37% at the bottom). At 30 runs a band that gap is within noise. Not tuned, per Grant's call to playtest before more Tour tuning.
+
 **What changes elsewhere** (each needs Grant's OK):
 - **Daily Setlist:** 6 headliners make 20 bands of 3, not 10. The rotation keeps the same rule (every band in turn, the lead rotating each cycle).
 - **Tour sim:** `sim:tour` at 30 runs per band doubles to about 24 minutes. Proposal: 20 per band for routine checks, 30 before shipping.

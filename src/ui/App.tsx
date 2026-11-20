@@ -255,6 +255,8 @@ function gateLabel(kind: Hud['gates'][number]['kind'], amount: number, lane: num
       return 'Vibrato';
     case 'lift':
       return 'Anti-Air';
+    case 'fan':
+      return '↖ ↑ ↗';
   }
 }
 

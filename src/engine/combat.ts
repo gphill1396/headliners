@@ -32,6 +32,8 @@ import type { EngineState, Enemy, Gate, Projectile, Unit } from './state';
 const HIT_OFFSET = 2_000;
 const SLOT_X = [200, 500, 800];
 const LYRA_GATE_BONUS = 2;
+/** A fan gate's shot goes up every lane, so it wears the gate that many times. */
+const FAN_LANES = LANES;
 /** Each Splitter piece that gets through costs this much crowd. */
 const SPLITTER_PIECE_CROWD = 2;
 
@@ -41,10 +43,13 @@ export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct:
   const mosh = unit.token === true && evolvedInto(state, 'mosh-pit') && state.units.filter((u) => u.token).length >= MOSH_PIT_TOKENS;
   for (let s = 0; s < shots; s++) {
     if (state.projectiles.length >= MAX_PROJECTILES) return;
+    const id = state.nextId++;
+    // A turning unit (Herald) sends its shots into the next lane over, in from the side.
+    const lane = unit.turns ? aimLane(unit.lane, id) : unit.lane;
     state.projectiles.push({
-      id: state.nextId++,
-      lane: unit.lane,
-      x: (SLOT_X[unit.slot] ?? 500) + ((s % 3) - 1) * 60,
+      id,
+      lane,
+      x: lane === unit.lane ? (SLOT_X[unit.slot] ?? 500) + ((s % 3) - 1) * 60 : sideX(unit.lane, lane),
       // Multiple shots leave in a short burst, not stacked on one pixel.
       depth: STAGE_LINE - s * 1_400,
       damage: (unit.damage * multPct) / 100,
@@ -52,10 +57,23 @@ export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct:
       splash: unit.splash || mosh,
       ...(unit.antiAir ? { antiAir: true } : {}),
       ...(unit.priority ? { priority: true } : {}),
+      ...(lane !== unit.lane ? { side: true } : {}),
       gatesPassed: 0,
       sourceCardId: unit.cardId,
     });
   }
+}
+
+/** Where a Horn sends a shot: edge lanes aim at the middle; the middle alternates left and right, shot by shot. */
+export function aimLane(lane: number, shotId: number): number {
+  if (lane === 0) return 1;
+  if (lane === LANES - 1) return LANES - 2;
+  return shotId % 2 === 0 ? lane - 1 : lane + 1;
+}
+
+/** A shot turned from one lane into another enters from the side it came from. */
+function sideX(from: number, to: number): number {
+  return to < from ? 880 : 120;
 }
 
 /** Deal damage to one enemy, after armor. Returns damage actually dealt (overkill not counted). */
@@ -369,13 +387,22 @@ function applyGate(state: EngineState, p: Projectile, g: Gate): boolean {
       p.slows = true;
       break;
     case 'aim': {
-      // Edge lanes aim at the middle; the middle alternates left and right, shot by shot.
-      const target = g.lane === 0 ? 1 : g.lane === LANES - 1 ? LANES - 2 : p.id % 2 === 0 ? g.lane - 1 : g.lane + 1;
-      p.x = target < g.lane ? 880 : 120; // enters from the side it came from
+      const target = aimLane(g.lane, p.id);
+      p.x = sideX(g.lane, target);
       p.lane = target;
       p.depth = g.depth;
       p.side = true;
       return true;
+    }
+    case 'fan': {
+      // One shot up each lane: the original carries on, a copy turns into each other lane.
+      g.durability -= FAN_LANES - 1;
+      for (let lane = 0; lane < LANES; lane++) {
+        if (lane === g.lane) continue;
+        if (state.projectiles.length >= MAX_PROJECTILES) break;
+        state.projectiles.push({ ...p, id: state.nextId++, lane, x: sideX(g.lane, lane), depth: g.depth, side: true });
+      }
+      break;
     }
   }
   return false;

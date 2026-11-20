@@ -49,6 +49,8 @@ export interface Unit {
   antiAir?: boolean;
   /** Shots go for priority targets first. */
   priority?: boolean;
+  /** Shots turn into the next lane over (Herald). */
+  turns?: boolean;
   /** Volume counters gained (each already added to damage). */
   volume?: number;
   /** Shift (S4.3): walking to a new lane, so no firing before this beat. */

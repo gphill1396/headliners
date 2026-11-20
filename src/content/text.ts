@@ -1,4 +1,4 @@
-import type { CardDef, Effect, Keyword, Trigger } from '../engine/types';
+import type { CardDef, Effect, Keyword, Scope, Trigger } from '../engine/types';
 
 /**
  * Rules text generated from a card's effect data (SPEC §6), so the words on a
@@ -15,6 +15,7 @@ export function cardText(def: CardDef): string {
       if (u.splash) s += ' Splash.';
       if (u.antiAir) s += ' Anti-Air: its shots hit flyers.';
       if (u.priority) s += ' Priority: its shots fly past other enemies to hit Trolls, Hags, Shamans and bosses first.';
+      if (u.turns) s += ' Horn: its shots turn into the next lane over (from the middle, alternating left and right), and side shots get past Hobgoblin shields.';
       if (u.lifespanBeats) s += ` Leaves after ${u.lifespanBeats} beats.`;
       parts.push(s);
       break;
@@ -78,6 +79,8 @@ function gateEffect(kind: NonNullable<CardDef['gate']>['kind'], amount: number):
       return 'Shots through it gain Anti-Air.';
     case 'slow':
       return 'Shots through it slow what they hit to half speed for 2 beats.';
+    case 'fan':
+      return 'Each shot through it becomes 3, one up each lane; the copies come in from the side and get past Hobgoblin shields. Each shot uses 3 durability.';
   }
 }
 
@@ -114,29 +117,39 @@ function onlyAmountDiffers(then: readonly Effect[], otherwise: readonly Effect[]
   return null;
 }
 
+/** "in this lane", "in this lane and the lanes beside it", or "" for everywhere. */
+function where(scope: Scope | undefined): string {
+  if (scope === 'all') return '';
+  return scope === 'beside' ? ' in this lane and the lanes beside it' : ' in this lane';
+}
+
 function effectText(e: Effect, onUnit: boolean): string {
   switch (e.do) {
     case 'slow':
-      return `Slow ${e.scope === 'all' ? 'every enemy' : 'every enemy in this lane'} to ${e.pct}% speed for ${e.beats} beats`;
+      return `Slow every enemy${where(e.scope)} to ${e.pct}% speed for ${e.beats} beats`;
     case 'heal':
       return `Win back ${e.amount} crowd`;
-    case 'damageFront':
+    case 'damageFront': {
+      const each = e.scope === 'beside' ? ' (one in each)' : '';
       return e.prefer === 'priority'
-        ? `Deal ${e.amount} to a Troll, Hag, Shaman or boss in this lane, or else the enemy closest to the stage`
-        : `Deal ${e.amount} to the enemy closest to the stage in this lane`;
+        ? `Deal ${e.amount} to a Troll, Hag, Shaman or boss${where(e.scope)}${each}, or else the enemy closest to the stage`
+        : `Deal ${e.amount} to the enemy closest to the stage${where(e.scope)}${each}`;
+    }
     case 'damageLane':
-      return `Deal ${e.amount} to every enemy in this lane`;
+      return `Deal ${e.amount} to every enemy${where(e.scope)}`;
     case 'damageAll':
       return `Deal ${e.amount} to every ${e.only === 'flying' ? 'flying enemy' : 'enemy'}`;
     case 'volley': {
-      const who = e.tokensOnly ? 'Every Squire' : e.scope === 'lane' ? 'Units in this lane' : 'Every unit';
-      const fire = e.tokensOnly || e.scope !== 'lane' ? 'fires' : 'fire';
+      const who = e.tokensOnly ? 'Every Squire' : e.scope === 'all' ? 'Every unit' : `Units${where(e.scope)}`;
+      const fire = e.tokensOnly || e.scope === 'all' ? 'fires' : 'fire';
       return `${who} ${fire} ${e.shots === 1 ? 'an extra shot' : `${e.shots} extra shots`}`;
     }
     case 'roadie':
-      return `Put ${e.count === 1 ? 'a Squire' : `${e.count} Squires`} on stage ${e.scope === 'all' ? 'in every lane' : 'in this lane'}`;
+      return `Put ${e.count === 1 ? 'a Squire' : `${e.count} Squires`} on stage ${e.scope === 'all' ? 'in every lane' : where(e.scope).trim()}`;
     case 'repairGates':
-      return e.scope === 'all' ? `Every gate regains ${e.amount} durability` : `Gates in this lane regain ${e.amount} durability`;
+      return e.scope === 'all' ? `Every gate regains ${e.amount} durability` : `Gates${where(e.scope)} regain ${e.amount} durability`;
+    case 'squireTime':
+      return `Squires on stage stay ${e.beats} beats longer (never more than twice their usual stay)`;
     case 'selfFire':
       return `${onUnit ? 'It fires' : 'Fire'} ${e.shots} extra shots`;
     case 'gainEnergy':

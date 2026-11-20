@@ -25,6 +25,7 @@ export const GATE_COLORS: Record<GateKind, string> = {
   aim: '#8fd3ff',
   lift: '#f6d38a',
   slow: '#f29cc3',
+  fan: '#e8c15a',
 };
 const HEX_COLOR = '#c06bd6';
 

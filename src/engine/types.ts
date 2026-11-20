@@ -15,18 +15,19 @@ export type HeadlinerId = 'thrum' | 'lyra' | 'clatter' | 'aria' | 'riot';
 /** 'token': created by other cards (e.g. Roadies), never drawn or offered. */
 export type Rarity = 'starter' | 'common' | 'rare' | 'token';
 
-export type Scope = 'lane' | 'all';
+/** 'beside': this lane and the lanes next to it. */
+export type Scope = 'lane' | 'all' | 'beside';
 
 /** One step of something a card or trigger does. Amounts are base values before grade and chain multipliers. */
 export type Effect =
   /** Hit the enemy closest to the stage in the lane. `prefer: 'priority'`: a Breaker, Hexer or boss in the lane if there is one. `vsSlowedPct`: more damage to a slowed target. */
-  | { do: 'damageFront'; amount: number; prefer?: 'priority'; vsSlowedPct?: number }
+  | { do: 'damageFront'; amount: number; prefer?: 'priority'; vsSlowedPct?: number; scope?: 'lane' | 'beside' }
   /** Slow enemies in the lane (or everywhere): they move at `pct`% speed for `beats` beats. */
   | { do: 'slow'; scope: Scope; pct: number; beats: number }
   /** Win back crowd, up to your max. */
   | { do: 'heal'; amount: number }
-  /** Hit every enemy in the lane. */
-  | { do: 'damageLane'; amount: number }
+  /** Hit every enemy in the lane (`scope: 'beside'`: and in the lanes next to it). */
+  | { do: 'damageLane'; amount: number; scope?: 'lane' | 'beside' }
   /** Hit every enemy on the field (`only: 'flying'`: just flyers). */
   | { do: 'damageAll'; amount: number; only?: 'flying' }
   /** Every unit in the lane (or everywhere) fires extra shots right now. `tokensOnly`: just Roadies and other tokens. */
@@ -42,6 +43,8 @@ export type Effect =
   /** The unit that owns this trigger fires extra shots. */
   | { do: 'selfFire'; shots: number }
   | { do: 'gainEnergy'; amount: number }
+  /** Squires already on stage stay this many beats longer (never past twice their usual stay). */
+  | { do: 'squireTime'; beats: number }
   | { do: 'draw'; count: number }
   /** Feedback cost: lose crowd. */
   | { do: 'loseCrowd'; amount: number }
@@ -72,6 +75,8 @@ export interface UnitStats {
   priority?: boolean;
   /** Tokens leave the stage after this many beats. */
   lifespanBeats?: number;
+  /** Its shots turn into the next lane over, the way a Horn gate turns them, and come in from the side. */
+  turns?: boolean;
 }
 
 export type GateKind =
@@ -90,7 +95,9 @@ export type GateKind =
   /** Shots slow whatever they hit (Aria). */
   | 'slow'
   /** A speaker: shots turn into the next lane over (from the middle, alternating left and right). */
-  | 'aim';
+  | 'aim'
+  /** Each shot becomes 3, one up each lane; the copies come in from the side. Uses 3 durability per shot. */
+  | 'fan';
 
 export interface GateStats {
   kind: GateKind;

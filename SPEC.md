@@ -919,6 +919,33 @@ Built in three steps: **2a Tour** (done), 2b Collection & Workshop, 2c new headl
 - **Tour sim:** `sim:tour` at 30 runs per band doubles to about 24 minutes. Proposal: 20 per band for routine checks, 30 before shipping.
 - **Encore pick:** the title screen's headliner row gains a sixth portrait. It must still fit one row on a 375 px phone.
 - **Build order:** engine parts and tests, then the cards, the sim and a tuning pass, then Fanfare, sim, tuning. Art and music come last, so balance doesn't wait on them.
+### Content pass 2e — the last two monsters and a fourth boss (PROPOSED, Nov 20; not approved yet)
+
+**Why:** §6 asks for 14 monsters and 4 bosses; there are 12 and 3. Both new monsters punish standing still in one lane, which is what Fanfare, Shift and the three-lane riffs from 2d answer, so the new tools get a reason to exist beyond damage.
+
+**S2.7 Two monsters that punish a static band**
+*As a player, I want monsters that make me move and aim, not just stack damage in one lane.*
+- [ ] **Boggart** (debut wave 14). Every 4 beats it hops one lane over, to the neighbour with less firepower aimed at it. Health 70, 4 crowd. *Demands:* shots from the side, three-lane riffs and Shift. Answers: Ricochet, Rabble-Rouser, Bonfire, Thunder Roll, Herald, Triple Bell.
+- [ ] **Mire Golem** (debut wave 15). Armor 2, health 140, 5 crowd, slow. Units in its lane fire half as often while it's on the field. *Demands:* killing it from next door (turned shots ignore its aura), riffs, or Shifting the band out. Answers: Herald, Shawm, Call to Arms, Crossbow, Mighty Strum, Gong.
+- [ ] Each gets a debut banner, an on-field cue (the Boggart's hop, the Golem's mud in its lane), a long-press trait, a unit test, and sprites at the S4.2 bar.
+- [ ] From wave 15, waves can mix them in like any special. D6 must still pass with 14 monsters sharing the losses; D1 may not drop below 3.00×.
+
+**S2.8 The fourth boss: The Tempest**
+*As a player, I want a boss that breaks a set-up that never moves.*
+- [ ] **The Tempest** (1500 health, spans all lanes, sinks over 72 beats, 15 crowd if it lands, 5 back and the usual cap growth if beaten).
+- [ ] Phase 1, *Gale:* every 8 beats the wind swaps two lanes' units (a free, forced Shift; the banner names the lanes a beat ahead).
+- [ ] Phase 2, *Lightning:* every 6 beats a bolt hits the gate with the most durability left, for 20.
+- [ ] Phase 3, *Squall:* calls a Boggart every 6 beats.
+- [ ] *Why:* the other three punish a deck (no Anti-Air, one long chain, leaning on timing). The Tempest punishes a board that only works in one arrangement.
+
+**Where it goes (needs Grant's call):**
+- **Encore:** the bosses rotate in fours. The Hush on 10, 50…, The Black Knight 20, 60…, The Bone Wyrm 30, 70…, The Tempest 40, 80….
+- **Tour:** two options.
+  - (a) Keep the three act bosses, and make The Tempest the act 2 boss on Heat 4 and up (recommended: Heat gets a new kind of hard, not just more health).
+  - (b) Each act draws its boss from two by seed.
+
+**Build order:** engine parts and tests first, then the monsters, the sim and a tuning pass, then The Tempest, sim and tuning, then art.
+
 ---
 
 ### Phase 5 — Release (buy once, the full game)

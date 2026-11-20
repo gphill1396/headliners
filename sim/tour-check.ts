@@ -20,10 +20,11 @@ const arg = (name: string, fallback: string) => {
 };
 const runs = Number(arg('runs', '80'));
 // 30 per team: at 10, Heat win rates swung by ±5 points between near-identical builds (SPEC S4.3).
+// With 20 bands (six headliners) that takes about 24 minutes; --per-team 20 is the routine check.
 const perTeam = Number(arg('per-team', '30'));
 const part = arg('part', '');
 
-const SOLO: HeadlinerId[] = ['thrum', 'lyra', 'clatter', 'aria', 'riot'];
+const SOLO: HeadlinerId[] = ['thrum', 'lyra', 'clatter', 'aria', 'riot', 'fanfare'];
 const skilled = (headliner: HeadlinerId | 'rotate'): BotConfig => ({ name: String(headliner), kind: 'archetype', headliner, timingSkill: 0.7 });
 const random: BotConfig = { name: 'random', kind: 'random', headliner: 'rotate', timingSkill: 0 };
 

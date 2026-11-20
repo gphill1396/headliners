@@ -9,6 +9,7 @@ import type { Synth } from './synth';
  * - Clatter: a workshop jig. G major, swung hard, a shaker and the hurdy-gurdy's drone.
  * - Aria:    a sea-shanty lament. A minor, a sway, stomp-stomp-clap and a sung "ooh".
  * - Riot:    a bagpipe reel. D mixolydian, driving eighths, the pipes' drone and a crash.
+ * - Fanfare: a processional. C major, straight, a march drum and brass stabs, a shawm's call.
  *
  * A Tour band blends them: the lead's style sets the chords, the swing and the
  * time-keeping, and every member's signature part plays (the others' a little softer).
@@ -139,6 +140,28 @@ export const STYLES: Record<HeadlinerId, SongStyle> = {
         s.drone(c.t, c.eighthSec * 7.9, (c.chill ? 0.5 : 0.8) * level);
         if (c.bar % 2 === 0 && !c.chill && level >= 1) s.crash(c.t);
       }
+    },
+  },
+  fanfare: {
+    name: 'Processional',
+    // I – IV – V7 – I in C major.
+    chords: [chord(36, MAJ), chord(41, MAJ), chord(43, DOM7), chord(36, MAJ)],
+    swing: 0,
+    keeper: (s, c) => {
+      if (!c.onBeat) {
+        if (c.hot) s.snare(c.t, 0.18);
+        return;
+      }
+      // A processional march: a big drum on 1, side drum on 2 and 4.
+      if (c.inBar === 0) s.boom(c.t, c.chill ? 0.3 : 0.45);
+      if (c.inBar % 2 === 1) s.snare(c.t, c.chill ? 0.25 : 0.4);
+    },
+    signature: (s, c, level) => {
+      if (!c.onBeat) return;
+      // Brass: the chord as a held stab on 1; a herald's call (the shawm) every other bar.
+      if (c.inBar === 0) s.stab(c.t, [c.chord.notes[0]! - 12, c.chord.notes[1]! - 12, c.chord.notes[2]! - 12], c.eighthSec * 3, (c.chill ? 0.35 : 0.55) * level);
+      if (!c.chill && c.bar % 2 === 1 && c.inBar === 0) s.recorder(c.t, c.chord.notes[2]! + 12, c.eighthSec * 1.5, 0.45 * level);
+      if (!c.chill && c.bar % 2 === 1 && c.inBar === 1) s.recorder(c.t, c.chord.notes[3]! + 12, c.eighthSec * 2.5, 0.45 * level);
     },
   },
 };

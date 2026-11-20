@@ -113,8 +113,9 @@ const ACTIVE_BANNER: Record<HeadlinerId, string> = {
   clatter: 'A Squire in every lane',
   aria: 'Every enemy holds still',
   riot: 'All damage doubled',
+  fanfare: 'Every shot fans out across the lanes',
 };
-const ACTIVE_ON: Record<HeadlinerId, string> = { thrum: 'Filling', lyra: 'Swelling', clatter: 'All in', aria: 'Holding', riot: 'Rioting' };
+const ACTIVE_ON: Record<HeadlinerId, string> = { thrum: 'Filling', lyra: 'Swelling', clatter: 'All in', aria: 'Holding', riot: 'Rioting', fanfare: 'Fanning' };
 
 
 type View = 'title' | 'playing' | 'paused' | 'over';

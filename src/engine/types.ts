@@ -10,7 +10,7 @@ export type CardType = 'unit' | 'gate' | 'riff' | 'amp';
 
 export type Keyword = 'pierce' | 'splash' | 'echo' | 'downbeat' | 'encore' | 'feedback' | 'antiAir' | 'roadie' | 'shred' | 'priority' | 'speaker' | 'volume' | 'slow';
 
-export type HeadlinerId = 'thrum' | 'lyra' | 'clatter' | 'aria' | 'riot';
+export type HeadlinerId = 'thrum' | 'lyra' | 'clatter' | 'aria' | 'riot' | 'fanfare';
 
 /** 'token': created by other cards (e.g. Roadies), never drawn or offered. */
 export type Rarity = 'starter' | 'common' | 'rare' | 'token';
@@ -31,7 +31,8 @@ export type Effect =
   /** Hit every enemy on the field (`only: 'flying'`: just flyers). */
   | { do: 'damageAll'; amount: number; only?: 'flying' }
   /** Every unit in the lane (or everywhere) fires extra shots right now. `tokensOnly`: just Roadies and other tokens. */
-  | { do: 'volley'; scope: Scope; shots: number; tokensOnly?: boolean }
+  /** `turn`: the shots turn into the next lane over, like a Horn's. `hornsOnly`: just units in a lane with a Horn gate, and units whose shots turn. */
+  | { do: 'volley'; scope: Scope; shots: number; tokensOnly?: boolean; turn?: boolean; hornsOnly?: boolean }
   /** Put Roadie tokens on stage in this lane, or in every lane (Clatter). */
   | { do: 'roadie'; count: number; scope?: Scope }
   /** Volume: the unit that owns this trigger gains +amount damage for good (up to 20 times). */
@@ -188,7 +189,7 @@ export interface EnemyDef {
   wide?: boolean;
 }
 
-export type EvolutionId = 'metronome' | 'polyrhythm' | 'crescendo' | 'harmony' | 'load-out' | 'mosh-pit' | 'long-note' | 'banshee' | 'anarchy' | 'comeback';
+export type EvolutionId = 'metronome' | 'polyrhythm' | 'crescendo' | 'harmony' | 'load-out' | 'mosh-pit' | 'long-note' | 'banshee' | 'anarchy' | 'comeback' | 'crossfire' | 'royal-decree';
 
 export interface EvolutionDef {
   id: EvolutionId;

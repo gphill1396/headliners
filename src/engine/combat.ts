@@ -3,6 +3,8 @@ import {
   BANSHEE_PCT,
   COMEBACK_MAX_PCT,
   COMEBACK_PCT_PER_CROWD,
+  FANFARE_TURN_DAMAGE,
+  FANFARE_TURN_PIERCE,
   RIOT_DAMAGE_PCT,
   RIOT_CHAIN,
   RIOT_KILLS_PER_CROWD,
@@ -37,19 +39,21 @@ const FAN_LANES = LANES;
 /** Each Splitter piece that gets through costs this much crowd. */
 const SPLITTER_PIECE_CROWD = 2;
 
-/** Spawn `shots` projectiles from a unit. `multPct` scales damage (chain multiplier). */
-export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct: number): void {
+/**
+ * Spawn `shots` projectiles from a unit. `multPct` scales damage (chain multiplier).
+ * `turn`: these shots turn into the next lane over even if the unit's don't (Call to Arms).
+ */
+export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct: number, turn = false): void {
   // Clatter's Mosh Pit: with enough Roadies on stage, their shots Splash.
   const mosh = unit.token === true && evolvedInto(state, 'mosh-pit') && state.units.filter((u) => u.token).length >= MOSH_PIT_TOKENS;
+  // Fanfare's ability: for a couple of beats every shot fans out, one up each lane.
+  const fanning = state.headliner.id === 'fanfare' && state.clock.beat < state.headliner.activeUntilBeat;
   for (let s = 0; s < shots; s++) {
     if (state.projectiles.length >= MAX_PROJECTILES) return;
-    const id = state.nextId++;
-    // A turning unit (Herald) sends its shots into the next lane over, in from the side.
-    const lane = unit.turns ? aimLane(unit.lane, id) : unit.lane;
-    state.projectiles.push({
-      id,
-      lane,
-      x: lane === unit.lane ? (SLOT_X[unit.slot] ?? 500) + ((s % 3) - 1) * 60 : sideX(unit.lane, lane),
+    const p: Projectile = {
+      id: state.nextId++,
+      lane: unit.lane,
+      x: (SLOT_X[unit.slot] ?? 500) + ((s % 3) - 1) * 60,
       // Multiple shots leave in a short burst, not stacked on one pixel.
       depth: STAGE_LINE - s * 1_400,
       damage: (unit.damage * multPct) / 100,
@@ -57,10 +61,39 @@ export function fireUnit(state: EngineState, unit: Unit, shots: number, multPct:
       splash: unit.splash || mosh,
       ...(unit.antiAir ? { antiAir: true } : {}),
       ...(unit.priority ? { priority: true } : {}),
-      ...(lane !== unit.lane ? { side: true } : {}),
       gatesPassed: 0,
       sourceCardId: unit.cardId,
-    });
+    };
+    // A turning unit (Herald) sends its shots into the next lane over, in from the side.
+    if (unit.turns || turn) turnShot(state, p, unit.lane, aimLane(unit.lane, p.id));
+    state.projectiles.push(p);
+    if (fanning) {
+      for (let lane = 0; lane < LANES; lane++) {
+        if (lane === p.lane || state.projectiles.length >= MAX_PROJECTILES) continue;
+        const copy: Projectile = { ...p, id: state.nextId++, damage: (unit.damage * multPct) / 100, pierceLeft: unit.pierce };
+        turnShot(state, copy, p.lane, lane);
+        state.projectiles.push(copy);
+      }
+    }
+  }
+}
+
+/**
+ * A shot turns from lane `from` into lane `to` (a Horn, a turning unit, a fan):
+ * it comes in from the side, so it gets past shields. Fanfare's passive makes it
+ * hit harder and pierce; her Crossfire lets it hit flyers and ignore armor.
+ */
+export function turnShot(state: EngineState, p: Projectile, from: number, to: number): void {
+  p.lane = to;
+  p.x = sideX(from, to);
+  p.side = true;
+  if (hasMember(state, 'fanfare')) {
+    p.damage += FANFARE_TURN_DAMAGE;
+    p.pierceLeft += FANFARE_TURN_PIERCE;
+  }
+  if (evolvedInto(state, 'crossfire')) {
+    p.antiAir = true;
+    p.shred = true;
   }
 }
 
@@ -386,21 +419,19 @@ function applyGate(state: EngineState, p: Projectile, g: Gate): boolean {
     case 'slow':
       p.slows = true;
       break;
-    case 'aim': {
-      const target = aimLane(g.lane, p.id);
-      p.x = sideX(g.lane, target);
-      p.lane = target;
+    case 'aim':
+      turnShot(state, p, g.lane, aimLane(g.lane, p.id));
       p.depth = g.depth;
-      p.side = true;
       return true;
-    }
     case 'fan': {
       // One shot up each lane: the original carries on, a copy turns into each other lane.
       g.durability -= FAN_LANES - 1;
       for (let lane = 0; lane < LANES; lane++) {
         if (lane === g.lane) continue;
         if (state.projectiles.length >= MAX_PROJECTILES) break;
-        state.projectiles.push({ ...p, id: state.nextId++, lane, x: sideX(g.lane, lane), depth: g.depth, side: true });
+        const copy: Projectile = { ...p, id: state.nextId++, depth: g.depth };
+        turnShot(state, copy, g.lane, lane);
+        state.projectiles.push(copy);
       }
       break;
     }

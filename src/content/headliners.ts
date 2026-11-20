@@ -92,4 +92,22 @@ export const HEADLINERS: Record<HeadlinerId, HeadlinerDef> = {
     sound: 'Bagpipes: a roaring drone and a wailing chanter.',
     style: 'Aggression. Spend crowd on huge hits, then earn it back by clearing the horde.',
   },
+  fanfare: {
+    id: 'fanfare',
+    name: 'Fanfare',
+    title: 'the griffin herald',
+    passive: 'Shots that turn into another lane gain +3 damage and Pierce 1.',
+    active: {
+      name: 'Fanfare',
+      text: "For 2 beats, every unit's shots fan out, one up each lane.",
+      cooldownBeats: 14,
+      durationBeats: 2,
+    },
+    evolutions: [
+      { id: 'crossfire', name: 'Crossfire', text: 'Shots that turn lanes also hit flyers and ignore armor.' },
+      { id: 'royal-decree', name: 'Royal Decree', text: 'Shift costs no energy, and your band keeps playing as it moves.' },
+    ],
+    sound: 'Brass: natural horn and sackbut, a shawm on top, herald calls on beat 1.',
+    style: 'Aim. Turn the band across lanes and catch the horde from the side.',
+  },
 };

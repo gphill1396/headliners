@@ -191,7 +191,8 @@ function runEffect(state: EngineState, ctx: TickCtx, effect: Effect, src: Effect
       for (const u of state.units) {
         if (!lanes.includes(u.lane)) continue;
         if (effect.tokensOnly && !u.token) continue;
-        fireUnit(state, u, effect.shots, src.multPct);
+        if (effect.hornsOnly && !u.turns && !state.gates.some((g) => g.lane === u.lane && g.durability > 0 && (g.kind === 'aim' || g.kind === 'fan'))) continue;
+        fireUnit(state, u, effect.shots, src.multPct, effect.turn === true);
       }
       return;
     }

@@ -260,6 +260,21 @@ export function scheduleGroove(synth: Synth, mix: BoardMix, eighth: number, tBea
         // The bagpipes' drone: one long low note, restruck on the beat.
         if (onBeat) synth.pipes(tu, chord.root, eighthSec * 2, 0.4 * v, dest);
         break;
+      case 'herald':
+        // A short brass call: root and fifth.
+        if (chill && inBar % 2 === 1) break;
+        synth.stab(tu, [chord.notes[0]!, chord.notes[2]!], eighthSec * 0.8, 0.45 * v, dest);
+        break;
+      case 'hunting-horn':
+        // The hunting horn's two-note call, high.
+        if (chill && !onBeat) break;
+        synth.recorder(tu, chord.notes[inBar % 2 === 0 ? 2 : 0]! + 12, eighthSec * 0.9, 0.4 * v, dest);
+        break;
+      case 'shawm':
+        // The shawm: a reedy note up the chord, on the beat.
+        if (chill && inBar % 2 === 1) break;
+        if (onBeat) synth.pipes(tu, chord.notes[(inBar + 1) % 4]! + 12, eighthSec * 1.4, 0.35 * v, dest, true);
+        break;
       default:
         synth.tom(tu, 48, 0.7 * v, dest);
     }
@@ -408,6 +423,22 @@ export function playRiff(synth: Synth, cardId: string, lane: number, beat: numbe
     case 'rabble-rouser':
       synth.punk(t, chord.root + 24, 0.3, level, dest);
       synth.crash(t + sixteenth);
+      break;
+    case 'summons':
+      // A herald's call: three rising notes.
+      chord.notes.slice(0, 3).forEach((m, i) => synth.recorder(t + i * sixteenth, m + 12, sixteenth * 1.2, 0.6 * level, dest));
+      break;
+    case 'call-to-arms':
+      synth.stab(t, [chord.notes[0]!, chord.notes[1]!, chord.notes[2]!], 0.3, 0.8 * level, dest);
+      synth.snare(t + sixteenth, 0.5 * level, dest);
+      break;
+    case 'ricochet':
+      for (let i = 0; i < 3; i++) synth.clank(t + i * sixteenth, 0.5 * level, dest, 1.4 + i * 0.3);
+      break;
+    case 'grand-entrance':
+      synth.crash(t);
+      synth.stab(t, [...chord.notes], 0.8, level, dest);
+      synth.boom(t, 0.8 * level, dest);
       break;
     default:
       synth.stab(t, [chord.root + 24, chord.root + 31], 0.25, 0.7 * level, dest);

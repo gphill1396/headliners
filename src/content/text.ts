@@ -140,9 +140,11 @@ function effectText(e: Effect, onUnit: boolean): string {
     case 'damageAll':
       return `Deal ${e.amount} to every ${e.only === 'flying' ? 'flying enemy' : 'enemy'}`;
     case 'volley': {
+      if (e.hornsOnly) return `Units behind a Horn, and units whose shots turn, fire ${e.shots === 1 ? 'an extra shot' : `${e.shots} extra shots`}`;
       const who = e.tokensOnly ? 'Every Squire' : e.scope === 'all' ? 'Every unit' : `Units${where(e.scope)}`;
       const fire = e.tokensOnly || e.scope === 'all' ? 'fires' : 'fire';
-      return `${who} ${fire} ${e.shots === 1 ? 'an extra shot' : `${e.shots} extra shots`}`;
+      const turn = e.turn ? ', and the shots turn into the next lane over' : '';
+      return `${who} ${fire} ${e.shots === 1 ? 'an extra shot' : `${e.shots} extra shots`}${turn}`;
     }
     case 'roadie':
       return `Put ${e.count === 1 ? 'a Squire' : `${e.count} Squires`} on stage ${e.scope === 'all' ? 'in every lane' : where(e.scope).trim()}`;

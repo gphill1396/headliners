@@ -18,4 +18,5 @@ export const PALETTE = {
   clatter: '#e8d36a',
   aria: '#f29cc3',
   riot: '#9fe061',
+  fanfare: '#e8c15a',
 } as const;

@@ -356,10 +356,13 @@ function shift(state: EngineState, ctx: TickCtx, from: number, to: number): void
   if (moving.length === 0) return reject('lane');
   const bar = Math.floor(state.clock.beat / BEATS_PER_BAR);
   if (state.shiftBar === bar) return reject('shifted');
-  if (state.energy < SHIFT_COST) return reject('energy');
-  state.energy -= SHIFT_COST;
+  // Fanfare's Royal Decree: the Shift is free, and the band keeps playing as it moves.
+  const decree = evolvedInto(state, 'royal-decree');
+  const cost = decree ? 0 : SHIFT_COST;
+  if (state.energy < cost) return reject('energy');
+  state.energy -= cost;
   state.shiftBar = bar;
-  const until = state.clock.beat + 1 + SHIFT_PAUSE_BEATS;
+  const until = decree ? state.clock.beat : state.clock.beat + 1 + SHIFT_PAUSE_BEATS;
   for (const u of moving) {
     u.movedFrom = u.lane;
     u.movedAt = state.clock.beat + state.clock.phase / BEAT_UNITS;

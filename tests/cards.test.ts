@@ -6,13 +6,14 @@ import { ENEMIES } from '../src/content/enemies';
 import { cardText } from '../src/content/text';
 import { addEnemy, nextBeat, noWaves, playOnBeat, runTicks, testState, toBeatEdge, giveCard } from './helpers';
 
-const HEADLINERS = ['thrum', 'lyra', 'clatter', 'aria', 'riot'] as const;
+const HEADLINERS = ['thrum', 'lyra', 'clatter', 'aria', 'riot', 'fanfare'] as const;
 
-test('the full set: about 80 cards, 11 signature cards per headliner (content pass 2d), 12-card starter decks', () => {
+test('the full set: about 90 cards, 11 signature cards per headliner (9 for Fanfare), 12-card starter decks', () => {
   const real = CARDS.filter((c) => c.rarity !== 'token');
-  assert.ok(real.length >= 80, `${real.length} cards`);
+  assert.ok(real.length >= 90, `${real.length} cards`);
   for (const h of HEADLINERS) {
-    assert.equal(real.filter((c) => c.headliner === h).length, 11, h);
+    // Fanfare arrived in content pass 2d with 9; the first five have 11.
+    assert.equal(real.filter((c) => c.headliner === h).length, h === 'fanfare' ? 9 : 11, h);
     assert.equal(STARTER_DECKS[h].length, 12, h);
     for (const id of STARTER_DECKS[h]) assert.ok(getCard(id), id);
   }
